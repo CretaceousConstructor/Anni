@@ -1,0 +1,48 @@
+#include "VkSynObjectFactory.h"
+namespace Anni
+{
+
+
+
+
+
+	//VkSynObjectFactory::VkSynObjectFactory(GraphicsComponent &_gfx) :
+	//    gfx(_gfx),
+	//    device_manager(gfx.DeviceMan()),
+	//    window(gfx.Window())
+	//{
+	//}
+	//
+	//std::shared_ptr<VkSemaphoreBundle> VkSynObjectFactory::GetSemaphoreBundle(uint32_t _bundle_size) const
+	//{
+	//	auto result = std::make_shared<VkSemaphoreBundle>(device_manager, _bundle_size);
+	//	return result;
+	//}
+	//
+	//std::shared_ptr<VkEventBundle> VkSynObjectFactory::GetEventBundle(uint32_t _bundle_size) const
+	//{
+	//	auto result = std::make_shared<VkEventBundle>(device_manager, _bundle_size);
+	//	return result;
+	//}
+	//
+	//std::shared_ptr<VkFenceBundle> VkSynObjectFactory::GetFenceBundle(uint32_t _bundle_size, VkSynObjectBundleBase::SyncObjCreateOption option) const
+	//{
+	//	auto result = std::make_shared<VkFenceBundle>(device_manager, _bundle_size, option);
+	//	return result;
+	//}
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+}        // namespace Anni
