@@ -1,7 +1,3 @@
-
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image.h"
 #include "TextureFactory.h"
 
 
@@ -377,7 +373,7 @@ namespace Anni
 
 			//========================================================================================================================
 
-			auto staging_buffer = buffer_factory.ProduceBufferReFac(ktxTextureSize, CI::StagingBuffer);
+			auto staging_buffer = buffer_factory.ProduceBuffer(ktxTextureSize, CI::StagingBuffer);
 
 			//创建完staging buffer以后，把cpu-side中的texture中的数据拷贝进staging buffer
 			//TODO: whether to use memReqs.size or just ktxTexureSize. 用ktxTexturesSize是对的。
@@ -437,7 +433,6 @@ namespace Anni
 			tex_img_CI.vk_image_CI.arrayLayers = ktxTexture->numFaces;
 
 			texture_image = img_factory.ProduceImage(tex_img_CI);
-
 			texture_image->CopyBufferToImageOnTransferUpload(staging_buffer->GetGPUBuffer(), buffer_copy_regions);
 
 		}

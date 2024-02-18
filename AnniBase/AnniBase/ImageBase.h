@@ -12,11 +12,11 @@ namespace Anni
 
 	public:
 		ImageBaseReFac(
-			GraphicsComponent& _gfx,
-			vk::Image    image_,
-			ImageCIEnhanced    image_CI_
+			GraphicsComponent& gfx_,
+			vk::Image          image_,
+			ImageCIEnhanced&    image_CI_
 			) :
-			gfx(_gfx), device_manager(gfx.DeviceMan()), image(image_), vk_image_CI(image_CI_)
+			gfx(gfx_), device_manager(gfx.DeviceMan()), image(image_), vk_image_CI(image_CI_)
 		{
 		}
 
@@ -56,7 +56,6 @@ namespace Anni
 	protected:
 		GraphicsComponent& gfx;
 		DeviceManager& device_manager;
-
 	protected:
 		vk::Image         image;
 		ImageCIEnhanced vk_image_CI;

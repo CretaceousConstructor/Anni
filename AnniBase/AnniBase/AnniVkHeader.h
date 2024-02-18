@@ -1,5 +1,9 @@
 #pragma once
 
+
+#define ANNI_VK_API_VERSION VK_API_VERSION_1_3
+
+
 #ifndef VK_USE_PLATFORM_WIN32_KHR
 #	define VK_USE_PLATFORM_WIN32_KHR
 #endif
@@ -11,6 +15,11 @@
 #ifndef VK_ZERO_FLAG
 #   define VK_ZERO_FLAG 0
 #endif
+
+
+
+
+
 
 //#ifndef VULKAN_HPP_NO_EXCEPTIONS
 //#	define VULKAN_HPP_NO_EXCEPTIONS

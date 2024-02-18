@@ -22,7 +22,8 @@ namespace Anni
 		result.vk_image_CI.initialLayout = vk::ImageLayout::eUndefined;
 
 		//*************************************
-		result.mem_prop = vk::MemoryPropertyFlagBits::eDeviceLocal;
+		result.vma_allocation_CI.usage = VMA_MEMORY_USAGE_AUTO;
+		result.vma_allocation_CI.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 		result.aspect_flags = vk::ImageAspectFlagBits::eDepth;
 
 		return result;
@@ -50,7 +51,8 @@ namespace Anni
 		result.vk_image_CI.sharingMode = vk::SharingMode::eExclusive;
 		result.vk_image_CI.initialLayout = vk::ImageLayout::eUndefined;
 		//*************************************
-		result.mem_prop = vk::MemoryPropertyFlagBits::eDeviceLocal;
+		result.vma_allocation_CI.usage = VMA_MEMORY_USAGE_AUTO;
+		result.vma_allocation_CI.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 		result.aspect_flags = vk::ImageAspectFlagBits::eDepth;
 	}
 
@@ -77,7 +79,8 @@ namespace Anni
 		//在specification中，初始layout只能是undefined
 		result.vk_image_CI.initialLayout = vk::ImageLayout::eUndefined;
 		//*************************************
-		result.mem_prop = vk::MemoryPropertyFlagBits::eDeviceLocal;
+		result.vma_allocation_CI.usage = VMA_MEMORY_USAGE_AUTO;
+		result.vma_allocation_CI.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 		result.aspect_flags = vk::ImageAspectFlagBits::eDepth;
 
 		result.image_path = std::move(image_path_);

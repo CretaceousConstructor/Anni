@@ -1,8 +1,6 @@
 #pragma once
-#include "AnniBase/AnniMath.h"
 #include "AnniBase/IApp.h"
 #include "AnniBase/GraphicsComponent.h"
-
 #include "RealtimeRenderer.h"
 #include <memory>
 

@@ -1,0 +1,15 @@
+D:/CS/Anni/Build/CMakeFiles/INSTALL.dir
+D:/CS/Anni/Build/CMakeFiles/ALL_BUILD.dir
+D:/CS/Anni/Build/CMakeFiles/ZERO_CHECK.dir
+D:/CS/Anni/Build/third_party/CMakeFiles/AnniImGui.dir
+D:/CS/Anni/Build/third_party/CMakeFiles/INSTALL.dir
+D:/CS/Anni/Build/third_party/fastgltf/CMakeFiles/fastgltf_simdjson.dir
+D:/CS/Anni/Build/third_party/fastgltf/CMakeFiles/fastgltf.dir
+D:/CS/Anni/Build/third_party/fastgltf/CMakeFiles/INSTALL.dir
+D:/CS/Anni/Build/third_party/fastgltf/CMakeFiles/ALL_BUILD.dir
+D:/CS/Anni/Build/AnniBase/CMakeFiles/AnniBase.dir
+D:/CS/Anni/Build/AnniBase/CMakeFiles/INSTALL.dir
+D:/CS/Anni/Build/AnniBase/CMakeFiles/ALL_BUILD.dir
+D:/CS/Anni/Build/AnniRenderer/CMakeFiles/AnniRenderer.dir
+D:/CS/Anni/Build/AnniRenderer/CMakeFiles/INSTALL.dir
+D:/CS/Anni/Build/AnniRenderer/CMakeFiles/ALL_BUILD.dir

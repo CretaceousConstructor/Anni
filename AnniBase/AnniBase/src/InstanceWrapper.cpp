@@ -41,7 +41,7 @@ namespace Anni
 		VULKAN_HPP_ASSERT(ValidationUtility::CheckIfRequiredInstanceLayersSupported(), "some instance layers required, but not available!");
 
 		// initialize the vk::ApplicationInfo structure
-		vk::ApplicationInfo applicationInfo(app_name.c_str(), 2, engine_name.c_str(), 1, VK_API_VERSION_1_3);
+		vk::ApplicationInfo applicationInfo(app_name.c_str(), 2, engine_name.c_str(), 1, ANNI_VK_API_VERSION);
 
 		// initialize the vk::InstanceCreateInfo填写实例创建信息
 		vk::InstanceCreateInfo instance_create_info({}, &applicationInfo);

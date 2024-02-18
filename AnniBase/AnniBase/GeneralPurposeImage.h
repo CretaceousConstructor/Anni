@@ -6,9 +6,14 @@ namespace Anni
 	{
 		friend class ImageFactory;
 	public:
-		GeneralPurposeImageReFac(GraphicsComponent& gfx_, const vk::Image image_, const vk::DeviceMemory image_mem_, ImageCIEnhanced vk_image_CI,
+		GeneralPurposeImageReFac(
+			GraphicsComponent& gfx_,
+			VmaAllocatorWrapper& allocator,
+			const vk::Image image_,
+			const VmaAllocation  vma_allocation_,
+			ImageCIEnhanced& vk_image_CI,
 			VkTimelineSemPoolUnsafe& sem_pool_
-			);
+		);
 
 		~GeneralPurposeImageReFac() override;
 		GeneralPurposeImageReFac() = delete;
@@ -23,12 +28,12 @@ namespace Anni
 		//void CopyBufferToImage1mip1levelOnTransferUpload(VkBuffer buffer, uint32_t width, uint32_t height);
 
 	private:
-		GeneralPurposeImageReFac(GraphicsComponent& _gfx, const VkImage _image, const VkDeviceMemory _image_mem, ImageCIEnhanced vk_image_CI);
-
-	private:
-		VkDeviceMemory image_mem{ nullptr };
+		//VkDeviceMemory image_mem{ nullptr };
+		VmaAllocatorWrapper& allocator;
+		VmaAllocation        vma_allocation;
 		VkTimelineSemPoolUnsafe& sem_pool;
-
 	};
+
+
 
 }        // namespace Anni

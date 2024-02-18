@@ -1,0 +1,2 @@
+D:/CS/Anni/Build/third_party/fastgltf/fastgltf.dir/MinSizeRel/fastgltf.obj
+D:/CS/Anni/Build/third_party/fastgltf/fastgltf.dir/MinSizeRel/base64.obj

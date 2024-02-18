@@ -2,16 +2,37 @@
 
 namespace Anni
 {
-	Buffer::Buffer(GraphicsComponent& gfx_, VkTimelineSemPoolUnsafe& sem_pool_, const VkBuffer buffer_, const VkDeviceMemory buffer_memory_, BufferCreateInfoEnhanced buf_CI_) :
-		gfx(gfx_), device_manager(gfx_.DeviceMan()), sem_pool(sem_pool_), buf(buffer_), buf_mem(buffer_memory_), buf_CI(buf_CI_)
+	Buffer::Buffer(
+		QueueManager& queue_manager_,
+		DeviceManager& device_manager_,
+		VmaAllocatorWrapper& allocator_,
+		VkTimelineSemPoolUnsafe& sem_pool_,
+
+		const vk::Buffer buffer_,
+		const VmaAllocation vma_allocation_,
+		const BufferCreateInfoEnhanced& buf_CI_
+	) :
+		queue_manager(queue_manager_),
+		device_manager(device_manager_),
+		allocator(allocator_),
+		sem_pool(sem_pool_),
+		buf(buffer_),
+		vma_allocation(vma_allocation_),
+		buf_CI(buf_CI_)
 	{
 	}
 
+
+
+
 	Buffer::~Buffer()
 	{
-		Unmap();
-		device_manager.GetLogicalDevice().destroyBuffer(buf);
-		device_manager.GetLogicalDevice().freeMemory(buf_mem);
+
+		vmaDestroyBuffer(allocator.GetRaw(), buf, vma_allocation);
+
+		//Unmap();
+		//device_manager.GetLogicalDevice().destroyBuffer(buf);
+		//device_manager.GetLogicalDevice().freeMemory(buf_mem);
 	}
 
 
@@ -56,14 +77,33 @@ namespace Anni
 
 	void Buffer::CopyFromHost(void const* outside_data_to_be_mapped, size_t outside_data_size, VkDeviceSize mapped_region_starting_offset)
 	{
-		VULKAN_HPP_ASSERT(mapped_ptr_to_GPU_memory != nullptr, "This buffer is not host visible.");
 
-		memcpy(static_cast<void*>((static_cast<uint8_t*>(mapped_ptr_to_GPU_memory) + mapped_region_starting_offset)), outside_data_to_be_mapped, outside_data_size);
+		//VmaAllocator allocator,
+		//const void* pSrcHostPointer,
+		//VmaAllocation dstAllocation,
+		//VkDeviceSize dstAllocationLocalOffset,
+		//VkDeviceSize size)
+		//VK_CHECK_RESULT
 
-		if (~(buf_CI.mem_prop & vk::MemoryPropertyFlagBits::eHostCoherent))
-		{
-			Flush(outside_data_size, mapped_region_starting_offset);
-		}
+
+
+		VK_CHECK_RESULT(
+			vmaCopyMemoryToAllocation(
+				allocator.GetRaw(),
+				outside_data_to_be_mapped,
+				vma_allocation,
+				mapped_region_starting_offset,
+				outside_data_size
+			));
+
+		//VULKAN_HPP_ASSERT(mapped_ptr_to_GPU_memory != nullptr, "This buffer is not host visible.");
+
+		//memcpy(static_cast<void*>((static_cast<uint8_t*>(mapped_ptr_to_GPU_memory) + mapped_region_starting_offset)), outside_data_to_be_mapped, outside_data_size);
+
+		//if (~(buf_CI.mem_prop & vk::MemoryPropertyFlagBits::eHostCoherent))
+		//{
+		//	Flush(outside_data_size, mapped_region_starting_offset);
+		//}
 
 		Buf2BufCopyInfo cpy_inf;
 		cpy_inf.size = outside_data_size;
@@ -75,51 +115,51 @@ namespace Anni
 		copy_infos.push_back(std::move(cpy_inf));
 	}
 
-	void Buffer::MapMemory(VkDeviceSize size, VkDeviceSize offset)
-	{
-		mapped_ptr_to_GPU_memory = device_manager.GetLogicalDevice().mapMemory(buf_mem, offset, size, vk::MemoryMapFlags(VK_ZERO_FLAG));
-	}
+	//void Buffer::MapMemory(VkDeviceSize size, VkDeviceSize offset)
+	//{
+	//	mapped_ptr_to_GPU_memory = device_manager.GetLogicalDevice().mapMemory(buf_mem, offset, size, vk::MemoryMapFlags(VK_ZERO_FLAG));
+	//}
 
-	void Buffer::Flush(vk::DeviceSize size, vk::DeviceSize offset_within_whole_mem) const
-	{
-		vk::MappedMemoryRange mappedRange = {};
-		mappedRange.memory = buf_mem;
-		mappedRange.offset = offset_within_whole_mem;
-		mappedRange.size = size;
+	//void Buffer::Flush(vk::DeviceSize size, vk::DeviceSize offset_within_whole_mem) const
+	//{
+	//	vk::MappedMemoryRange mappedRange = {};
+	//	mappedRange.memory = buf_mem;
+	//	mappedRange.offset = offset_within_whole_mem;
+	//	mappedRange.size = size;
 
-		device_manager.GetLogicalDevice().flushMappedMemoryRanges(mappedRange);
-	}
+	//	device_manager.GetLogicalDevice().flushMappedMemoryRanges(mappedRange);
+	//}
 
-	void Buffer::Unmap()
-	{
-		if (mapped_ptr_to_GPU_memory)
-		{
-			device_manager.GetLogicalDevice().unmapMemory(buf_mem);
-			mapped_ptr_to_GPU_memory = nullptr;
-		}
-	}
+	//void Buffer::Unmap()
+	//{
+	//	if (mapped_ptr_to_GPU_memory)
+	//	{
+	//		device_manager.GetLogicalDevice().unmapMemory(buf_mem);
+	//		mapped_ptr_to_GPU_memory = nullptr;
+	//	}
+	//}
 
-	void Buffer::Invalidate(vk::DeviceSize size, vk::DeviceSize offset_within_whole_mem) const
-	{
-		vk::MappedMemoryRange mappedRange = {};
-		mappedRange.memory = buf_mem;
-		mappedRange.offset = offset_within_whole_mem;
-		mappedRange.size = size;
-		device_manager.GetLogicalDevice().invalidateMappedMemoryRanges(mappedRange);
+	//void Buffer::Invalidate(vk::DeviceSize size, vk::DeviceSize offset_within_whole_mem) const
+	//{
+	//	vk::MappedMemoryRange mappedRange = {};
+	//	mappedRange.memory = buf_mem;
+	//	mappedRange.offset = offset_within_whole_mem;
+	//	mappedRange.size = size;
+	//	device_manager.GetLogicalDevice().invalidateMappedMemoryRanges(mappedRange);
 
 
-	}
+	//}
 
-	void* Buffer::GetPtrToMappedRegion() const
-	{
-		return mapped_ptr_to_GPU_memory;
-	}
+	//void* Buffer::GetPtrToMappedRegion() const
+	//{
+	//	return mapped_ptr_to_GPU_memory;
+	//}
 
 
 	void Buffer::CopyFromStagingBuf(Buffer& providing_buf, Buf2BufCopyInfo copy_info)
 	{
 		//TODO: buffer range overlap testing检测overlap，然后根据overlap等待sem从而进行恰当的同步。
-		Anni::Queue& queue_used_trans = gfx.QueueMan().GetMostDedicatedTransferQueue();
+		Anni::Queue& queue_used_trans = queue_manager.GetMostDedicatedTransferQueue();
 		Buffer& receiving_buf = *this;
 
 		auto providing_buf_queue_fam = VK_QUEUE_FAMILY_IGNORED;
@@ -430,7 +470,7 @@ namespace Anni
 
 	VkDeviceSize Buffer::BufMemSize() const
 	{
-		return buf_CI.mem_req.size;
+		return buf_CI.vma_allocation_info.size;
 	}
 
 	vk::Buffer Buffer::GetGPUBuffer() const

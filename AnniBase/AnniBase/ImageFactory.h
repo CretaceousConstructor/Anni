@@ -10,7 +10,11 @@ namespace Anni
 	class ImageFactory
 	{
 	public:
-		ImageFactory(GraphicsComponent& _gfx);
+		ImageFactory(
+			GraphicsComponent& gfx_,
+			VmaAllocatorWrapper& vam_allocator_,
+			VkTimelineSemPoolUnsafe& sem_pool_
+			);
 		~ImageFactory() = default;
 
 		ImageFactory() = delete;
@@ -20,11 +24,11 @@ namespace Anni
 		ImageFactory(ImageFactory&&) = delete;
 		ImageFactory& operator=(ImageFactory&&) = delete;
 
-		[[nodiscard]] std::shared_ptr<GeneralPurposeImageReFac> ProduceImage(ImageCIEnhanced img_CI) const;
+		[[nodiscard]] std::shared_ptr<GeneralPurposeImageReFac> ProduceImage(ImageCIEnhanced& img_CI) const;
 
 	private:
-		[[nodiscard]] VkImage        BuildImage(ImageCIEnhanced& img_CI) const;
-		[[nodiscard]] VkDeviceMemory CreateAndBindMemory(ImageCIEnhanced& img_CI, VkImage temp_image) const;
+		//[[nodiscard]] vk::Image        BuildImage(ImageCIEnhanced& img_CI) const;
+		//[[nodiscard]] vk::DeviceMemory CreateAndBindMemory(ImageCIEnhanced& img_CI, vk::Image temp_image) const;
 
 		//static void                  TransitionImageLayout(ImageCIEnhanced &img_CI, const std::shared_ptr<ImageBaseReFac> &result);
 
@@ -32,7 +36,9 @@ namespace Anni
 		GraphicsComponent& gfx;
 		DeviceManager& device_manager;
 		SwapchainManager& swapchain_manager;
-
+		VkTimelineSemPoolUnsafe& sem_pool;
+	protected:
+		VmaAllocatorWrapper& vam_allocator;
 
 	};
 }        // namespace Anni

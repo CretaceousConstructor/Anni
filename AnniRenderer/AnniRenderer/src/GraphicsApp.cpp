@@ -48,4 +48,5 @@ namespace Anni
 		renderer = std::make_unique<Renderer::RealtimeRenderer>(gfx);
 	}
 
+
 }        // namespace Anni

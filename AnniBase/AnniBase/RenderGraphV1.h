@@ -311,7 +311,7 @@ namespace Anni::RenderGraphV1
 
 
 							{
-								for (const auto& swap_img_finshed_using : vec_swap_imgs_finshed_using.back())  //
+								for (const auto& swap_img_finshed_using : vec_swap_imgs_finshed_using.back().first)  //
 								{
 									constexpr uint64_t wait_value = 1;
 									wait_sem_submit_info.push_back(
@@ -351,13 +351,28 @@ namespace Anni::RenderGraphV1
 
 
 							{
-								const uint64_t wait_value = cur_frame < (Vk::MAX_FRAMES_OVERLAP - 1) ? 0 : cur_frame - (Vk::MAX_FRAMES_OVERLAP - 1);
+								const uint64_t wait_value = cur_frame < (Vk::MAX_FRAMES_OVERLAP - 1) ? 0 : cur_frame - (Vk::MAX_FRAMES_OVERLAP - 1);//binary sem需要用VkWaitTimelineSemaphore来防止多个等待
 								vk::SemaphoreWaitInfo wait_info;
 								wait_info
 									.setSemaphores(frame_number_semaphore)
 									.setValues(wait_value);
-
 								device_manager.GetLogicalDevice().waitSemaphores(wait_info, UINT64_MAX);
+
+
+								if (cur_frame >= Vk::MAX_FRAMES_OVERLAP)
+								{
+									// Find the first element satisfying the condition
+									auto it = std::ranges::find_if(vec_swap_imgs_finshed_using,
+										[&cur_frame](std::pair< std::vector<std::shared_ptr<BinarySemWrapper>>, uint64_t>& sems_and_frame_num)
+										{
+											return sems_and_frame_num.second == (cur_frame - Vk::MAX_FRAMES_OVERLAP);
+										}
+									);
+
+									VULKAN_HPP_ASSERT(it != vec_swap_imgs_finshed_using.end());
+									// Erase the found element
+									vec_swap_imgs_finshed_using.erase(it);
+								}
 
 								auto& present_finished_sem = swap_img->present_finished_sem;                    //binary sem需要用VkWaitTimelineSemaphore来防止多个等待 
 								constexpr uint64_t wait_val = 1;
@@ -2004,7 +2019,7 @@ namespace Anni::RenderGraphV1
 		void SyncPrimitivesInsertionInletTexture(GraphicsPassNode* const cur_pass)
 		{
 
-			auto& swap_imgs_finshed_using_by_cur_pass = vec_swap_imgs_finshed_using.back();
+			auto& swap_imgs_finshed_using_by_cur_pass = vec_swap_imgs_finshed_using.back().first;
 			auto cur_level = cur_pass->cur_level;
 			//处理inlet tex
 
@@ -2439,7 +2454,8 @@ namespace Anni::RenderGraphV1
 
 		void SyncPrimitivesInsertionOutletTexture(GraphicsPassNode* const cur_pass)
 		{
-			auto& swap_imgs_finshed_using_by_cur_pass = vec_swap_imgs_finshed_using.back();
+			auto& swap_imgs_finshed_using_by_cur_pass = vec_swap_imgs_finshed_using.back().first;
+
 			auto cur_level = cur_pass->cur_level;
 			//处理inlet tex
 			for (auto& [_, cur_let] : cur_pass->outs_tex)
@@ -2881,7 +2897,7 @@ namespace Anni::RenderGraphV1
 
 		void SyncPrimitivesInsertion()
 		{
-			vec_swap_imgs_finshed_using.push_back(std::vector<std::shared_ptr<BinarySemWrapper>>{});
+			vec_swap_imgs_finshed_using.emplace_back(std::vector<std::shared_ptr<BinarySemWrapper>>{}, cur_frame);
 			///************************************************************
 			//SYNC PRIMITIVES INSERTION同步原语插入:
 			///************************************************************
@@ -2936,7 +2952,7 @@ namespace Anni::RenderGraphV1
 		std::unordered_map<PassNodePair, std::shared_ptr<TimelineSemWrapper>> diff_queue_sync_sema;
 
 		//swap image同步信息
-		std::vector<std::vector<std::shared_ptr<BinarySemWrapper>>> vec_swap_imgs_finshed_using;
+		std::list<std::pair< std::vector<std::shared_ptr<BinarySemWrapper>>, uint64_t>> vec_swap_imgs_finshed_using; //这里用list防止容器失效
 
 
 

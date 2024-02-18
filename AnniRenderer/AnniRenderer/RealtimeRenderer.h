@@ -121,13 +121,9 @@ namespace Anni::Renderer
 		std::array< std::shared_ptr<TimelineSemWrapper>, Vk::MAX_FRAMES_OVERLAP> frame_num_semaphores;
 		std::vector<std::shared_ptr<BinarySemWrapper>>  present_finished_semaphores;
 		std::vector<std::shared_ptr<BinarySemWrapper>>  ready_present_semaphores;
-
 		//*********************************************************************************************
 		std::vector<std::shared_ptr<TimelineSemWrapper>>  swap_img_rdy_4_rendering_helper_sem;
 		std::vector<std::shared_ptr<TimelineSemWrapper>>  present_finished_helper_sem;
-
-
-
 
 		//std::vector<std::shared_ptr<BinarySemWrapper>>  UI_rendering_finished_semaphores;
 		//std::vector<std::shared_ptr<FenceWrapper>>      frame_fences;

@@ -24,13 +24,15 @@ namespace Anni
 	public:
 		struct Descriptor
 		{
-			ImageCIEnhanced                      tex_img_CI;
+			ImageCIEnhanced                        tex_img_CI;
 			std::optional<vk::ImageViewCreateInfo> img_view_CI;
 			std::optional<vk::SamplerCreateInfo>   sampler_CI;
 		};
 
 		VkTexture(
-			GraphicsComponent& gfx_, std::optional<std::string> image_path, std::shared_ptr<ImageBaseReFac> image_,
+			GraphicsComponent& gfx_,
+			std::optional<std::string> image_path,
+			std::shared_ptr<ImageBaseReFac> image_,
 			ImgSyncInfo sync_info_onload_
 		);
 
@@ -44,8 +46,6 @@ namespace Anni
 		VkTexture& operator=(VkTexture&&) = delete;
 
 	public:
-
-
 		[[nodiscard]] vk::WriteDescriptorSet GetWriteDescriptorSetInfo(RenderGraphV1::TexUsage& tex_usage, VkDescriptorSet set);
 
 		//[[nodiscard]] VkWriteDescriptorSet GetWriteDescriptorSetInfo(uint32_t dstbinding, uint32_t dstArrayElement = 0);

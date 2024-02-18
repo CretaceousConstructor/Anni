@@ -6,6 +6,7 @@
 #include "TimelineSemPoolUnsafe.h"
 #include "RsrcUsage.h"
 #include "SyncInfo.h"
+#include "VmaAllocator.h"
 
 namespace Anni
 {
@@ -66,10 +67,7 @@ namespace Anni
 
 
 
-
 		[[nodiscard]] vk::Buffer GetGPUBuffer() const;
-		void          Invalidate(vk::DeviceSize size = VK_WHOLE_SIZE, vk::DeviceSize offset_within_whole_mem = 0) const;
-		void          Flush(vk::DeviceSize size = VK_WHOLE_SIZE, vk::DeviceSize offset_within_whole_mem = 0) const;
 		void          CopyFromHost(void const* outside_data_to_be_mapped, size_t outside_data_size, VkDeviceSize mapped_region_starting_offset = 0);
 		void          CopyFromStagingBuf(Buffer& providing_buf, Buf2BufCopyInfo copy_info);
 
@@ -85,27 +83,32 @@ namespace Anni
 		[[nodiscard]] VkDeviceSize BufMemSize() const;
 
 	private:
-		Buffer(GraphicsComponent& gfx_, VkTimelineSemPoolUnsafe& sem_pool, const VkBuffer buffer_, const VkDeviceMemory buffer_memory_, BufferCreateInfoEnhanced buf_CI);
-		[[nodiscard]] void* GetPtrToMappedRegion() const;
-		void MapMemory(VkDeviceSize size, VkDeviceSize offset);
-		void Unmap();
+		Buffer(
+			QueueManager & queue_manager_,
+			DeviceManager& device_manager_,
+			VmaAllocatorWrapper& allocator_,
+			VkTimelineSemPoolUnsafe& sem_pool_,
+
+			const vk::Buffer buffer_,
+			const VmaAllocation vma_allocation_,
+			const BufferCreateInfoEnhanced& buf_CI_
+		);
 
 	private:
-		GraphicsComponent& gfx;
+		QueueManager&  queue_manager;
 		DeviceManager& device_manager;
+		VmaAllocatorWrapper&  allocator;
 		VkTimelineSemPoolUnsafe& sem_pool;
-
 	private:
 		vk::Buffer                      buf;
-		vk::DeviceMemory                buf_mem;
-		void* mapped_ptr_to_GPU_memory{ nullptr };
-
-		std::vector<Buf2BufCopyInfo>    copy_infos;
+		VmaAllocation                   vma_allocation{};
+	private:
 		vk::DescriptorBufferInfo        des_buf_info;
-
+	private:
+		std::vector<Buf2BufCopyInfo>        copy_infos;
 		BufSyncInfo                         sync_info_onload;
 		std::shared_ptr<TimelineSemWrapper> sem_onload;
-
+	private:
 		BufferCreateInfoEnhanced       buf_CI;
 
 	};

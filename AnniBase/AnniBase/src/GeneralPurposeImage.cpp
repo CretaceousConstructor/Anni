@@ -2,17 +2,24 @@
 
 namespace Anni
 {
-	GeneralPurposeImageReFac::GeneralPurposeImageReFac(GraphicsComponent& gfx_, const vk::Image image_, const vk::DeviceMemory image_mem_, ImageCIEnhanced vk_image_CI, VkTimelineSemPoolUnsafe& sem_pool_) :
+	GeneralPurposeImageReFac::GeneralPurposeImageReFac(
+		GraphicsComponent& gfx_,
+		VmaAllocatorWrapper& allocator_,
+		const vk::Image image_,
+		const VmaAllocation  vma_allocation_,
+		ImageCIEnhanced& vk_image_CI,
+		VkTimelineSemPoolUnsafe& sem_pool_
+	) :
 		ImageBaseReFac(gfx_, image_, vk_image_CI),
-		image_mem(image_mem_),
+		allocator(allocator_),
+		vma_allocation(vma_allocation_),
 		sem_pool(sem_pool_)
 	{
 	}
 
 	GeneralPurposeImageReFac::~GeneralPurposeImageReFac()
 	{
-		device_manager.GetLogicalDevice().destroyImage(image);
-		device_manager.GetLogicalDevice().freeMemory(image_mem);
+		vmaDestroyImage(allocator.GetRaw(), image, vma_allocation);
 	}
 
 	//void GeneralPurposeImageReFac::CopyBufferToImage1mip1levelOnTransferUpload(VkBuffer buffer, uint32_t width, uint32_t height)
