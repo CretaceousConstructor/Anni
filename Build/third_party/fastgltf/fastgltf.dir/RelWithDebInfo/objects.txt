@@ -1,2 +1,0 @@
-D:/CS/Anni/Build/third_party/fastgltf/fastgltf.dir/RelWithDebInfo/fastgltf.obj
-D:/CS/Anni/Build/third_party/fastgltf/fastgltf.dir/RelWithDebInfo/base64.obj

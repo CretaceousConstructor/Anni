@@ -1,5 +1,0 @@
-# CMake generation dependency list for this directory.
-D:/CS/Anni/AnniRenderer/CMakeLists.txt
-D:/ProgrammingTools/cmake/share/cmake-3.27/Modules/FindPackageHandleStandardArgs.cmake
-D:/ProgrammingTools/cmake/share/cmake-3.27/Modules/FindPackageMessage.cmake
-D:/ProgrammingTools/cmake/share/cmake-3.27/Modules/FindVulkan.cmake
