@@ -68,7 +68,7 @@ namespace Anni
 		create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
 		//Lucky for us, the data is stored in an std::vector where the default allocator already ensures that the data satisfies the worst case ALIGNMENT requirements.
 
-		VK_CHECK_RESULT(vkCreateShaderModule(device_manager.GetLogicalDevice(), &create_info, nullptr, &shader_module))
+		VK_CHECK_RESULT(vkCreateShaderModule(device_manager.GetLogicalDevice(), &create_info, nullptr, &shader_module));
 
 
 

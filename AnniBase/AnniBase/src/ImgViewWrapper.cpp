@@ -119,12 +119,17 @@ namespace Anni
 	ImgViewWrapper::ImgViewWrapper(DeviceManager& device_manager_, vk::ImageViewCreateInfo image_view_CI_) :
 		device_manager(device_manager_), image_view_CI(image_view_CI_)
 	{
-		img_view = device_manager.GetLogicalDevice().createImageViewUnique(image_view_CI);
+		img_view = device_manager.GetLogicalDevice().createImageView(image_view_CI);
 	}
 
 	vk::ImageView ImgViewWrapper::GetRawImgView()
 	{
-		return img_view.get();
+		return img_view;
+	}
+
+	ImgViewWrapper::~ImgViewWrapper()
+	{
+		device_manager.GetLogicalDevice().destroyImageView(img_view);
 	}
 
 

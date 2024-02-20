@@ -33,7 +33,7 @@ namespace Anni
 			}
 		}
 
-		VULKAN_HPP_ASSERT(physical_device, "failed to find a suitable GPU!");
+		ASSERT_WITH_MSG(physical_device, "failed to find a suitable GPU!");
 
 		// Use an ordered map to automatically sort candidates by increasing score
 		// 目前暂时没使用评分系统。
@@ -158,7 +158,7 @@ namespace Anni
 		bool                     swap_chain_adequate = false;
 		vk::PhysicalDeviceFeatures supported_features = phy_device.getFeatures();
 
-		VULKAN_HPP_ASSERT(extensions_supported);
+		ASSERT_WITH_MSG(extensions_supported, "some of extensions are not supported.");
 		SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(phy_device, surface);        //询问的是物理device
 		swap_chain_adequate = !swapChainSupport.formats.empty() && !swapChainSupport.present_modes.empty();
 
@@ -449,8 +449,9 @@ namespace Anni
 			queue_create_infos.push_back(queue_create_info);
 		}
 		//*********************************************************************
-		vk::StructureChain<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features> enabled_gpu_features_chain;
-		vk::PhysicalDeviceFeatures          enabled_gpu_features = {};        // vulkan 1.0
+		vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features> enabled_gpu_features_chain{};
+
+		vk::PhysicalDeviceFeatures          enabled_gpu_features  {};        // vulkan 1.0
 		vk::PhysicalDeviceVulkan11Features& enabled11_gpu_features = enabled_gpu_features_chain.get<vk::PhysicalDeviceVulkan11Features>();        // vulkan 1.1
 		vk::PhysicalDeviceVulkan12Features& enabled12_gpu_features = enabled_gpu_features_chain.get<vk::PhysicalDeviceVulkan12Features>();        // vulkan 1.2
 		vk::PhysicalDeviceVulkan13Features& enabled13_gpu_features = enabled_gpu_features_chain.get<vk::PhysicalDeviceVulkan13Features>();        // vulkan 1.3
@@ -472,8 +473,8 @@ namespace Anni
 		enabled_gpu_features.geometryShader = VK_TRUE;
 		enabled_gpu_features.sampleRateShading = VK_TRUE;
 
+
 		// Enable gpu features 1.1 here.   整个chain链接的开头
-		enabled11_gpu_features.pNext = &enabled12_gpu_features;
 		enabled11_gpu_features.shaderDrawParameters = VK_TRUE;
 		enabled11_gpu_features.multiview = VK_TRUE;
 
@@ -493,20 +494,18 @@ namespace Anni
 		enabled12_gpu_features.shaderOutputViewportIndex = VK_TRUE;
 		enabled12_gpu_features.shaderOutputLayer = VK_TRUE;
 
-		enabled12_gpu_features.pNext = &enabled13_gpu_features;
 
 		// Enable gpu features 1.3 here.
-		enabled13_gpu_features.pNext = nullptr;        // todo: vulkan 1.4
 		enabled13_gpu_features.dynamicRendering = VK_TRUE;
 		enabled13_gpu_features.shaderDemoteToHelperInvocation = VK_TRUE;
 
 		//*********************************************************************
 		//*********************************************************************
-		vk::PhysicalDeviceFeatures2 physicalDeviceFeatures2(enabled_gpu_features, &enabled_gpu_features_chain);
-		vk::DeviceCreateInfo device_create_info;
+		vk::PhysicalDeviceFeatures2& physicalDeviceFeatures2 = enabled_gpu_features_chain.get<vk::PhysicalDeviceFeatures2>();
+		physicalDeviceFeatures2.setFeatures(enabled_gpu_features);
 
+		vk::DeviceCreateInfo device_create_info{};
 		device_create_info.setQueueCreateInfos(queue_create_infos);
-		device_create_info.setPEnabledFeatures(VK_NULL_HANDLE);
 		device_create_info.setPNext(&physicalDeviceFeatures2);
 		device_create_info.setPEnabledExtensionNames(ExtensionUtility::GetRequiredExtensionsForAGoodDevice());
 
@@ -555,8 +554,10 @@ namespace Anni
 				return format;
 			}
 		}
-		
-		VULKAN_HPP_ASSERT(false, "failed to find supported format!");
+
+		ASSERT_WITH_MSG(false, "failed to find supported format!");
+
+		return vk::Format::eUndefined;
 	}
 
 	//void DeviceManager::CreateBufferAndBindToMemo(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory, VkSharingMode sharingmode, const VkSurfaceKHR &surface) const

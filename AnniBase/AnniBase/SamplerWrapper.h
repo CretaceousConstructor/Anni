@@ -18,9 +18,8 @@ namespace Anni
 		SamplerWrapper() = delete;
 
 		vk::Sampler GetRawSampler();
-		~SamplerWrapper() = default;
+		~SamplerWrapper() ;
 
-		SamplerWrapper() = delete;
 		SamplerWrapper(const SamplerWrapper&) = delete;
 		SamplerWrapper& operator=(const SamplerWrapper&) = delete;
 
@@ -36,7 +35,7 @@ namespace Anni
 		vk::DescriptorImageInfo image_info{};
 	private:
 		DeviceManager& device_manager;
-		vk::UniqueSampler     sampler;
+		vk::Sampler     sampler;
 		vk::SamplerCreateInfo sampler_CI;
 	};
 

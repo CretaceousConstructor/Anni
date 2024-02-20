@@ -10,7 +10,16 @@ namespace Anni
 				lhs.vk_buffer_CI.usage == rhs.vk_buffer_CI.usage &&
 				lhs.vma_allocation_CI.usage == rhs.vma_allocation_CI.usage &&
 				lhs.vma_allocation_CI.flags == rhs.vma_allocation_CI.flags
-			);
+				);
+	}
+
+
+
+	constexpr BufferCreateInfoEnhanced::BufferCreateInfoEnhanced(vk::BufferUsageFlags usage_, VmaMemoryUsage vma_usage_, VmaAllocationCreateFlags vma_allo_flags)
+	{
+		vk_buffer_CI.usage = usage_;
+		vma_allocation_CI.usage = vma_usage_;
+		vma_allocation_CI.flags = vma_allo_flags;
 	}
 
 }

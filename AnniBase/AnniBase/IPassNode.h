@@ -9,6 +9,7 @@
 #include "TextureFactory.h"
 #include "BufferFactory.h"
 #include "Resource.h"
+#include "Renderable.h"
 
 #include <functional>
 namespace Anni::RenderGraphV1
@@ -33,7 +34,7 @@ namespace Anni::RenderGraphV1
 		{
 			return
 				((pass0 == other.pass0) && (pass1 == other.pass1)) ||
-				((pass0 == other.pass1) && (pass0 == other.pass0));
+				((pass0 == other.pass1) && (pass1 == other.pass0));
 		}
 
 		// Hash function
@@ -90,7 +91,7 @@ namespace Anni::RenderGraphV1
 			SwapchainManager& swapchain_manager_,
 			DescriptorLayoutManager& descriptor_set_layout_manager_,
 			VkShaderFactory& shader_fac_,
-			DescriptorAllocatorGrowable& descriptor_allocator_,
+			DescriptorSetAllocatorGrowable& descriptor_allocator_,
 
 			std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map_,
 			std::unordered_map<std::string, VirtualTexture>& rg_textures_map_
@@ -103,12 +104,21 @@ namespace Anni::RenderGraphV1
 		SwapchainManager& swapchain_manager;
 		DescriptorLayoutManager& descriptor_set_layout_manager;
 		VkShaderFactory& shader_fac;
-		DescriptorAllocatorGrowable& descriptor_allocator;
+		DescriptorSetAllocatorGrowable& descriptor_allocator;
 
 	protected:
 		//虚拟资源
 		std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map;
 		std::unordered_map<std::string, VirtualTexture>& rg_textures_map;
+
+
+
+		//std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map;
+		//std::unordered_map<std::string, VirtualTexture>& rg_textures_map;
+
+		////虚拟资源存储
+		//std::list<VirtualBuffer>  rg_buffers_list;
+		//std::list<VirtualTexture> rg_textures_list;
 
 
 
@@ -139,18 +149,19 @@ namespace Anni::RenderGraphV1
 
 		//同步
 	protected:
-		std::unordered_map<PassNodePair, std::pair<vk::Semaphore, SemInsertInfoSafe>> pass_pair_to_t_sem;
+		std::unordered_map<PassNodePair, std::pair<vk::Semaphore, SemInsertInfoSafe>, PassNodePair::Hash> pass_pair_to_t_sem;
 		std::unordered_map<vk::Semaphore, SemInsertInfoSafe>                          t_sems;
 		std::unordered_map<vk::Semaphore, SemInsertInfoSafe>                          b_sems;
 
 		//syncinfo暂时只用来作为command barrier insertion
 		//same queue 同步primitive
 	public:
+		std::vector<RenderGraphV1::SyncInfoSameQueue<VirtualBuffer>>  buf_syn_infos_head_same_q;
+		std::vector<RenderGraphV1::SyncInfoSameQueue<VirtualTexture>> tex_syn_infos_head_same_q;
+
 		std::vector<RenderGraphV1::SyncInfoSameQueue<VirtualBuffer>>  buf_syn_infos_tail_same_q;
 		std::vector<RenderGraphV1::SyncInfoSameQueue<VirtualTexture>> tex_syn_infos_tail_same_q;
 
-		std::vector<RenderGraphV1::SyncInfoSameQueue<VirtualBuffer>>  buf_syn_infos_head_same_q;
-		std::vector<RenderGraphV1::SyncInfoSameQueue<VirtualTexture>> tex_syn_infos_head_same_q;
 
 		//diff queue 同步primitive
 	public:
@@ -159,6 +170,11 @@ namespace Anni::RenderGraphV1
 
 		std::vector<RenderGraphV1::SyncInfoDiffQueue<VirtualBuffer>>  buf_syn_infos_head_diff_q;
 		std::vector<RenderGraphV1::SyncInfoDiffQueue<VirtualTexture>> tex_syn_infos_head_diff_q;
+
+
+	public:
+		//for model usage
+		std::unordered_map<Anni::LoadedGLTF*, TexUsage> model_to_multi_tex_usage;
 
 	public:
 		void AddTimelineSyncSem(vk::Semaphore sem, SemInsertInfoSafe sem_insert_info)
@@ -169,10 +185,10 @@ namespace Anni::RenderGraphV1
 			}
 			else
 			{
-				VULKAN_HPP_ASSERT(t_sems[sem].wait_val == sem_insert_info.wait_val);
-				VULKAN_HPP_ASSERT(t_sems[sem].signal_val == sem_insert_info.signal_val);
-				t_sems[sem].wait_stages |= sem_insert_info.wait_stages;
-				t_sems[sem].signal_stages |= sem_insert_info.signal_stages;
+				assert(t_sems.at(sem).wait_val == sem_insert_info.wait_val);
+				assert(t_sems.at(sem).signal_val == sem_insert_info.signal_val);
+				t_sems.at(sem).wait_stages |= sem_insert_info.wait_stages;
+				t_sems.at(sem).signal_stages |= sem_insert_info.signal_stages;
 			}
 		}
 
@@ -185,10 +201,10 @@ namespace Anni::RenderGraphV1
 			}
 			else
 			{
-				VULKAN_HPP_ASSERT(t_sems[sem].wait_val == sem_insert_info.wait_val);
-				VULKAN_HPP_ASSERT(t_sems[sem].signal_val == sem_insert_info.signal_val);
-				b_sems[sem].wait_stages |= sem_insert_info.wait_stages;
-				b_sems[sem].signal_stages |= sem_insert_info.signal_stages;
+				assert(b_sems.at(sem).wait_val == sem_insert_info.wait_val);
+				assert(b_sems.at(sem).signal_val == sem_insert_info.signal_val);
+				b_sems.at(sem).wait_stages |= sem_insert_info.wait_stages;
+				b_sems.at(sem).signal_stages |= sem_insert_info.signal_stages;
 			}
 		}
 
@@ -200,14 +216,12 @@ namespace Anni::RenderGraphV1
 		{
 			buf_syn_infos_head_same_q.emplace_back(source_syn_info, target_syn_info, underlying_rsrc);
 			AddTimelineSyncSem(sem_on_load->GetRaw(), sem_insersion_info);
-			buf_syn_infos_head_same_q.back();
 		}
 
 		void InsertSyncInfoForInitalLoad(const Anni::ImgSyncInfo& source_syn_info, const Anni::ImgSyncInfo& target_syn_info, const std::unordered_map<std::string, VirtualTexture>::iterator underlying_rsrc, std::shared_ptr<TimelineSemWrapper>& sem_on_load, SemInsertInfoSafe sem_insersion_info)
 		{
-			tex_syn_infos_head_same_q.emplace_back(source_syn_info, target_syn_info, underlying_rsrc, sem_on_load);
+			tex_syn_infos_head_same_q.emplace_back(source_syn_info, target_syn_info, underlying_rsrc);
 			AddTimelineSyncSem(sem_on_load->GetRaw(), sem_insersion_info);
-			tex_syn_infos_head_same_q.back();
 		}
 
 
@@ -231,15 +245,15 @@ namespace Anni::RenderGraphV1
 		}
 
 
-		virtual void BeginRenderPass(VkCommandBuffer cmd_buf)
+		virtual void BeginRenderPass(vk::CommandBuffer cmd_buf)
 		{
 
 		}
-		virtual void RecordCommandBuffer(const VkCommandBuffer command_buffer)
+		virtual void RecordCommandBuffer(const vk::CommandBuffer command_buffer)
 		{
 
 		}
-		virtual void EndRenderPass(VkCommandBuffer cmd_buf)
+		virtual void EndRenderPass(vk::CommandBuffer cmd_buf)
 		{
 
 		}
@@ -315,32 +329,7 @@ namespace Anni::RenderGraphV1
 		void SyncInsertAhead(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& wait_sem_submit_info);
 		void SyncInsertAfter(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info);
 
-		void GenerateAllAccessStages()
-		{
-			std::ranges::for_each
-			(
-				buf_usages,
-				[&](VirtualBufRsrcAndUsage& rsrc_usage)
-				{
-					all_access_stages |= rsrc_usage.usage.sync_info.stage_mask;
-				}
-			);
-
-			std::ranges::for_each
-			(
-				tex_usages,
-				[&](VirtualTexRsrcAndUsage& rsrc_usage)
-				{
-					all_access_stages |=
-						std::visit
-						([&](auto& variant_usage) -> vk::PipelineStageFlags2
-							{
-								return variant_usage.sync_info.stage_mask;
-							}, rsrc_usage.usage
-						);
-				}
-			);
-		}
+		void GenerateAllAccessStages();
 
 	private:
 		vk::PipelineStageFlags2 all_access_stages{ };
@@ -350,116 +339,8 @@ namespace Anni::RenderGraphV1
 		void SyncInsertAheadDiffQ(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& wait_sem_submit_info);
 
 	private:
-		void SyncInsertAfterSameQ(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info)
-		{
-			//we can use barriers.
-			//OPTIMIZATION: 合批
-
-			//After waiting, we can use barriers.
-			std::vector<vk::BufferMemoryBarrier2> buf_bars;
-			for (auto& tail_syn : buf_syn_infos_tail_same_q)
-			{
-				VirtualBuffer& buff = tail_syn.underlying_vrsrc->second;
-				vk::BufferMemoryBarrier2 buf_barrier = buff.GetBufBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
-				buf_bars.push_back(buf_barrier);
-			};
-
-			std::vector<vk::ImageMemoryBarrier2> tex_bars;
-			for (auto& tail_syn : tex_syn_infos_tail_same_q)
-			{
-				VirtualTexture& tex = tail_syn.underlying_vrsrc->second;
-				vk::ImageMemoryBarrier2 tex_barrier = tex.GetTexBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
-				tex_bars.push_back(tex_barrier);
-			}
-
-			auto depen_info = vk::DependencyInfo{};
-			depen_info.dependencyFlags = vk::DependencyFlagBits::eByRegion;
-			depen_info.setImageMemoryBarriers(tex_bars);
-			depen_info.setBufferMemoryBarriers(buf_bars);
-			cmd_buf.pipelineBarrier2(depen_info);
-		}
-		void SyncInsertAfterDiffQ(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info)
-		{
-			//std::vector<VkSemaphoreSubmitInfo> signal_sem_submit_info_on_diff_q;
-
-			//for (auto& diffq_tail_sync : buf_syn_infos_tail_diff_q)
-			//{
-			//	uint64_t signal_value = diffq_tail_sync.signal_value.value_or(1);
-			//	signal_sem_submit_info.push_back(
-			//		VkSemaphoreSubmitInfo{
-			//			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-			//			.pNext = VK_NULL_HANDLE,
-			//			.semaphore = diffq_tail_sync.sync_sema->GetRawSem(),
-			//			.value = signal_value,
-			//			.stageMask = diffq_tail_sync.target_sync_info.stage_mask,
-			//			.deviceIndex = 0 }
-			//	);
-			//}
-
-			//for (auto& diffq_tail_sync : tex_syn_infos_tail_diff_q)
-			//{
-			//	uint64_t signal_value = diffq_tail_sync.signal_value.value_or(1);
-			//	signal_sem_submit_info.push_back(
-			//		VkSemaphoreSubmitInfo{
-			//			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-			//			.pNext = VK_NULL_HANDLE,
-			//			.semaphore = diffq_tail_sync.sync_sema->GetRawSem(),
-			//			.value = signal_value,
-			//			.stageMask = diffq_tail_sync.target_sync_info.stage_mask,
-			//			.deviceIndex = 0 });
-			//}
-
-			//VkCommandBufferSubmitInfo cmd_submit_info{
-			//	.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-			//	.pNext = VK_NULL_HANDLE,
-			//	.commandBuffer = VK_NULL_HANDLE
-			//};
-
-
-
-			//auto submit_info = VkSubmitInfo2{
-			//	.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-			//	.pNext = VK_NULL_HANDLE,
-			//	.flags = Vk::NoneFlag,
-
-			//	.waitSemaphoreInfoCount = 0u,
-			//	.pWaitSemaphoreInfos = VK_NULL_HANDLE,
-
-			//	.commandBufferInfoCount = 1u,
-			//	.pCommandBufferInfos = &cmd_submit_info,
-
-			//	.signalSemaphoreInfoCount = static_cast<uint32_t>(signal_sem_submit_info_on_diff_q.size()),
-			//	.pSignalSemaphoreInfos = signal_sem_submit_info_on_diff_q.data()
-			//};
-
-			//vkQueueSubmit2(execution_queue.GetQueue(), 1, &submit_info, VK_NULL_HANDLE);
-
-
-			//After waiting, we can use barriers.
-			std::vector<vk::BufferMemoryBarrier2> buf_bars;
-			for (auto& tail_syn : buf_syn_infos_tail_diff_q)
-			{
-				VirtualBuffer& buff = tail_syn.underlying_vrsrc->second;
-				vk::BufferMemoryBarrier2 buf_barrier = buff.GetBufBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
-				buf_bars.push_back(buf_barrier);
-			};
-
-			std::vector<vk::ImageMemoryBarrier2> tex_bars;
-			for (auto& tail_syn : tex_syn_infos_tail_diff_q)
-			{
-				VirtualTexture& tex = tail_syn.underlying_vrsrc->second;
-				vk::ImageMemoryBarrier2 tex_barrier = tex.GetTexBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
-				tex_bars.push_back(tex_barrier);
-			}
-
-			auto depen_info = vk::DependencyInfo{};
-			depen_info.dependencyFlags = vk::DependencyFlagBits::eByRegion;
-			depen_info.setImageMemoryBarriers(tex_bars);
-			depen_info.setBufferMemoryBarriers(buf_bars);
-			cmd_buf.pipelineBarrier2(depen_info);
-
-		}
-
+		void SyncInsertAfterSameQ(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info);
+		void SyncInsertAfterDiffQ(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info);
 
 	public:
 		virtual PassType GetRenderpassType();

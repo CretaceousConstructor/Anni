@@ -2,16 +2,16 @@
 
 namespace Anni
 {
-	VkPipelineWrapper::VkPipelineWrapper(GraphicsComponent& _gfx) :
-		gfx(_gfx),
-		device_manager(gfx.DeviceMan())
-	{
-	}
+	//VkPipelineWrapper::VkPipelineWrapper(GraphicsComponent& _gfx) :
+	//	gfx(_gfx),
+	//	device_manager(gfx.DeviceMan())
+	//{
+	//}
 
-	VkPipelineWrapper::~VkPipelineWrapper()
-	{
-		vkDestroyPipeline(device_manager.GetLogicalDevice(), pipeline, nullptr);
-	}
+	//VkPipelineWrapper::~VkPipelineWrapper()
+	//{
+	//	vkDestroyPipeline(device_manager.GetLogicalDevice(), pipeline, nullptr);
+	//}
 
 	//void VkPipelineWrapper::AddShaders(const VkShaderManager::ShaderInfo &shader_info)
 	//{
@@ -30,8 +30,8 @@ namespace Anni
 	//	return result;
 	//}
 	//
-	VkPipeline VkPipelineWrapper::GetPipeline() const
-	{
-		return pipeline;
-	}
+	//VkPipeline VkPipelineWrapper::GetPipeline() const
+	//{
+	//	return pipeline;
+	//}
 }

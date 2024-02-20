@@ -1,6 +1,7 @@
 Anni engine is a graphics engine implemented using vulkan api and c++ 20.
 
 There are several librarys Anni engine relys on:\
+vulkan-hpp: CPP binding of vulkan.\
 fastgltf : For fast parallel loading of gltf model file.\
 glfw     : Windows system integration.\
 glm      : A math library.\

@@ -4,6 +4,7 @@
 #include "TextureFactory.h"
 #include "BufferFactory.h" 
 #include "GLTFModelFactory.h"
+#include "GFXPipelineCIBuilder.h"
 
 #include <array>
 #include <chrono>
@@ -21,6 +22,7 @@ namespace Anni::Renderer
 
 	public:
 		explicit IRenderer(GraphicsComponent& gfx_);
+		virtual ~IRenderer() = default;
 		void RenderingPreparation();
 
 	public:
@@ -33,6 +35,10 @@ namespace Anni::Renderer
 		WindowsSys& window;
 		SwapchainManager& swapchain_manager;
 		QueueManager& queue_manager;
+
+
+		//MEM ALLOCATOR
+		VmaAllocatorWrapper mem_allocator;
 
 		//POOLS
 		VkTimelineSemPoolUnsafe sem_pool;
@@ -51,7 +57,7 @@ namespace Anni::Renderer
 		VkPipelineBuilder pipeline_builder;
 
 		//MATERIALS
-		GLTFMetallicRoughness mat_metallic_roughness;
+		GLTFMetallicRoughnessProducer mat_metallic_roughness_producer;
 		//MODELS
 		GLTFModelFactory gltf_model_fac;
 
@@ -77,7 +83,6 @@ namespace Anni::Renderer
 		virtual void UpdateCamera(float dt) = 0;
 
 
-		virtual ~IRenderer() = default;
 
 		IRenderer() = delete;
 

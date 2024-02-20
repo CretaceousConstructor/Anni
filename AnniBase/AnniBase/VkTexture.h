@@ -1,5 +1,4 @@
 #pragma once
-
 #include "GeneralPurposeImage.h"
 #include "ImageCI.h"
 #include "ImgViewWrapper.h"
@@ -11,11 +10,13 @@
 #include <memory>
 #include <string>
 
+
+
+
 namespace Anni
 {
 	class VkTexture
 	{
-	public:
 		friend class VkTextureFactory;
 	public:
 		using TexturePtrBundle = std::vector<std::shared_ptr<VkTexture>>;
@@ -35,7 +36,6 @@ namespace Anni
 			std::shared_ptr<ImageBaseReFac> image_,
 			ImgSyncInfo sync_info_onload_
 		);
-
 		VkTexture() = delete;
 		~VkTexture() = default;
 
@@ -46,36 +46,14 @@ namespace Anni
 		VkTexture& operator=(VkTexture&&) = delete;
 
 	public:
-		[[nodiscard]] vk::WriteDescriptorSet GetWriteDescriptorSetInfo(RenderGraphV1::TexUsage& tex_usage, VkDescriptorSet set);
-
-		//[[nodiscard]] VkWriteDescriptorSet GetWriteDescriptorSetInfo(uint32_t dstbinding, uint32_t dstArrayElement = 0);
-		//[[nodiscard]] VkWriteDescriptorSet GetWriteDescriptorSetInfo(VkDescriptorSet set, uint32_t dstbinding, uint32_t dstArrayElement = 0);
+		[[nodiscard]] vk::WriteDescriptorSet GetWriteDescriptorSetInfo(RenderGraphV1::TexUsage& tex_usage, vk::DescriptorSet set);
+		[[nodiscard]] vk::WriteDescriptorSet GetWriteDescriptorSetInfoForModel(const RenderGraphV1::TexUsage& tex_usage);
 
 
-		void ResetImgView(std::shared_ptr<ImgViewWrapper> tex_image_view_)
-		{
-			tex_image_view = tex_image_view_;
-		}
-		void ResetSampler(std::shared_ptr<SamplerWrapper> tex_sampler_)
-		{
-			tex_sampler = tex_sampler_;
-		}
+		void ResetImgView(std::shared_ptr<ImgViewWrapper>& tex_image_view_);
+		void ResetSampler(std::shared_ptr<SamplerWrapper>& tex_sampler_);
 
-		ImgSyncInfo GetSynInfoOnLoad()
-		{
-			return  sync_info_onload;
-		}
-
-
-		std::shared_ptr<ImgViewWrapper>& GetTextureImageViewPtr()
-		{
-			return tex_image_view;
-		}
-
-		std::shared_ptr<SamplerWrapper>& GetTextureSamplerPtr()
-		{
-			return tex_sampler;
-		}
+		ImgSyncInfo GetSynInfoOnLoad();
 
 
 
@@ -86,16 +64,11 @@ namespace Anni
 
 		[[nodiscard]] ImgViewWrapper& GetTextureImageView() const;
 		[[nodiscard]] SamplerWrapper& GetTextureSampler() const;
+		[[nodiscard]] std::shared_ptr<ImgViewWrapper>& GetTextureImageViewPtr();
+		[[nodiscard]] std::shared_ptr<SamplerWrapper>& GetTextureSamplerPtr();
 
 		[[nodiscard]] std::string GetTextureName() const;
-
-
-
-		[[nodiscard]] const uint32_t& GetSwapImageIndex() const
-		{
-			VULKAN_HPP_ASSERT(swap_image_index, "This is not a swap image");
-			return swap_image_index.value();
-		}
+		[[nodiscard]] const uint32_t& GetSwapImageIndex() const;
 
 
 	public:
@@ -114,12 +87,10 @@ namespace Anni
 
 
 	private:
+		void SetCISamplerAndImgView(std::optional<VkSamplerCreateInfo> sampler_CI_, std::optional<VkImageViewCreateInfo> img_view_CI_);
+	private:
 		std::optional<VkSamplerCreateInfo>   sampler_CI;
 		std::optional<VkImageViewCreateInfo> img_view_CI;
-
-	private:
-		void SetCISamplerAndImgView(std::optional<VkSamplerCreateInfo> sampler_CI_, std::optional<VkImageViewCreateInfo> img_view_CI_);
-
 
 	private:
 		std::optional<std::string>      tex_name;
@@ -128,9 +99,9 @@ namespace Anni
 		std::shared_ptr<ImgViewWrapper> tex_image_view;
 		std::shared_ptr<SamplerWrapper> tex_sampler;
 
-
 	private:
-		//VkBool32 ktx_use_staging = true;
+		vk::DescriptorImageInfo         tex_img_info;
+	private:
 		ImgSyncInfo sync_info_onload;
 
 	private:
@@ -138,12 +109,9 @@ namespace Anni
 		void SetSamplerCI(vk::SamplerCreateInfo texture_sampler_);
 	private:
 		std::optional<uint32_t> swap_image_index;
-	public:
-		bool IsSwapTexture()
-		{
-			return swap_image_index.has_value();
-		}
 
+	public:
+		bool IsSwapTexture();
 	private:
 		GraphicsComponent& gfx;
 		DeviceManager& device_manager;

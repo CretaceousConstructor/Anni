@@ -37,43 +37,66 @@ namespace Anni
 
 
 
-	//VkWriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(uint32_t dstbinding, VkDescriptorType desc_type, uint32_t dstArrayElement, VkDeviceSize size, VkDeviceSize offset)
-	//{
-	//	des_buf_info.buffer = buf;
-	//	des_buf_info.offset = offset;
-	//	des_buf_info.range = size;
+	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(vk::DescriptorType desc_type, uint32_t dstbinding,  uint32_t dstArrayElement, vk::DeviceSize size, vk::DeviceSize offset)
+	{
+		des_buf_info.buffer = buf;
+		des_buf_info.offset = offset;
+		des_buf_info.range  = size;
 
-	//	VkWriteDescriptorSet temp_writeDescriptorSet{
-	//		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-	//		.pNext = VK_NULL_HANDLE,
-	//		.dstSet = VK_NULL_HANDLE,
-	//		.dstBinding = dstbinding,
-	//		.dstArrayElement = dstArrayElement,
-	//		.descriptorCount = 1,
-	//		.descriptorType = desc_type,
-	//		.pBufferInfo = &des_buf_info,
-	//	};
-	//	return temp_writeDescriptorSet;
-	//}
+		vk::WriteDescriptorSet temp_writeDescriptorSet{};
+		temp_writeDescriptorSet.dstBinding = dstbinding;
+		temp_writeDescriptorSet.dstArrayElement = dstArrayElement;
+		temp_writeDescriptorSet.descriptorCount = 1;
+		temp_writeDescriptorSet.descriptorType = desc_type;
+		temp_writeDescriptorSet.pBufferInfo = &des_buf_info;
 
-	//VkWriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(VkDescriptorSet set, uint32_t dstbinding, VkDescriptorType desc_type, uint32_t dstArrayElement, VkDeviceSize size, VkDeviceSize offset)
-	//{
-	//	des_buf_info.buffer = buf;
-	//	des_buf_info.offset = offset;
-	//	des_buf_info.range = size;
+		return temp_writeDescriptorSet;
+	}
 
-	//	VkWriteDescriptorSet temp_writeDescriptorSet{
-	//		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-	//		.pNext = VK_NULL_HANDLE,
-	//		.dstSet = set,
-	//		.dstBinding = dstbinding,
-	//		.dstArrayElement = dstArrayElement,
-	//		.descriptorCount = 1,
-	//		.descriptorType = desc_type,
-	//		.pBufferInfo = &des_buf_info,
-	//	};
-	//	return temp_writeDescriptorSet;
-	//}
+	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(vk::DescriptorType desc_type,vk::DescriptorSet set, uint32_t dstbinding,  uint32_t dstArrayElement, vk::DeviceSize size, vk::DeviceSize offset)
+	{
+		des_buf_info.buffer = buf;
+		des_buf_info.offset = offset;
+		des_buf_info.range  = size;
+
+		vk::WriteDescriptorSet temp_writeDescriptorSet{};
+		temp_writeDescriptorSet.dstSet = set;
+		temp_writeDescriptorSet.dstBinding = dstbinding;
+		temp_writeDescriptorSet.dstArrayElement = dstArrayElement;
+		temp_writeDescriptorSet.descriptorCount = 1;
+		temp_writeDescriptorSet.descriptorType = desc_type;
+		temp_writeDescriptorSet.pBufferInfo = &des_buf_info;
+		return temp_writeDescriptorSet;
+	}
+
+	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(RenderGraphV1::BufUsage& usage, vk::DescriptorSet set)
+	{
+		Vk::BufferSubRange buf_subrange =
+			usage.GetSynInfo().buf_subrange.value_or(
+				Vk::BufferSubRange{
+					.offset = 0 ,
+					.size = VK_WHOLE_SIZE
+				});
+
+		usage.des_buf_info.buffer = buf;
+		usage.des_buf_info.offset = buf_subrange.offset;
+		usage.des_buf_info.range = buf_subrange.size;
+
+
+		vk::WriteDescriptorSet temp_writeDescriptorSet(
+			set,
+			usage.desc_info.slot_info.binding,
+			usage.desc_info.slot_info.array_element,
+			Constants::DescriptorCount<1>,
+			usage.desc_info.descriptor_type
+		);
+		temp_writeDescriptorSet.setBufferInfo(usage.des_buf_info);
+
+		return temp_writeDescriptorSet;
+	}
+
+
+
 
 	void Buffer::CopyFromHost(void const* outside_data_to_be_mapped, size_t outside_data_size, VkDeviceSize mapped_region_starting_offset)
 	{
@@ -86,7 +109,6 @@ namespace Anni
 		//VK_CHECK_RESULT
 
 
-
 		VK_CHECK_RESULT(
 			vmaCopyMemoryToAllocation(
 				allocator.GetRaw(),
@@ -96,7 +118,7 @@ namespace Anni
 				outside_data_size
 			));
 
-		//VULKAN_HPP_ASSERT(mapped_ptr_to_GPU_memory != nullptr, "This buffer is not host visible.");
+		//ASSERT_WITH_MSG(mapped_ptr_to_GPU_memory != nullptr, "This buffer is not host visible.");
 
 		//memcpy(static_cast<void*>((static_cast<uint8_t*>(mapped_ptr_to_GPU_memory) + mapped_region_starting_offset)), outside_data_to_be_mapped, outside_data_size);
 
@@ -461,6 +483,11 @@ namespace Anni
 
 
 
+	}
+
+	BufSyncInfo Buffer::GetSynInfoOnLoad()
+	{
+		return sync_info_onload;
 	}
 
 	VkDeviceSize Buffer::BufSize() const

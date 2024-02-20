@@ -54,6 +54,8 @@ namespace Anni
 		result.vma_allocation_CI.usage = VMA_MEMORY_USAGE_AUTO;
 		result.vma_allocation_CI.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 		result.aspect_flags = vk::ImageAspectFlagBits::eDepth;
+		return result;
+
 	}
 
 	ImageCIEnhanced CI::GetTextureImgCI(const vk::Format format_, const vk::Extent3D& image_extend_, vk::ImageCreateFlags flags, std::optional<std::string> image_path_)
@@ -84,11 +86,12 @@ namespace Anni
 		result.aspect_flags = vk::ImageAspectFlagBits::eDepth;
 
 		result.image_path = std::move(image_path_);
+		return result;
 	}
 
 	ImageCIEnhanced CI::GetSwapchainImgCI()
 	{
-		ImageCIEnhanced result{};
+		return ImageCIEnhanced{};
 	}
 
 }        // namespace Anni

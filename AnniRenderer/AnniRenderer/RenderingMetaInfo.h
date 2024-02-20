@@ -7,7 +7,7 @@
 //#include "VkMetaInfo.h"
 //#include "VkModel.h"
 #include "AnniBase/AnniVkHeader.h" 
-
+#include "AnniBase/AnniMath.h"
 
 
 namespace DeferedRendering
@@ -174,43 +174,43 @@ namespace Global
 	//***************************************************************************************************
 	//}        // namespace Pass0
 
-	struct Resources
-	{
-		//DESCRIPTOR POOL
-		VkDescriptorPool pool;
+	//struct Resources
+	//{
+	//	//DESCRIPTOR POOL
+	//	VkDescriptorPool pool;
 
-		//UNIFORM BUFFER
-		//*******************************
-		Global::Structure::UboMatrix  matrix_buffer_cpu{};        //用于顶点着色器的uniform buffer object
-		Anni::Buffer::BufferPtrBundle matrix_buffer_gpu;
+	//	//UNIFORM BUFFER
+	//	//*******************************
+	//	Global::Structure::UboMatrix  matrix_buffer_cpu{};        //用于顶点着色器的uniform buffer object
+	//	Anni::Buffer::BufferPtrBundle matrix_buffer_gpu;
 
-		DeferedRendering::UBO         matrix_buffer_cpu_defered_rendering;
-		Anni::Buffer::BufferPtrBundle matrix_buffer_gpu_defered_rendering;
+	//	DeferedRendering::UBO         matrix_buffer_cpu_defered_rendering;
+	//	Anni::Buffer::BufferPtrBundle matrix_buffer_gpu_defered_rendering;
 
-		MSAA::UBO                     matrix_buffer_cpu_MSAA;
-		Anni::Buffer::BufferPtrBundle matrix_buffer_gpu_MSAA;
+	//	MSAA::UBO                     matrix_buffer_cpu_MSAA;
+	//	Anni::Buffer::BufferPtrBundle matrix_buffer_gpu_MSAA;
 
-		//ATTACHMENT TEXTURES
-		Anni::VkTexture::TexturePtrBundle swapchain_attachments;
-		Anni::VkTexture::TexturePtrBundle depth_attachments;
+	//	//ATTACHMENT TEXTURES
+	//	Anni::VkTexture::TexturePtrBundle swapchain_attachments;
+	//	Anni::VkTexture::TexturePtrBundle depth_attachments;
 
-		Anni::VkTexture::TexturePtrBundle G_buffer_position;
-		Anni::VkTexture::TexturePtrBundle G_buffer_normal;
-		Anni::VkTexture::TexturePtrBundle G_buffer_albedo;
-		Anni::VkTexture::TexturePtrBundle G_buffer_depth;
-		Anni::VkTexture::TexturePtrBundle G_buffer_posZGradient;
-		Anni::VkTexture::TexturePtrBundle G_buffer_specular;
+	//	Anni::VkTexture::TexturePtrBundle G_buffer_position;
+	//	Anni::VkTexture::TexturePtrBundle G_buffer_normal;
+	//	Anni::VkTexture::TexturePtrBundle G_buffer_albedo;
+	//	Anni::VkTexture::TexturePtrBundle G_buffer_depth;
+	//	Anni::VkTexture::TexturePtrBundle G_buffer_posZGradient;
+	//	Anni::VkTexture::TexturePtrBundle G_buffer_specular;
 
-		Anni::VkTexture::TexturePtr irradiance_map;
-		Anni::VkTexture::TexturePtr prefiltered_map;
-		Anni::VkTexture::TexturePtr LUT_map;
+	//	Anni::VkTexture::TexturePtr irradiance_map;
+	//	Anni::VkTexture::TexturePtr prefiltered_map;
+	//	Anni::VkTexture::TexturePtr LUT_map;
 
 
-		//MODELS
-		//::std::unique_ptr<VkModel<Vertex>> light_indicator;
-		Anni::VkGltfModel<Anni::PbrMetallicMat>::Ptr scifi_helmet;
-		Anni::VkGltfModel<Anni::PbrMetallicMat>::Ptr sky_box;
-		Anni::VkGltfModel<Anni::NonPbrMat>::Ptr      sponza;
-	};
+	//	//MODELS
+	//	//::std::unique_ptr<VkModel<Vertex>> light_indicator;
+	//	//Anni::VkGltfModel<Anni::PbrMetallicMat>::Ptr scifi_helmet;
+	//	//Anni::VkGltfModel<Anni::PbrMetallicMat>::Ptr sky_box;
+	//	//Anni::VkGltfModel<Anni::NonPbrMat>::Ptr      sponza;
+	//};
 
 }        // namespace Global

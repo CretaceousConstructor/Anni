@@ -8,17 +8,17 @@ namespace Anni
 {
 	namespace CI
 	{
-		[[nodiscard]] VkBufferViewCreateInfo PopulateUniformBufViewCI(const VkFormat buf_format);
+		[[nodiscard]] vk::BufferViewCreateInfo PopulateUniformBufViewCI(const vk::Format buf_format);
 
 	};        // namespace CI
 
 	class BufViewWrapper
 	{
 	public:
-		BufViewWrapper(DeviceManager& device_man_, VkBufferViewCreateInfo buf_view_CI_);
+		BufViewWrapper(DeviceManager& device_man_, vk::BufferViewCreateInfo buf_view_CI_);
 
-		~BufViewWrapper();
-		VkBufferView GetRawBufView();
+		~BufViewWrapper() ;
+		vk::BufferView& GetRawBufView();
 
 		BufViewWrapper() = delete;
 		BufViewWrapper(const BufViewWrapper&) = delete;
@@ -29,8 +29,8 @@ namespace Anni
 
 	private:
 		DeviceManager& device_manager;
-		VkBufferViewCreateInfo buf_view_CI;
-		VkBufferView           buffer_view;
+		vk::BufferViewCreateInfo buf_view_CI;
+		vk::BufferView     buffer_view;
 	};
 
 }        // namespace Anni

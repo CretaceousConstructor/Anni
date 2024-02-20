@@ -6,7 +6,6 @@ namespace Anni
 	class SwapchainImageReFac final : public ImageBaseReFac
 	{
 		friend class ImageFactory;
-
 	public:
 		~SwapchainImageReFac() override;
 		SwapchainImageReFac() = delete;
@@ -17,7 +16,6 @@ namespace Anni
 		SwapchainImageReFac(SwapchainImageReFac&&) = delete;
 		SwapchainImageReFac& operator=(SwapchainImageReFac&&) = delete;
 
-	private:
 		SwapchainImageReFac(GraphicsComponent& gfx_, vk::Image image_, ImageCIEnhanced image_CI_);
 	};
 

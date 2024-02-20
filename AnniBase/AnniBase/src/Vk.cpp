@@ -29,7 +29,7 @@ VkPipelineLayout Vk::GetPipelineLayout(const VkDevice& device, const std::vector
 		pipeline_layoutCI.pPushConstantRanges = push_constant_ranges.data();
 	}
 
-	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipeline_layoutCI, nullptr, &result))
+	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipeline_layoutCI, nullptr, &result));
 
 		return result;
 }

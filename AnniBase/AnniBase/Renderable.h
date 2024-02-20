@@ -1,7 +1,9 @@
 #pragma once
 #include "AnniMath.h"
-#include "Mate.h"
 #include "MeshAsset.h"
+#include "RsrcUsage.h"
+#include "GLTFMaterialInstance.h"
+#include "GLTFMetallicRoughness.h"
 
 namespace Anni
 {
@@ -10,7 +12,7 @@ namespace Anni
 	{
 		uint32_t indexCount;
 		uint32_t firstIndex;
-		VkDeviceAddress vertexBufferAddress;
+		vk::DeviceAddress vertexBufferAddress;
 		std::shared_ptr<Buffer> indexBuffer;
 
 		Bounds bounds;
@@ -64,27 +66,44 @@ namespace Anni
 	struct LoadedGLTF : public IRenderable
 	{
 	public:
+		LoadedGLTF(GLTFMetallicRoughnessProducer& metallic_roughness_) :
+			metallic_roughness(metallic_roughness_)
+		{
+		}
+
 		// storage for all the data on a given gltf file
 		std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
 		std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
 		std::unordered_map<std::string, std::shared_ptr<VkTexture>> images;
-		std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
+		std::unordered_map<std::string, std::shared_ptr<GLTFMaterialInstance>> materials;
 
 		std::vector<std::shared_ptr<VkTexture>> images_array;
 		// nodes that dont have a parent, for iterating through the file in tree order
 		std::vector<std::shared_ptr<Node>> topNodes;
 		std::vector<std::shared_ptr<SamplerWrapper>> samplers;
-		std::unique_ptr<DescriptorAllocatorGrowable> descriptor_allocator;
 		std::shared_ptr<Buffer> materialDataBuffer; // for all materials used in the model
+		std::shared_ptr<DescriptorSetAllocatorGrowable> descriptor_allocator;
 		std::string name{ "Shit" };
 
-		GLTFMetallicRoughness& metallic_roughness;
+		GLTFMetallicRoughnessProducer& metallic_roughness;
 
 
-		void BuildPipeline(GFXPipelineCI& gfx_pipe_CI)
+
+
+		void UpdateDescriptorSet(DeviceManager& device_manager, const Anni::RenderGraphV1::TexUsage& all_tex_usage)
 		{
-			metallic_roughness.BuildPipelines(gfx_pipe_CI);
+			for (auto& mat : materials)
+			{
+				mat.second->UpdateDescriptorSet(device_manager, all_tex_usage);
+			}
 		}
+
+
+		std::pair<vk::UniquePipeline, vk::UniquePipelineLayout> BuildPipeline(GFXPipelineCI& gfx_pipe_CI)
+		{
+			return metallic_roughness.BuildPipelines(gfx_pipe_CI);
+		}
+
 
 		virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 		{
@@ -94,6 +113,15 @@ namespace Anni
 				n->Draw(topMatrix, ctx);
 			}
 		}
+
+
+		//	void SetTextureUsage()
+		//	{
+
+		//	}
+
+		//private:
+		//	Anni::RenderGraphV1::TexUsage textures_usage;
 	};
 
 	struct MeshNode : public Node
@@ -119,7 +147,6 @@ namespace Anni
 				//	ctx.TransparentSurfaces.push_back(def);
 				//}
 				//else
-
 				{
 					ctx.OpaqueSurfaces.push_back(def);
 				}

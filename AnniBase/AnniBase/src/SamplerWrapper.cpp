@@ -107,22 +107,29 @@ namespace Anni
 	}
 
 
+
+
 	SamplerWrapper::SamplerWrapper(DeviceManager& device_manager_, VkSamplerCreateInfo sampler_CI_) :
 		device_manager(device_manager_), sampler_CI(sampler_CI_)
 	{
-		sampler = device_manager.GetLogicalDevice().createSamplerUnique(sampler_CI);
+		sampler = device_manager.GetLogicalDevice().createSampler(sampler_CI);
 	}
 
 	vk::Sampler SamplerWrapper::GetRawSampler()
 	{
-		return sampler.get();
+		return sampler;
+	}
+
+	SamplerWrapper::~SamplerWrapper()
+	{
+		device_manager.GetLogicalDevice().destroySampler(sampler);
 	}
 
 	vk::WriteDescriptorSet SamplerWrapper::GetWriteDescriptorSetInfo(uint32_t dstbinding, uint32_t dstArrayElement)
 	{
 
 
-		image_info.sampler = sampler.get();
+		image_info.sampler = sampler;
 
 		vk::WriteDescriptorSet temp_write_descriptor_set{};
 		temp_write_descriptor_set.dstBinding = dstbinding;
@@ -136,7 +143,7 @@ namespace Anni
 
 	vk::WriteDescriptorSet SamplerWrapper::GetWriteDescriptorSetInfo(vk::DescriptorSet set, uint32_t dstbinding, uint32_t dstArrayElement)
 	{
-		image_info.sampler = sampler.get();
+		image_info.sampler = sampler;
 
 		vk::WriteDescriptorSet temp_write_descriptor_set{};
 		temp_write_descriptor_set.dstBinding = dstbinding;

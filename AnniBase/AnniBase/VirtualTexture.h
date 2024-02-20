@@ -66,16 +66,16 @@ namespace Anni::RenderGraphV1
 			}
 			else if (source_syn.img_subrange && target_sync.img_subrange)
 			{
-				VULKAN_HPP_ASSERT(source_syn.img_subrange.value() == target_sync.img_subrange.value());
+				assert(source_syn.img_subrange.value() == target_sync.img_subrange.value());
 				result_range = source_syn.img_subrange.value();
 			}
 			else
 			{
-				VULKAN_HPP_ASSERT("source and target sync info differ!");
+				ASSERT_WITH_MSG(false,"source and target sync info differ!");
 			}
 
 
-			VULKAN_HPP_ASSERT(p_rsrc || p_rsrcs);
+			ASSERT_WITH_MSG(p_rsrc || p_rsrcs,"no resources provided!");
 
 			vk::ImageMemoryBarrier2 result{};
 			result.srcStageMask = source_syn.stage_mask;

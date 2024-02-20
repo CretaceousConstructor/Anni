@@ -89,7 +89,7 @@ namespace Anni
 
 		void EndSingleTimeCopyCommands(std::pair<vk::CommandBuffer, Queue* const> cmd_buf_and_q, std::shared_ptr<TimelineSemWrapper> sem)
 		{
-			//VULKAN_HPP_ASSERT(cmd_buf_and_q.second == this);
+			//ASSERT_WITH_MSG(cmd_buf_and_q.second == this);
 			//cmd_buf_and_q.first.end();
 
 			//vk::SemaphoreSubmitInfo sig_smt_inf{};

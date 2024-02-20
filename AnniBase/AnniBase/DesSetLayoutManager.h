@@ -7,59 +7,51 @@ namespace Anni
 {
 	namespace CI
 	{
-		static VkDescriptorSetLayoutCreateInfo
+		static vk::DescriptorSetLayoutCreateInfo
 			GetDescriptorSetLayoutCI(
-				const std::vector<VkDescriptorSetLayoutBinding> bindings,
-				VkDescriptorSetLayoutCreateFlags flags = 0,
+				const std::vector<vk::DescriptorSetLayoutBinding> bindings,
+				vk::DescriptorSetLayoutCreateFlags flags = vk::DescriptorSetLayoutCreateFlags(VK_ZERO_FLAG),
 				const void* pNext = VK_NULL_HANDLE);
 	}
 
-	namespace DescVk
-	{
 
-		VkDescriptorSetLayoutBinding
-			GetDescriptorSetLayoutBinding(uint32_t binding,
-				VkDescriptorType type,
-				VkShaderStageFlags stage_flags,
-				uint32_t descriptor_count = 1,
-				const VkSampler* pImmutableSamplers = nullptr);
 
-	}
+	//class DescriptorSetLayoutWrapper
+	//{
+	//public:
+	//	friend class DescriptorLayoutManager;
+	//	~DescriptorSetLayoutWrapper()
+	//	{
+	//		vkDestroyDescriptorSetLayout(
+	//			device_manager.GetLogicalDevice(), set_layout, VK_NULL_HANDLE);
+	//	}
 
-	class DescriptorSetLayoutWrapper
-	{
-	public:
-		friend class DescriptorLayoutManager;
-		~DescriptorSetLayoutWrapper()
-		{
-			vkDestroyDescriptorSetLayout(
-				device_manager.GetLogicalDevice(), set_layout, VK_NULL_HANDLE);
-		}
+	//	VkDescriptorSetLayout GetRaw()
+	//	{
+	//		return set_layout;
+	//	}
 
-		VkDescriptorSetLayout GetRawDescriptorSetLayout()
-		{
-			return set_layout;
-		}
+	//public:
+	//	DescriptorSetLayoutWrapper() = delete;
+	//	DescriptorSetLayoutWrapper(const DescriptorSetLayoutWrapper&) = delete;
+	//	DescriptorSetLayoutWrapper(DescriptorSetLayoutWrapper&&) = delete;
+	//	DescriptorSetLayoutWrapper& operator=(const DescriptorSetLayoutWrapper&) =
+	//		delete;
+	//	DescriptorSetLayoutWrapper& operator=(DescriptorSetLayoutWrapper&&) = delete;
 
-	public:
-		DescriptorSetLayoutWrapper() = delete;
-		DescriptorSetLayoutWrapper(const DescriptorSetLayoutWrapper&) = delete;
-		DescriptorSetLayoutWrapper(DescriptorSetLayoutWrapper&&) = delete;
-		DescriptorSetLayoutWrapper& operator=(const DescriptorSetLayoutWrapper&) =
-			delete;
-		DescriptorSetLayoutWrapper& operator=(DescriptorSetLayoutWrapper&&) = delete;
+	//private:
+	//	DescriptorSetLayoutWrapper(DeviceManager device_manager_,
+	//		VkDescriptorSetLayout set_layout_)
+	//		: device_manager(device_manager_)
+	//		, set_layout(set_layout_)
+	//	{
+	//	}
 
-	private:
-		DescriptorSetLayoutWrapper(DeviceManager device_manager_,
-			VkDescriptorSetLayout set_layout_)
-			: device_manager(device_manager_)
-			, set_layout(set_layout_)
-		{
-		}
+	//	DeviceManager& device_manager;
+	//	VkDescriptorSetLayout set_layout;
+	//};
 
-		DeviceManager& device_manager;
-		VkDescriptorSetLayout set_layout;
-	};
+
 
 	class DescriptorLayoutManager
 	{
@@ -69,35 +61,33 @@ namespace Anni
 
 	public:
 		template<typename Mat>
-		std::shared_ptr<DescriptorSetLayoutWrapper> GetMatDescriptorSetLayout(
-			const std::vector<VkDescriptorSetLayoutBinding> bindings,
-			VkDescriptorSetLayoutCreateFlags flags = 0,
-			const void* pNext = VK_NULL_HANDLE);
+		vk::DescriptorSetLayout GetMatDescriptorSetLayout(
+			vk::DescriptorSetLayoutCreateInfo set_layout_CI
+		);
 
-		std::unique_ptr<DescriptorSetLayoutWrapper> ProduceDescriptorSetLayoutUnsafe(
-			const VkDescriptorSetLayoutCreateInfo desc_set_layout_CI)
-		{
+		//std::unique_ptr<DescriptorSetLayoutWrapper> ProduceDescriptorSetLayoutUnsafe(
+		//	const VkDescriptorSetLayoutCreateInfo desc_set_layout_CI)
+		//{
 
-			VkDescriptorSetLayout descriptor_set_layout;
-			VK_CHECK_RESULT(
-				vkCreateDescriptorSetLayout(device_manager.GetLogicalDevice(),
-					&desc_set_layout_CI,
-					VK_NULL_HANDLE,
-					&descriptor_set_layout));
-			return std::make_unique<DescriptorSetLayoutWrapper>(device_manager,
-				descriptor_set_layout);
-		}
+		//	VkDescriptorSetLayout descriptor_set_layout;
+		//	VK_CHECK_RESULT(
+		//		vkCreateDescriptorSetLayout(device_manager.GetLogicalDevice(),
+		//			&desc_set_layout_CI,
+		//			VK_NULL_HANDLE,
+		//			&descriptor_set_layout));
+		//	return std::make_unique<DescriptorSetLayoutWrapper>(device_manager, descriptor_set_layout);
+		//}
 
 	public:
 		DescriptorLayoutManager(DeviceManager& device_manager_);
-		~DescriptorLayoutManager();
+		~DescriptorLayoutManager() = default;
 
 	private:
 		DeviceManager& device_manager;
 
 	private:
 		std::unordered_map<void (*)(),
-			std::shared_ptr<DescriptorSetLayoutWrapper>,
+			vk::UniqueDescriptorSetLayout,
 			Util::TypeHash::TypeIdHash,
 			Util::TypeHash::TypeIdEqual>
 			mat_deslayout_map;
@@ -115,27 +105,27 @@ namespace Anni
 	}
 
 	template<typename Mat>
-	inline std::shared_ptr<DescriptorSetLayoutWrapper>
+	inline vk::DescriptorSetLayout
 		DescriptorLayoutManager::GetMatDescriptorSetLayout(
-			const std::vector<VkDescriptorSetLayoutBinding> bindings,
-			VkDescriptorSetLayoutCreateFlags flags,
-			const void* pNext)
+			vk::DescriptorSetLayoutCreateInfo set_layout_CI
+		)
 	{
 		if (mat_deslayout_map.contains(&Util::TypeHash::TypeIdentifier<Mat>::id))
 		{
-			return mat_deslayout_map[&Util::TypeHash::TypeIdentifier<Mat>::id];
+			return mat_deslayout_map[&Util::TypeHash::TypeIdentifier<Mat>::id].get();
 		}
 
-		auto set_layout_CI = CI::GetDescriptorSetLayoutCI(bindings, flags, pNext);
-		VkDescriptorSetLayout descriptor_set_layout;
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device_manager.GetLogicalDevice(),
-			&set_layout_CI,
-			nullptr,
-			&descriptor_set_layout))
-			mat_deslayout_map[&Util::TypeHash::TypeIdentifier<Mat>::id] =
-			descriptor_set_layout;
+		vk::UniqueDescriptorSetLayout descriptor_set_layout = device_manager.GetLogicalDevice().createDescriptorSetLayoutUnique(set_layout_CI);
+		vk::DescriptorSetLayout result = descriptor_set_layout.get();
+		mat_deslayout_map[&Util::TypeHash::TypeIdentifier<Mat>::id] = std::move(descriptor_set_layout);
 
-		return std::make_shared<DescriptorSetLayoutWrapper>(device_manager.GetLogicalDevice(),descriptor_set_layout);
+		return result;
+
 	}
+
+
+
+
+
 
 }

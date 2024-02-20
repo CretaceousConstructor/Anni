@@ -42,7 +42,7 @@ namespace Anni
 			image_count = swapchain_support.capabilities.surfaceCapabilities.maxImageCount;
 		}
 
-		VULKAN_HPP_ASSERT(Vk::SWAP_IMG_COUNT == image_count, "not enough swap chain images");
+		ASSERT_WITH_MSG(Vk::SWAP_IMG_COUNT == image_count, "not enough swap chain images");
 
 		vk::SwapchainCreateInfoKHR swapchain_CI{};
 		swapchain_CI.flags = vk::SwapchainCreateFlagsKHR(VK_ZERO_FLAG);

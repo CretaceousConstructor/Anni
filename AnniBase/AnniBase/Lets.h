@@ -27,9 +27,6 @@ namespace Anni::RenderGraphV1
 	{
 
 	public:
-
-
-	public:
 		RsrcOutlet(
 			RU& vRsrcAndUsage,
 			GraphicsPassNode* pass_attached_to_
@@ -46,9 +43,9 @@ namespace Anni::RenderGraphV1
 			return vrsrc_usage.v_rsrc;
 		}
 
-		std::optional<std::pair<GraphicsPassNode*, std::unordered_map<std::string, RsrcOutlet<RU>>::iterator>>  GetProvidingOutletItrAndPass()
+		std::optional<std::pair<GraphicsPassNode*, typename std::unordered_map<std::string, typename RsrcOutlet<RU> >::iterator>> 
+        GetProvidingOutletItrAndPass()
 		{
-
 			return providing_pass_and_source_outlet_itr;
 		}
 		//void AddAccessingPassAndItr(GraphicsPassNode* pass, std::unordered_map<std::string, RsrcOutlet<RU>>::iterator itr)
@@ -61,7 +58,7 @@ namespace Anni::RenderGraphV1
 		//}
 
 
-		void AssignProvidingPassAndProvidingOutItr(GraphicsPassNode* pass, std::unordered_map<std::string, RsrcOutlet<RU>>::iterator itr)
+		void AssignProvidingPassAndProvidingOutItr(GraphicsPassNode* pass, typename std::unordered_map<std::string, typename RsrcOutlet<RU>>::iterator itr)
 		{ 
 			providing_pass_and_source_outlet_itr.emplace(pass, itr);
 		}
@@ -81,7 +78,7 @@ namespace Anni::RenderGraphV1
 	private:
 		RU& vrsrc_usage;
 		GraphicsPassNode* pass_attached_to;
-		std::optional<std::pair<GraphicsPassNode*, std::unordered_map<std::string, RsrcOutlet<RU>>::iterator>> providing_pass_and_source_outlet_itr;
+		std::optional<std::pair<GraphicsPassNode*, typename std::unordered_map<std::string, typename RsrcOutlet<RU>>::iterator>> providing_pass_and_source_outlet_itr;
 	};
 
 
@@ -118,7 +115,7 @@ namespace Anni::RenderGraphV1
 
 
 
-		void AssignProvidingPassAndProvidingOutItr(GraphicsPassNode* pass, std::unordered_map<std::string, RsrcOutlet<RU>>::iterator itr)
+		void AssignProvidingPassAndProvidingOutItr(GraphicsPassNode* pass, typename std::unordered_map<std::string, typename RsrcOutlet<RU>>::iterator itr)
 		{
 			providing_pass_and_source_outlet_itr.emplace(pass, itr);
 		}
@@ -134,14 +131,14 @@ namespace Anni::RenderGraphV1
 		}
 
 
-		std::optional<std::pair<GraphicsPassNode*, std::unordered_map<std::string, RsrcOutlet<RU>>::iterator>> GetProvidingOutletItrAndPass()
+		std::optional<std::pair<GraphicsPassNode*, typename std::unordered_map<std::string, typename RsrcOutlet<RU>>::iterator>> GetProvidingOutletItrAndPass()
 		{
 			return providing_pass_and_source_outlet_itr;
 		}
 
 		RU& vrsrc_usage;
 		GraphicsPassNode* pass_attached_to;
-		std::optional<std::pair<GraphicsPassNode*, std::unordered_map<std::string, RsrcOutlet<RU>>::iterator>> providing_pass_and_source_outlet_itr;
+		std::optional<std::pair<GraphicsPassNode*, typename std::unordered_map<std::string, typename RsrcOutlet<RU>>::iterator>> providing_pass_and_source_outlet_itr;
 
 		//std::vector<VrsrcMapItr> model_tex_vrsrc;
 	};

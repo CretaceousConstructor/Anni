@@ -69,7 +69,7 @@ namespace Anni
 
 			if (queue_cap.transfer)
 			{
-				candidate.emplace_back(&queue_cap, score);
+				candidate.push_back(std::make_pair(&queue, score));
 			}
 		}
 		std::ranges::sort(candidate,
@@ -200,7 +200,7 @@ namespace Anni
 
 	void Queue::FinalizeGeneralRendering(std::vector<vk::Semaphore> waiting_sems, const uint32_t cur_frame, vk::Semaphore frame_num_semaphore)
 	{
-		assert(false, "not yet implemented");
+		ASSERT_WITH_MSG(false, "not yet implemented");
 
 		std::vector<vk::SemaphoreSubmitInfo> wait_sem_infos;
 

@@ -18,4 +18,4 @@ file(GLOB HeaderFiles "AnniRenderer/*.h")
 add_executable(AnniRenderer  ${SourceFiles} ${HeaderFiles})
 
 target_include_directories(AnniRenderer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/AnniRenderer") 
-target_link_libraries(AnniRenderer PRIVATE AnniBase Vulkan::Vulkan glfw)
+target_link_libraries(AnniRenderer PRIVATE AnniGLTF AnniBase AnniImGui Vulkan::Vulkan glfw ktx stb_image)

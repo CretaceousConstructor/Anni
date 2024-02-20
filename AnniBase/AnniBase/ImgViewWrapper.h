@@ -21,7 +21,7 @@ namespace Anni
 		ImgViewWrapper(DeviceManager& device_manager_, vk::ImageViewCreateInfo image_view_CI_);
 
 		vk::ImageView GetRawImgView();
-		~ImgViewWrapper() = default;
+		~ImgViewWrapper() ;
 
 		ImgViewWrapper() = delete;
 		ImgViewWrapper(const ImgViewWrapper&) = delete;
@@ -31,8 +31,8 @@ namespace Anni
 		ImgViewWrapper& operator=(ImgViewWrapper&&) = delete;
 
 	private:
-		DeviceManager& device_manager;
-		vk::UniqueImageView     img_view;
+		DeviceManager&    device_manager;
+		vk::ImageView     img_view;
 		vk::ImageViewCreateInfo image_view_CI;
 	};
 

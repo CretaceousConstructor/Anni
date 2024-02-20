@@ -103,111 +103,97 @@ namespace Vk
 		VkDeviceSize size;
 	};
 
-	struct BufSyncInfo
-	{
-		VkAccessFlags2        access_mask;
-		VkPipelineStageFlags2 stage_mask;
+	//struct BufSyncInfo
+	//{
+	//	VkAccessFlags2        access_mask;
+	//	VkPipelineStageFlags2 stage_mask;
 
-		std::optional<BufferSubRange> buf_subrange;
-	};
+	//	std::optional<BufferSubRange> buf_subrange;
+	//};
 
-	struct TexSyncInfo
-	{
-		VkAccessFlags2        access_mask;
-		VkPipelineStageFlags2 stage_mask;
-		VkImageLayout         layout_inpass;
+	//struct TexSyncInfo
+	//{
+	//	VkAccessFlags2        access_mask;
+	//	VkPipelineStageFlags2 stage_mask;
+	//	VkImageLayout         layout_inpass;
 
-		std::optional<VkImageSubresourceRange> img_subrange;
-	};
+	//	std::optional<VkImageSubresourceRange> img_subrange;
+	//};
 
-	struct DescriptorSetInfo
-	{
-		uint32_t set{ 0 };
-		uint32_t binding{ 0 };
-		uint32_t array_element{ 0 };
-	};
+	//struct DescriptorSetInfo
+	//{
+	//	uint32_t set{ 0 };
+	//	uint32_t binding{ 0 };
+	//	uint32_t array_element{ 0 };
+	//};
 
-	struct DescriptorInfo
-	{
-		DescriptorSetInfo slot_info;
-		VkDescriptorType descriptor_type;
-		VkShaderStageFlags desc_shader_stages_flags;
-	};
-
-
-	struct AttachmentInfo
-	{
-		Vk::AttachmentIndix attachment_index;
-		AttachmentType      attach_type;
-		VkClearValue clear_value;
-
-		VkResolveModeFlagBits resolve_mode{ VK_RESOLVE_MODE_NONE };
-		VkImageLayout resolve_image_layout{ VK_IMAGE_LAYOUT_UNDEFINED };
-		// VkImageView              resolveImageView{};
-		VkAttachmentLoadOp load_op{ VK_ATTACHMENT_LOAD_OP_DONT_CARE };
-		VkAttachmentStoreOp store_op{ VK_ATTACHMENT_STORE_OP_DONT_CARE };
-	};
+	//struct DescriptorInfo
+	//{
+	//	DescriptorSetInfo slot_info;
+	//	VkDescriptorType descriptor_type;
+	//	VkShaderStageFlags desc_shader_stages_flags;
+	//};
 
 
-	enum class RsrcUsageType
-	{
-		Unknown,
-		Buffer,
-		Attachment,
-		Texture
-	};
+	//enum class RsrcUsageType
+	//{
+	//	Unknown,
+	//	Buffer,
+	//	Attachment,
+	//	Texture
+	//};
 
 
-	enum class RsrcType
-	{
-		Unknown,
-		Texture,
-		Attachment,
-		ModelTextures,
-		Buffer,
-		IndexBuffer,
-		VertexBuffer,
-		ModelBuffer,
-		AddressRefedBuffer
-	};
+	//enum class RsrcType
+	//{
+	//	Unknown,
+	//	Texture,
+	//	Attachment,
+	//	ModelTextures,
+	//	Buffer,
+	//	IndexBuffer,
+	//	VertexBuffer,
+	//	ModelBuffer,
+	//	AddressRefedBuffer
+	//};
 
-	enum struct AttachmentType
-	{
-		Unknown,
-		ColorAttachment,
-		DepthAttachment,
-		DepthStencilAttachment,
-		//StencilAttachment, // reserved for future use
-		ResolveOpTargetAttachment,
-		NotUsedWithinPass
+	//enum struct AttachmentType
+	//{
+	//	Unknown,
+	//	ColorAttachment,
+	//	DepthAttachment,
+	//	DepthStencilAttachment,
+	//	//StencilAttachment, // reserved for future use
+	//	ResolveOpTargetAttachment,
+	//	NotUsedWithinPass
 
-	};
+	//};
 
-	enum class RsrcAccessTypeRG
-	{
-		Unknown,
-		Write,
-		Read,
-		ReadWrite,
-	};
-
-
-	struct EnumClassHash
-	{
-		template <typename T>
-		std::size_t operator()(T t) const
-		{
-			return static_cast<std::size_t>(t);
-		}
-	};
+	//enum class RsrcAccessTypeRG
+	//{
+	//	Unknown,
+	//	Write,
+	//	Read,
+	//	ReadWrite,
+	//};
 
 
-	enum ModelLoadingOption
-	{
-		LoadingImgByOurselves = 0x1,
-		BindlessRenderingMode = 0x2,
-		None = 0x4,
-	};
+	//struct EnumClassHash
+	//{
+	//	template <typename T>
+	//	std::size_t operator()(T t) const
+	//	{
+	//		return static_cast<std::size_t>(t);
+	//	}
+	//};
+
+
+	//enum ModelLoadingOption
+	//{
+	//	LoadingImgByOurselves = 0x1,
+	//	BindlessRenderingMode = 0x2,
+	//	None = 0x4,
+	//};
 
 	enum class Type
 	{

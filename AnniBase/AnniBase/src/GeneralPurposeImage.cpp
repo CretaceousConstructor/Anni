@@ -144,6 +144,8 @@ namespace Anni
 				img_bar.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 				img_bar.image = this->image;
 				img_bar.subresourceRange = img_subrsrc_range;
+
+				return img_bar;
 			}
 		);
 

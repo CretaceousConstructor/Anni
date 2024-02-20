@@ -1,6 +1,6 @@
 #include "GLTFModelFactory.h"
 
-VkFilter
+vk::Filter
 Anni::GLTFModelFactory::ExtractFilter(fastgltf::Filter filter)
 {
   switch (filter) {
@@ -8,28 +8,27 @@ Anni::GLTFModelFactory::ExtractFilter(fastgltf::Filter filter)
     case fastgltf::Filter::Nearest:
     case fastgltf::Filter::NearestMipMapNearest:
     case fastgltf::Filter::NearestMipMapLinear:
-      return VK_FILTER_NEAREST;
-
+      return vk::Filter::eNearest;
       // linear samplers
     case fastgltf::Filter::Linear:
     case fastgltf::Filter::LinearMipMapNearest:
     case fastgltf::Filter::LinearMipMapLinear:
     default:
-      return VK_FILTER_LINEAR;
+      return vk::Filter::eLinear;
   }
 }
 
-VkSamplerMipmapMode
+vk::SamplerMipmapMode
 Anni::GLTFModelFactory::ExtractMipmapMode(fastgltf::Filter filter)
 {
   switch (filter) {
     case fastgltf::Filter::NearestMipMapNearest:
     case fastgltf::Filter::LinearMipMapNearest:
-      return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+      return vk::SamplerMipmapMode::eNearest;
 
     case fastgltf::Filter::NearestMipMapLinear:
     case fastgltf::Filter::LinearMipMapLinear:
     default:
-      return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+      return vk::SamplerMipmapMode::eLinear;
   }
 }

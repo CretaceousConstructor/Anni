@@ -1,5 +1,6 @@
 #pragma once
 #include "QueueManager.h"
+#include "Resource.h"
 #include <map>
 
 namespace Anni::RenderGraphV1

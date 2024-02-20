@@ -39,6 +39,7 @@ namespace Anni
 
 		//TODO: Non-ktx texture mipmap generation
 
+
 		//HDR images
 		else if (stbi_is_hdr(image_path.c_str()))
 		{
@@ -50,10 +51,11 @@ namespace Anni
 			tex_img = InitLdrImgFromFile(image_path, format_of_image_, aspect_flag);
 		}
 
-		Vk::TexSyncInfo syc_info_onload{
-			.access_mask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-			.stage_mask = VK_PIPELINE_STAGE_2_COPY_BIT,
-			.layout_inpass = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+		constexpr Anni::ImgSyncInfo syc_info_onload
+		{
+			.access_mask = vk::AccessFlagBits2::eTransferWrite,
+			.stage_mask = vk::PipelineStageFlagBits2::eCopy,
+			.layout_inpass = vk::ImageLayout::eTransferDstOptimal
 		};
 
 		auto result = std::make_shared<VkTexture>(gfx, image_path, tex_img, syc_info_onload);
@@ -68,10 +70,10 @@ namespace Anni
 	{
 		std::shared_ptr<GeneralPurposeImageReFac> tex_img = Init1Mip1LayerImgFromHostBufferReFac<uint8_t>(texture_img_CI, data);
 
-		Vk::TexSyncInfo syc_info_onload{
-			.access_mask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-			.stage_mask = VK_PIPELINE_STAGE_2_COPY_BIT,
-			.layout_inpass = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL };
+		constexpr Anni::ImgSyncInfo syc_info_onload{
+			.access_mask = vk::AccessFlagBits2::eTransferWrite,
+			.stage_mask = vk::PipelineStageFlagBits2::eCopy,
+			.layout_inpass = vk::ImageLayout::eTransferDstOptimal };
 
 		auto result = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
 		ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *result, *tex_img);
@@ -145,7 +147,7 @@ namespace Anni
 			};
 
 			auto       tex_img = std::make_shared<SwapchainImageReFac>(gfx, swap_images[i], texture_img_CI);
-			const auto tex = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, VK_IMAGE_ASPECT_COLOR_BIT, syc_info_onload);
+			const auto tex = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
 			ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *tex, *tex_img);
 
 			tex->swap_image_index = i;
@@ -210,12 +212,12 @@ namespace Anni
 	//TODO:
 	inline void VkTextureFactory::GenerateMipMaps()
 	{
-		VULKAN_HPP_ASSERT(false, "Not implemented!");
+		ASSERT_WITH_MSG(false, "Not implemented!");
 	}
 
 	void VkTextureFactory::ActualizeVirtualResource(RenderGraphV1::VirtualTexture& vtex)
 	{
-		VULKAN_HPP_ASSERT(vtex.descriptor.has_value(), "No discriptor of the given resource is provided.");
+		ASSERT_WITH_MSG(vtex.descriptor.has_value(), "No discriptor of the given resource is provided.");
 
 		const auto& dis = vtex.descriptor.value();
 		if (!dis.tex_img_CI.image_path)

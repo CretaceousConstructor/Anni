@@ -14,7 +14,7 @@ namespace Anni
 
 
 
-	std::shared_ptr<Buffer> BufferFactory::ProduceBuffer(VkDeviceSize N, BufferCreateInfoEnhanced buf_CI, const void* const data = nullptr)
+	std::shared_ptr<Buffer> BufferFactory::ProduceBuffer(VkDeviceSize N, BufferCreateInfoEnhanced buf_CI, const void* const data)
 	{
 
 		buf_CI.vk_buffer_CI.size = N;
@@ -77,6 +77,20 @@ namespace Anni
 					.stage_mask = vk::PipelineStageFlagBits2::eTopOfPipe
 			};
 		}
+		return result;
+	}
+
+	void BufferFactory::ActualizeVirtualResource(RenderGraphV1::VirtualBuffer& vbuf)
+	{
+		ASSERT_WITH_MSG(vbuf.descriptor.has_value(), "No discriptor of the given resource is provided.");
+
+		const auto& dis = vbuf.descriptor.value();
+		vbuf.p_rsrc = ProduceBuffer(dis.buf_CI, dis.init_cpu_data);
+	}
+
+	std::shared_ptr<Buffer> BufferFactory::ProduceBuffer(BufferCreateInfoEnhanced buf_CI, const void* const data)
+	{
+		return ProduceBuffer(buf_CI.vk_buffer_CI.size, buf_CI, data);
 	}
 
 

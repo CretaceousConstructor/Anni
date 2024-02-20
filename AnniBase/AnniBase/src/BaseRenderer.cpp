@@ -10,9 +10,10 @@ namespace Anni::Renderer
 		window(gfx.Window()),
 		swapchain_manager(gfx.SwapchainMan()),
 		queue_manager(gfx.QueueMan()),
+		mem_allocator(gfx.Instance(), gfx.DeviceMan()),
 		sem_pool(device_manager),
-		img_fac(gfx),
-		buf_fac(device_manager, sem_pool),
+		img_fac(gfx, mem_allocator, sem_pool),
+		buf_fac(queue_manager, device_manager, mem_allocator, sem_pool),
 		tex_fac(gfx, img_fac, buf_fac),
 		shader_fac(gfx),
 
@@ -21,8 +22,8 @@ namespace Anni::Renderer
 		gfx_pipe_CI_builder(gfx),
 		pipeline_builder(device_manager, shader_fac),
 
-		mat_metallic_roughness(device_manager, descriptor_layout_manager, pipeline_builder, gfx_pipe_CI_builder),
-		gltf_model_fac(device_manager, buf_fac, tex_fac, mat_metallic_roughness)
+		mat_metallic_roughness_producer(device_manager, descriptor_layout_manager, pipeline_builder),
+		gltf_model_fac(device_manager, buf_fac, tex_fac, mat_metallic_roughness_producer)
 	{
 	}
 

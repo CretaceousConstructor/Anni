@@ -3,7 +3,7 @@
 
 namespace Anni
 {
-	VkBufferViewCreateInfo CI::PopulateUniformBufViewCI(const VkFormat buf_format)
+	vk::BufferViewCreateInfo CI::PopulateUniformBufViewCI(const vk::Format buf_format)
 	{
 		//typedef struct VkBufferViewCreateInfo {
 		//    VkStructureType            sType;
@@ -15,29 +15,25 @@ namespace Anni
 		//    VkDeviceSize               range;
 		//} VkBufferViewCreateInfo;
 
-		VkBufferViewCreateInfo result{
-			.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
-			.pNext = VK_NULL_HANDLE,
-			.flags = Vk::NoneFlag,
-			.buffer = VK_NULL_HANDLE,
-			.format = buf_format,
-			.offset = 0,
-			.range = VK_WHOLE_SIZE };
+		vk::BufferViewCreateInfo result{};
+		result.setFormat(buf_format);
+		result.setRange(vk::WholeSize);
 		return result;
 	}
 
-	BufViewWrapper::BufViewWrapper(DeviceManager& device_man_, VkBufferViewCreateInfo buf_view_CI_) :
+	BufViewWrapper::BufViewWrapper(DeviceManager& device_man_, vk::BufferViewCreateInfo buf_view_CI_) :
 		device_manager(device_man_), buf_view_CI(buf_view_CI_)
 	{
-		VK_CHECK_RESULT(vkCreateBufferView(device_manager.GetLogicalDevice(), &buf_view_CI, nullptr, &buffer_view))
+		buffer_view = device_manager.GetLogicalDevice().createBufferView(buf_view_CI);
 	}
+
 
 	BufViewWrapper::~BufViewWrapper()
 	{
-		vkDestroyBufferView(device_manager.GetLogicalDevice(), buffer_view, nullptr);
+		device_manager.GetLogicalDevice().destroyBufferView(buffer_view);
 	}
 
-	VkBufferView BufViewWrapper::GetRawBufView()
+	vk::BufferView& BufViewWrapper::GetRawBufView()
 	{
 		return buffer_view;
 	}

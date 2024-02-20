@@ -1,6 +1,7 @@
 #pragma once
 #include "AnniVkHeader.h"
 #include <vma/vk_mem_alloc.h>
+
 namespace Anni
 {
 
@@ -24,13 +25,7 @@ namespace Anni
 			vk::BufferUsageFlags    usage_,
 			VmaMemoryUsage          vma_usage_,
 			VmaAllocationCreateFlags vma_allo_flags = VmaAllocationCreateFlags(VK_ZERO_FLAG)
-		)
-		{
-			vk_buffer_CI.usage = usage_;
-			vma_allocation_CI.usage = vma_usage_;
-			vma_allocation_CI.flags = vma_allo_flags;
-		}
-
+		);
 
 
 		~BufferCreateInfoEnhanced() = default;
@@ -44,11 +39,12 @@ namespace Anni
 		VmaAllocationCreateInfo vma_allocation_CI{};
 		VmaAllocationInfo       vma_allocation_info{};
 
-	//private:
-	//	//unused
-	//	vk::MemoryPropertyFlags mem_prop{};
-	//	vk::MemoryRequirements  mem_req{};
-	//	vk::MemoryAllocateInfo  mem_alloc_info{};
+		//private:
+		//	//unused
+		//	vk::MemoryPropertyFlags mem_prop{};
+		//	vk::MemoryRequirements  mem_req{};
+		//	vk::MemoryAllocateInfo  mem_alloc_info{};
+
 	};
 
 
@@ -61,15 +57,19 @@ namespace Anni
 		bool IsSameType(const BufferCreateInfoEnhanced& lhs, const BufferCreateInfoEnhanced& rhs);
 
 
-		constexpr BufferCreateInfoEnhanced StagingBuffer
+		const 	BufferCreateInfoEnhanced StagingBuffer
 		{
+
 			vk::BufferUsageFlagBits::eTransferSrc,
 			VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO,
 			VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
 			//vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+
 		};
 
-		constexpr BufferCreateInfoEnhanced UniformBuffer
+
+
+		const BufferCreateInfoEnhanced UniformBuffer
 		{
 			vk::BufferUsageFlagBits::eUniformBuffer,
 			VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO,
@@ -77,34 +77,26 @@ namespace Anni
 			//vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 		};
 
-		constexpr BufferCreateInfoEnhanced VertexBuffer
+		const BufferCreateInfoEnhanced VertexBuffer
 		{
 			vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
 			VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO
 			//vk::MemoryPropertyFlagBits::eDeviceLocal
 		};
 
-		constexpr BufferCreateInfoEnhanced StorageBufferAddressable
+		const BufferCreateInfoEnhanced StorageBufferAddressable
 		{
 			vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eShaderDeviceAddress,
 			VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO
 			//vk::MemoryPropertyFlagBits::eDeviceLocal
 		};
 
-		constexpr BufferCreateInfoEnhanced IndexBuffer
+		const BufferCreateInfoEnhanced IndexBuffer
 		{
 			vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
 			VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO
 			//vk::MemoryPropertyFlagBits::eDeviceLocal
 		};
-
-
-
-
-
-
-
-
 
 
 

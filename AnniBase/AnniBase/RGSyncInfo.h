@@ -156,8 +156,8 @@ namespace Anni::RenderGraphV1
 	inline SyncInfoSameQueue<R, S>::SyncInfoSameQueue(S source_sync_info_, S target_sync_info_, std::unordered_map<std::string, R>::iterator underlying_rsrc_)
 		:
 		source_sync_info(source_sync_info_),
-		target_sync_info(target_sync_info_)
-		underlying_vrsrc(underlying_rsrc_),
+		target_sync_info(target_sync_info_),
+		underlying_vrsrc(underlying_rsrc_)
 	{
 	}
 

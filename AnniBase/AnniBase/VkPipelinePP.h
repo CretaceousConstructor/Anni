@@ -15,6 +15,7 @@ namespace Anni
 		friend class IPipelineCIBuilder;
 		friend class VkPipelineBuilder;
 	public:
+		explicit GFXPipelineCI();
 		~GFXPipelineCI() = default;
 
 		GFXPipelineCI(const GFXPipelineCI&) = default;
@@ -27,7 +28,7 @@ namespace Anni
 
 	public:
 		void SetDynamicRenderingAttachmentFormats(std::vector<DynamicRenderingAttachmentFormatInfo> attachment_formats_);
-		void SetPipelineShaderStageCreateInfo(std::vector<VkPipelineShaderStageCreateInfo> shader_stage_CI_);
+		void SetPipelineShaderStageCreateInfo(std::vector<vk::PipelineShaderStageCreateInfo> shader_stage_CI_);
 
 		template <typename First, typename... Rest>
 		void AddColorBlendAttachments(First&& first, Rest &&...rest);
@@ -44,64 +45,50 @@ namespace Anni
 		void ClearDynamicState();
 
 
-		void AddDescriptorSetLayout(VkDescriptorSetLayout set_layout)
-		{
-			set_layouts.push_back(set_layout);
-		}
-
-
-		void AddDescriptorSetLayout(const std::vector<VkDescriptorSetLayout> &set_layouts_)
-		{
-			set_layouts.insert(set_layouts.end(),set_layouts_.begin(),set_layouts_.end());
-		}
-
-		void AddPushConstantRange(VkPushConstantRange push_constant_range)
-		{
-			push_constant_ranges.push_back(push_constant_range);
-		}
+		void AddDescriptorSetLayout(const vk::DescriptorSetLayout& set_layout);
+		void AddDescriptorSetLayout(const std::vector<vk::DescriptorSetLayout>& set_layouts_);
+		void AddPushConstantRange(vk::PushConstantRange push_constant_range);
 
 
 	private:
-		explicit GFXPipelineCI();
 		void ClearVectors();
-		void InitStype();
 		static void SortingDynamicRenderingAttachment(std::vector<DynamicRenderingAttachmentFormatInfo>& attachment_formats_);
 
 	public:
-		struct VkSpecializationInfoPack
+		struct SpecializationInfoPack
 		{
-			VkSpecializationInfo  sp_info;
-			VkShaderStageFlagBits shader_stage;
+			vk::SpecializationInfo  sp_info;
+			vk::ShaderStageFlagBits shader_stage;
 		};
 
 	public:
-		std::vector<VkSpecializationInfoPack> specialization_infos;
+		std::vector<SpecializationInfoPack> specialization_infos;
 
-		std::vector<VkVertexInputBindingDescription>   vertex_input_binding_descriptions;
-		std::vector<VkVertexInputAttributeDescription> vertex_input_attribute_description;
+		std::vector<vk::VertexInputBindingDescription>   vertex_input_binding_descriptions;
+		std::vector<vk::VertexInputAttributeDescription> vertex_input_attribute_description;
 
-		std::pair<std::vector<VkViewport>, std::vector<VkRect2D>> view_port_scissor_pair;
-		std::vector<VkPipelineColorBlendAttachmentState>          color_blend_attachments;
-		std::vector<VkDynamicState>                               dynamic_states;
+		std::pair<std::vector<vk::Viewport>, std::vector<vk::Rect2D>> view_port_scissor_pair;
+		std::vector<vk::PipelineColorBlendAttachmentState>            color_blend_attachments;
+		std::vector<vk::DynamicState>                                 dynamic_states;
 
-		std::vector<VkDynamicState>                                              dynamic_states_enabled;
+		std::vector<vk::DynamicState>                                            dynamic_states_enabled;
 		std::vector<DynamicRenderingAttachmentFormatInfo>                        attachment_formats;
-		std::vector<VkPipelineShaderStageCreateInfo>                             shader_stage_CI;
-		std::vector<VkDescriptorSetLayout>                                       set_layouts;
-		std::vector<VkPushConstantRange>                                         push_constant_ranges;
+		std::vector<vk::PipelineShaderStageCreateInfo>                           shader_stage_CI;
+		std::vector<vk::DescriptorSetLayout>                                     set_layouts;
+		std::vector<vk::PushConstantRange>                                       push_constant_ranges;
 
 
 	public:
-		VkPipelineInputAssemblyStateCreateInfo input_assembly_state_CI{};
-		VkPipelineRasterizationStateCreateInfo rasterization_state_CI{};
-		VkPipelineDepthStencilStateCreateInfo  depth_stencil_CI{};
-		VkPipelineMultisampleStateCreateInfo   multisample_state_CI{};
-		VkPipelineDynamicStateCreateInfo dynamic_state_CI{};
-		VkPipelineColorBlendStateCreateInfo    color_blend_state_CI{};
-		VkPipelineVertexInputStateCreateInfo   vertex_input_state_CI{};
-		VkPipelineViewportStateCreateInfo      viewport_state_CI{};
-		VkPipelineLayoutCreateInfo pipeline_layout_CI{};
-		VkPipelineRenderingCreateInfo pipeline_rendering_CI{};
+		vk::PipelineInputAssemblyStateCreateInfo input_assembly_state_CI{};
+		vk::PipelineRasterizationStateCreateInfo rasterization_state_CI{};
+		vk::PipelineDepthStencilStateCreateInfo  depth_stencil_CI{};
+		vk::PipelineMultisampleStateCreateInfo   multisample_state_CI{};
+		vk::PipelineDynamicStateCreateInfo       dynamic_state_CI{};
+		vk::PipelineColorBlendStateCreateInfo    color_blend_state_CI{};
+		vk::PipelineVertexInputStateCreateInfo   vertex_input_state_CI{};
+		vk::PipelineViewportStateCreateInfo      viewport_state_CI{};
+		vk::PipelineLayoutCreateInfo             pipeline_layout_CI{};
+		vk::PipelineRenderingCreateInfo          pipeline_rendering_CI{};
 
 	};
 

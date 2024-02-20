@@ -14,19 +14,10 @@ namespace Anni
 		[[nodiscard]] std::shared_ptr<Buffer> ProduceBuffer(VkDeviceSize N, BufferCreateInfoEnhanced buf_CI, const void* const data = nullptr);
 
 	public:
-		void ActualizeVirtualResource(RenderGraphV1::VirtualBuffer& vbuf)
-		{
-			VULKAN_HPP_ASSERT(vbuf.descriptor.has_value(), "No discriptor of the given resource is provided.");
-
-			const auto& dis = vbuf.descriptor.value();
-			vbuf.p_rsrc = ProduceBuffer(dis.buf_CI, dis.init_cpu_data);
-		}
+		void ActualizeVirtualResource(RenderGraphV1::VirtualBuffer& vbuf);
 
 	private:
-		[[nodiscard]] std::shared_ptr<Buffer> ProduceBuffer(BufferCreateInfoEnhanced buf_CI, const void* const data = nullptr)
-		{
-			ProduceBuffer(buf_CI.vk_buffer_CI.size, buf_CI, data);
-		}
+		[[nodiscard]] std::shared_ptr<Buffer> ProduceBuffer(BufferCreateInfoEnhanced buf_CI, const void* const data = nullptr);
 
 
 	private:

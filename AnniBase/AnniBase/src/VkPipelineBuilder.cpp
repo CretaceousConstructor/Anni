@@ -7,28 +7,23 @@ namespace Anni
 	{
 	}
 
-
 	/// <summary>
 	/// 填写所有CI，然后创建 
 	/// </summary>
 	/// <param name="local_pip_CI"></param>
 	/// <returns></returns>
-	std::pair<std::unique_ptr<PipelineWrapper>, std::unique_ptr<PipelineLayoutWrapper>> VkPipelineBuilder::BuildPipeline(GFXPipelineCI local_pip_CI) const
+	std::pair<vk::UniquePipeline, vk::UniquePipelineLayout> VkPipelineBuilder::BuildPipeline(GFXPipelineCI local_pip_CI) const
 	{
-
 		//******************error detecting******************
 
 		//COLOR BLEND
-		local_pip_CI.color_blend_state_CI.attachmentCount = static_cast<uint32_t>(local_pip_CI.color_blend_attachments.size());
-		local_pip_CI.color_blend_state_CI.pAttachments = local_pip_CI.color_blend_attachments.data();
+		local_pip_CI.color_blend_state_CI.setAttachments(local_pip_CI.color_blend_attachments);
 		//VERTEX INPUT
-		local_pip_CI.vertex_input_state_CI.vertexBindingDescriptionCount = static_cast<uint32_t>(local_pip_CI.vertex_input_binding_descriptions.size());
-		local_pip_CI.vertex_input_state_CI.pVertexBindingDescriptions = local_pip_CI.vertex_input_binding_descriptions.data();
-		local_pip_CI.vertex_input_state_CI.vertexAttributeDescriptionCount = static_cast<uint32_t>(local_pip_CI.vertex_input_attribute_description.size());
-		local_pip_CI.vertex_input_state_CI.pVertexAttributeDescriptions = local_pip_CI.vertex_input_attribute_description.data();
+		local_pip_CI.vertex_input_state_CI.setVertexBindingDescriptions(local_pip_CI.vertex_input_binding_descriptions);
+		local_pip_CI.vertex_input_state_CI.setVertexAttributeDescriptions(local_pip_CI.vertex_input_attribute_description);
 
 		//DYNAMIC RENDERING ATTACHMENT FORMATS 
-		std::vector<VkFormat> color_attachments;
+		std::vector<vk::Format> color_attachments;
 
 		for (const auto& format : local_pip_CI.attachment_formats)
 		{
@@ -40,7 +35,7 @@ namespace Anni
 			if (AttachmentType::DepthAttachment == format.attach_type)
 			{
 				local_pip_CI.pipeline_rendering_CI.depthAttachmentFormat = format.format;
-				local_pip_CI.pipeline_rendering_CI.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+				local_pip_CI.pipeline_rendering_CI.stencilAttachmentFormat = vk::Format::eUndefined;
 			}
 
 			if (AttachmentType::DepthStencilAttachment == format.attach_type)
@@ -50,8 +45,7 @@ namespace Anni
 			}
 		}
 
-		local_pip_CI.pipeline_rendering_CI.colorAttachmentCount = static_cast<uint32_t>(color_attachments.size());
-		local_pip_CI.pipeline_rendering_CI.pColorAttachmentFormats = color_attachments.data();
+		local_pip_CI.pipeline_rendering_CI.setColorAttachmentFormats(color_attachments);
 		local_pip_CI.pipeline_rendering_CI.viewMask = 0;
 
 
@@ -61,8 +55,7 @@ namespace Anni
 			const auto first_color_blend_attachment = local_pip_CI.color_blend_attachments.front();
 			local_pip_CI.color_blend_attachments.resize(local_pip_CI.pipeline_rendering_CI.colorAttachmentCount, first_color_blend_attachment);
 
-			local_pip_CI.color_blend_state_CI.attachmentCount = static_cast<uint32_t>(local_pip_CI.color_blend_attachments.size());
-			local_pip_CI.color_blend_state_CI.pAttachments = local_pip_CI.color_blend_attachments.data();
+			local_pip_CI.color_blend_state_CI.setAttachments(local_pip_CI.color_blend_attachments);
 			assert(local_pip_CI.pipeline_rendering_CI.colorAttachmentCount == local_pip_CI.color_blend_state_CI.attachmentCount);
 		}
 		else
@@ -87,32 +80,28 @@ namespace Anni
 			}
 		}
 
+
 		//DYNAMIC STATES
-		local_pip_CI.dynamic_state_CI.pDynamicStates = local_pip_CI.dynamic_states.data();
-		local_pip_CI.dynamic_state_CI.dynamicStateCount = static_cast<uint32_t>(local_pip_CI.dynamic_states.size());
+		local_pip_CI.dynamic_state_CI.setDynamicStates(local_pip_CI.dynamic_states);
+
+
+		//VIEWPORT AND SCISSOR
+		local_pip_CI.viewport_state_CI.setViewports(local_pip_CI.view_port_scissor_pair.first);
+		local_pip_CI.viewport_state_CI.setScissors(local_pip_CI.view_port_scissor_pair.second);
+
 
 		//PIPLINE CI (use dynamic rendering)
-		VkGraphicsPipelineCreateInfo pipeline_CI;
-		pipeline_CI.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-		pipeline_CI.flags = 0;
+		vk::GraphicsPipelineCreateInfo pipeline_CI{};
 
-		pipeline_CI.renderPass = VK_NULL_HANDLE;        //use dynamic rendering
-		pipeline_CI.subpass = 0;                        //use dynamic rendering
+		//pipeline_CI.renderPass = VK_NULL_HANDLE;        //use dynamic rendering
+		//pipeline_CI.subpass = 0;                        //use dynamic rendering
 
 		pipeline_CI.basePipelineIndex = -1;
 		pipeline_CI.basePipelineHandle = VK_NULL_HANDLE;
 
 
-		//VIEWPORT AND SCISSOR
-		local_pip_CI.viewport_state_CI.viewportCount = static_cast<uint32_t>(local_pip_CI.view_port_scissor_pair.first.size());
-		local_pip_CI.viewport_state_CI.pViewports = local_pip_CI.view_port_scissor_pair.first.data();
-
-		local_pip_CI.viewport_state_CI.scissorCount = static_cast<uint32_t>(local_pip_CI.view_port_scissor_pair.second.size());
-		local_pip_CI.viewport_state_CI.pScissors = local_pip_CI.view_port_scissor_pair.second.data();
-
-
 		//PIPELINE LAYOUT
-		auto pipeline_layout = BuildPipelineLayout(local_pip_CI);
+		vk::UniquePipelineLayout pipeline_layout = BuildPipelineLayout(local_pip_CI);
 
 		//FINALIZE
 		pipeline_CI.pInputAssemblyState = &local_pip_CI.input_assembly_state_CI;
@@ -128,39 +117,28 @@ namespace Anni
 
 		pipeline_CI.pTessellationState = nullptr;
 		pipeline_CI.pNext = &local_pip_CI.pipeline_rendering_CI;
-		pipeline_CI.layout = pipeline_layout;
+		pipeline_CI.layout = pipeline_layout.get();
 
-		VkPipeline pipeline;
-		VK_CHECK_RESULT(
-			vkCreateGraphicsPipelines(device_manager.GetLogicalDevice(),
-				nullptr,
-				1,
-				&pipeline_CI,
-				nullptr,
-				&pipeline));
+		vk::ResultValue<vk::UniquePipeline> temp_pipline = device_manager.GetLogicalDevice().createGraphicsPipelineUnique(VK_NULL_HANDLE, pipeline_CI);
+		vk::resultCheck(temp_pipline.result, "pipeline failed to create!");
 
-		return std::pair{ std::make_unique<PipelineWrapper>(device_manager,pipeline),std::make_unique<PipelineLayoutWrapper>(device_manager,pipeline_layout) };
+		return std::pair{
+			std::move(temp_pipline.value),
+			std::move(pipeline_layout)
+		};
 	}
 
 
 
-	VkPipelineLayout VkPipelineBuilder::BuildPipelineLayout(const GFXPipelineCI& local_pip_CI) const
+
+
+	vk::UniquePipelineLayout VkPipelineBuilder::BuildPipelineLayout(const GFXPipelineCI& local_pip_CI) const
 	{
-		VkPipelineLayoutCreateInfo pipe_layout_CI
-		{
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.pNext = VK_NULL_HANDLE,
-			.flags = Vk::NoneFlag,
-			.setLayoutCount = local_pip_CI.set_layouts.size(),
-			.pSetLayouts = local_pip_CI.set_layouts.data(),
+		vk::PipelineLayoutCreateInfo pipe_layout_CI{};
+		pipe_layout_CI.setSetLayouts(local_pip_CI.set_layouts);
+		pipe_layout_CI.setPushConstantRanges(local_pip_CI.push_constant_ranges);
 
-			.pushConstantRangeCount = local_pip_CI.push_constant_ranges.size(),
-			.pPushConstantRanges = local_pip_CI.push_constant_ranges.data()
-		};
-
-		VkPipelineLayout tmp_layout;
-		vkCreatePipelineLayout(device_manager.GetLogicalDevice(), &pipe_layout_CI, VK_NULL_HANDLE, &tmp_layout);
-		return tmp_layout;
+		return device_manager.GetLogicalDevice().createPipelineLayoutUnique(pipe_layout_CI);
 	}
 
 }

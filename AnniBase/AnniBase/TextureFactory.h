@@ -9,12 +9,13 @@
 #include "AnniUtil.h"
 
 #include "VirtualTexture.h"
-#include <string>
-#include <unordered_map>
+
 #include <ktx.h>
 #include <ktxvulkan.h>
 #include <stb_image.h>
 
+#include <string>
+#include <unordered_map>
 
 
 namespace Anni
@@ -91,7 +92,7 @@ namespace Anni
 		
 		const vk::DeviceSize                      upload_size = tex_img_CI.vk_image_CI.extent.height * tex_img_CI.vk_image_CI.extent.width * 4 * sizeof(ColorChannel);
 		std::shared_ptr<GeneralPurposeImageReFac> texture_image = img_factory.ProduceImage(tex_img_CI);
-		const auto staging_buffer = buffer_factory.ProduceBufferReFac(upload_size, CI::StagingBuffer);
+		const auto staging_buffer = buffer_factory.ProduceBuffer(upload_size, CI::StagingBuffer);
 
 		//创建完staging buffer以后，把cpu中的texture中的数据拷贝进staging buffer
 		staging_buffer->CopyFromHost((void const*)data, upload_size);

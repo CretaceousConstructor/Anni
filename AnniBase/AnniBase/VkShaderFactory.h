@@ -1,5 +1,4 @@
 #pragma once
-#define NOMINMAX
 #include "AnniUtil.h"
 #include "GraphicsComponent.h"
 #include "VkShaderWrapper.h"
@@ -19,14 +18,14 @@ class VkShaderFactory
 	VkShaderFactory(GraphicsComponent &gfx_);
 
 	[[nodiscard]] std::shared_ptr<VkShaderWrapper>    GetShader(const std::string &path, VkShaderStageFlagBits stage) const;
-	[[nodiscard]] std::shared_ptr<VkShaderExtWrapper> GetShaderExt(const std::string &path, VkShaderCreateInfoEXT shader_CI) const;
+	//[[nodiscard]] std::shared_ptr<VkShaderExtWrapper> GetShaderExt(const std::string &path, VkShaderCreateInfoEXT shader_CI) const;
 
   private:
 	GraphicsComponent &gfx;
 	DeviceManager &    device_manager;
 
   private:
-	//MS bull shit
+	//MS bullshit
 	Microsoft::WRL::ComPtr<IDxcUtils>     dxc_utils;
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxc_compiler;
 };

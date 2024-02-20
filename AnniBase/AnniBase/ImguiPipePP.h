@@ -30,37 +30,37 @@
 //
 //};
 
-
-
-#include "VkPipelinePPFactory.h"
-
-namespace Anni
-{
-	class ImguiPipePPFactory final : public IPipelineCIBuilder
-	{
-	public:
-		ImguiPipePPFactory(GraphicsComponent& gfx_);
-		~ImguiPipePPFactory() override = default;
-
-		ImguiPipePPFactory(const ImguiPipePPFactory&) = delete;
-		ImguiPipePPFactory(ImguiPipePPFactory&&) = delete;
-
-		ImguiPipePPFactory& operator=(const ImguiPipePPFactory&) = delete;
-		ImguiPipePPFactory& operator=(ImguiPipePPFactory&&) = delete;
-
-	protected:
-		void ConstructInputAssemblyStateCI(GFXPipelineCI& pp) override;
-		void ConstructRasterizationStateCI(GFXPipelineCI& pp) override;
-		void ConstructDepthStencilStateCI(GFXPipelineCI& pp) override;
-		void ConstructMultisampleStateCI(GFXPipelineCI& pp) override;
-		void ConstructDynamicState(GFXPipelineCI& pp) override;
-		void ConstructColorBlendStateCI(GFXPipelineCI& pp) override;
-		void ConstructVertexInputStateCI(GFXPipelineCI& pp) override;
-		void ConstructViewPortStateCI(GFXPipelineCI& pp) override;
-		void ConstructRenderingCI(GFXPipelineCI& pp) override;
-
-
-
-	};
-}
-
+//
+//
+//#include "VkPipelinePPFactory.h"
+//
+//namespace Anni
+//{
+//	class ImguiPipePPFactory final : public IPipelineCIBuilder
+//	{
+//	public:
+//		ImguiPipePPFactory(GraphicsComponent& gfx_);
+//		~ImguiPipePPFactory() override = default;
+//
+//		ImguiPipePPFactory(const ImguiPipePPFactory&) = delete;
+//		ImguiPipePPFactory(ImguiPipePPFactory&&) = delete;
+//
+//		ImguiPipePPFactory& operator=(const ImguiPipePPFactory&) = delete;
+//		ImguiPipePPFactory& operator=(ImguiPipePPFactory&&) = delete;
+//
+//	protected:
+//		void ConstructInputAssemblyStateCI(GFXPipelineCI& pp) override;
+//		void ConstructRasterizationStateCI(GFXPipelineCI& pp) override;
+//		void ConstructDepthStencilStateCI(GFXPipelineCI& pp) override;
+//		void ConstructMultisampleStateCI(GFXPipelineCI& pp) override;
+//		void ConstructDynamicState(GFXPipelineCI& pp) override;
+//		void ConstructColorBlendStateCI(GFXPipelineCI& pp) override;
+//		void ConstructVertexInputStateCI(GFXPipelineCI& pp) override;
+//		void ConstructViewPortStateCI(GFXPipelineCI& pp) override;
+//		void ConstructRenderingCI(GFXPipelineCI& pp) override;
+//
+//
+//
+//	};
+//}
+//

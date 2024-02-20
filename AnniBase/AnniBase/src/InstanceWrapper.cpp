@@ -38,7 +38,7 @@ namespace Anni
 	void InstanceWrapper::CreateVulkanInstance()
 	{
 		//检查 实例(instance) 会用到的 全局层instance layer(现在已经不区分全局层和设备层了，全都是全局层)
-		VULKAN_HPP_ASSERT(ValidationUtility::CheckIfRequiredInstanceLayersSupported(), "some instance layers required, but not available!");
+		ASSERT_WITH_MSG(ValidationUtility::CheckIfRequiredInstanceLayersSupported(), "some instance layers required, but not available!");
 
 		// initialize the vk::ApplicationInfo structure
 		vk::ApplicationInfo applicationInfo(app_name.c_str(), 2, engine_name.c_str(), 1, ANNI_VK_API_VERSION);

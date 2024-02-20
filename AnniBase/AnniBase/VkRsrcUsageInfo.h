@@ -13,189 +13,189 @@
 
 namespace Anni
 {
-	// Base Class
-	class RsrcUsageInfoInPass
-	{
-	public:
-		enum class RsrcOrigin
-		{
-			Unknown,
-			FromOutSide,
-			FromSourcePass,
-			FromPreviousFrame,
-			EstablishedInSitu
-		};
+	//// Base Class
+	//class RsrcUsageInfoInPass
+	//{
+	//public:
+	//	enum class RsrcOrigin
+	//	{
+	//		Unknown,
+	//		FromOutSide,
+	//		FromSourcePass,
+	//		FromPreviousFrame,
+	//		EstablishedInSitu
+	//	};
 
-	public:
-		RsrcUsageInfoInPass(Vk::RsrcType rsrc_t_, Vk::RsrcAccessTypeRG access_t_);
-		RsrcUsageInfoInPass(Vk::RsrcType rsrc_t_,
-			Vk::RsrcAccessTypeRG access_t_,
-			RsrcOrigin origin_);
-		[[nodiscard]] Vk::RsrcType GetRsrcType() const;
-		[[nodiscard]] Vk::RsrcAccessTypeRG GetRsrcAccessType() const;
-		[[nodiscard]] RsrcOrigin GetRsrcOrigin() const;
-		void SetRsrcOrigin(RsrcUsageInfoInPass::RsrcOrigin origin);
+	//public:
+	//	RsrcUsageInfoInPass(Vk::RsrcType rsrc_t_, Vk::RsrcAccessTypeRG access_t_);
+	//	RsrcUsageInfoInPass(Vk::RsrcType rsrc_t_,
+	//		Vk::RsrcAccessTypeRG access_t_,
+	//		RsrcOrigin origin_);
+	//	[[nodiscard]] Vk::RsrcType GetRsrcType() const;
+	//	[[nodiscard]] Vk::RsrcAccessTypeRG GetRsrcAccessType() const;
+	//	[[nodiscard]] RsrcOrigin GetRsrcOrigin() const;
+	//	void SetRsrcOrigin(RsrcUsageInfoInPass::RsrcOrigin origin);
 
-	public:
-		RsrcUsageInfoInPass() = delete;
+	//public:
+	//	RsrcUsageInfoInPass() = delete;
 
-		RsrcUsageInfoInPass(const RsrcUsageInfoInPass&) = delete;
-		RsrcUsageInfoInPass& operator=(const RsrcUsageInfoInPass&) = delete;
+	//	RsrcUsageInfoInPass(const RsrcUsageInfoInPass&) = delete;
+	//	RsrcUsageInfoInPass& operator=(const RsrcUsageInfoInPass&) = delete;
 
-		RsrcUsageInfoInPass(RsrcUsageInfoInPass&&) = delete;
-		RsrcUsageInfoInPass& operator=(RsrcUsageInfoInPass&&) = delete;
+	//	RsrcUsageInfoInPass(RsrcUsageInfoInPass&&) = delete;
+	//	RsrcUsageInfoInPass& operator=(RsrcUsageInfoInPass&&) = delete;
 
-		virtual ~RsrcUsageInfoInPass() = 0;
+	//	virtual ~RsrcUsageInfoInPass() = 0;
 
-	protected:
-		Vk::RsrcType rsrc_type{};
-		Vk::RsrcAccessTypeRG access_type{};
-		RsrcOrigin origin{};
-	};
+	//protected:
+	//	Vk::RsrcType rsrc_type{};
+	//	Vk::RsrcAccessTypeRG access_type{};
+	//	RsrcOrigin origin{};
+	//};
 
-	class VkTexUsageInfo
-	{
-	public:
-		VkDescriptorType desc_type{};
-		VkShaderStageFlags shader_stages{};
-		Vk::DescSetInfo set_info{};
+	//class VkTexUsageInfo
+	//{
+	//public:
+	//	VkDescriptorType desc_type{};
+	//	VkShaderStageFlags shader_stages{};
+	//	Vk::DescSetInfo set_info{};
 
-		std::shared_ptr<VkTexture> tex{};
-	};
+	//	std::shared_ptr<VkTexture> tex{};
+	//};
 
-	class VkUniversalTexUsageInfoRG final : public RsrcUsageInfoInPass
-	{
-	public:
-		// use as texture
-		VkUniversalTexUsageInfoRG(
-			VkFormat format_,
-			std::variant<Vk::AttachmentIndix, Vk::DescSetInfo> binding_info_,
+	//class VkUniversalTexUsageInfoRG final : public RsrcUsageInfoInPass
+	//{
+	//public:
+	//	// use as texture
+	//	VkUniversalTexUsageInfoRG(
+	//		VkFormat format_,
+	//		std::variant<Vk::AttachmentIndix, Vk::DescSetInfo> binding_info_,
 
-			VkAccessFlags access_mask_,
-			VkPipelineStageFlags pip_stage_mask_,
-			VkImageLayout layout_inpass_,
+	//		VkAccessFlags access_mask_,
+	//		VkPipelineStageFlags pip_stage_mask_,
+	//		VkImageLayout layout_inpass_,
 
-			VkDescriptorType type_,
-			VkShaderStageFlags shader_stages_,
-			Vk::RsrcAccessTypeRG access_t,
-			std::optional<VkSamplerCreateInfo> sampler_CI_ = std::nullopt,
-			std::optional<VkImageViewCreateInfo> img_view_CI_ = std::nullopt);
+	//		VkDescriptorType type_,
+	//		VkShaderStageFlags shader_stages_,
+	//		Vk::RsrcAccessTypeRG access_t,
+	//		std::optional<VkSamplerCreateInfo> sampler_CI_ = std::nullopt,
+	//		std::optional<VkImageViewCreateInfo> img_view_CI_ = std::nullopt);
 
-		// used for model texture importing
-		VkUniversalTexUsageInfoRG(
+	//	// used for model texture importing
+	//	VkUniversalTexUsageInfoRG(
 
-			VkAccessFlags access_mask_,
-			VkPipelineStageFlags pip_stage_mask_,
-			VkImageLayout layout_inpass_,
+	//		VkAccessFlags access_mask_,
+	//		VkPipelineStageFlags pip_stage_mask_,
+	//		VkImageLayout layout_inpass_,
 
-			VkDescriptorType type_,
-			VkShaderStageFlags shader_stages_);
+	//		VkDescriptorType type_,
+	//		VkShaderStageFlags shader_stages_);
 
-		// use as attachment
-		VkUniversalTexUsageInfoRG(
-			VkFormat format_,
-			std::variant<Vk::AttachmentIndix, Vk::DescSetInfo> binding_info_,
+	//	// use as attachment
+	//	VkUniversalTexUsageInfoRG(
+	//		VkFormat format_,
+	//		std::variant<Vk::AttachmentIndix, Vk::DescSetInfo> binding_info_,
 
-			VkAccessFlags access_mask_,
-			VkPipelineStageFlags pip_stage_mask_,
-			VkImageLayout layout_inpass_,
+	//		VkAccessFlags access_mask_,
+	//		VkPipelineStageFlags pip_stage_mask_,
+	//		VkImageLayout layout_inpass_,
 
-			AttachmentType attach_type_,
-			VkClearValue clear_value_,
-			Vk::RsrcAccessTypeRG access_t_,
+	//		AttachmentType attach_type_,
+	//		VkClearValue clear_value_,
+	//		Vk::RsrcAccessTypeRG access_t_,
 
-			VkResolveModeFlagBits resolve_mode_ = VK_RESOLVE_MODE_NONE,
-			VkImageLayout resolve_image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED,
-			// VkImageView              resolveImageView{};
-			VkAttachmentLoadOp load_op_ = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-			VkAttachmentStoreOp store_op_ = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+	//		VkResolveModeFlagBits resolve_mode_ = VK_RESOLVE_MODE_NONE,
+	//		VkImageLayout resolve_image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED,
+	//		// VkImageView              resolveImageView{};
+	//		VkAttachmentLoadOp load_op_ = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+	//		VkAttachmentStoreOp store_op_ = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 
-			std::optional<VkSamplerCreateInfo> sampler_CI_ = std::nullopt,
-			std::optional<VkImageViewCreateInfo> img_view_CI_ = std::nullopt);
+	//		std::optional<VkSamplerCreateInfo> sampler_CI_ = std::nullopt,
+	//		std::optional<VkImageViewCreateInfo> img_view_CI_ = std::nullopt);
 
-		// copy constructor
-		VkUniversalTexUsageInfoRG(const VkUniversalTexUsageInfoRG& other) = delete;
+	//	// copy constructor
+	//	VkUniversalTexUsageInfoRG(const VkUniversalTexUsageInfoRG& other) = delete;
 
-		VkUniversalTexUsageInfoRG& operator=(const VkUniversalTexUsageInfoRG& other) = delete;
-		VkUniversalTexUsageInfoRG(VkUniversalTexUsageInfoRG&& other) = delete;
-		VkUniversalTexUsageInfoRG& operator=(VkUniversalTexUsageInfoRG&& other) = delete;
-		~VkUniversalTexUsageInfoRG() override = default;
+	//	VkUniversalTexUsageInfoRG& operator=(const VkUniversalTexUsageInfoRG& other) = delete;
+	//	VkUniversalTexUsageInfoRG(VkUniversalTexUsageInfoRG&& other) = delete;
+	//	VkUniversalTexUsageInfoRG& operator=(VkUniversalTexUsageInfoRG&& other) = delete;
+	//	~VkUniversalTexUsageInfoRG() override = default;
 
-	public:
-		// common ones
-		VkFormat format{};
-		std::optional<VkSamplerCreateInfo> sampler_CI{};
-		std::optional<VkImageViewCreateInfo> img_view_CI{};
-		std::variant<Vk::AttachmentIndix, Vk::DescSetInfo> binding_info;
-		// for sync
-		VkAccessFlags access_mask{}; // for sync
-		VkPipelineStageFlags pip_stage_mask{}; // for sync
-		VkImageLayout layout_inpass{}; // for sync
-		// TODO: sub resource
-		std::optional<VkImageSubresourceRange> subrange;
+	//public:
+	//	// common ones
+	//	VkFormat format{};
+	//	std::optional<VkSamplerCreateInfo> sampler_CI{};
+	//	std::optional<VkImageViewCreateInfo> img_view_CI{};
+	//	std::variant<Vk::AttachmentIndix, Vk::DescSetInfo> binding_info;
+	//	// for sync
+	//	VkAccessFlags access_mask{}; // for sync
+	//	VkPipelineStageFlags pip_stage_mask{}; // for sync
+	//	VkImageLayout layout_inpass{}; // for sync
+	//	// TODO: sub resource
+	//	std::optional<VkImageSubresourceRange> subrange;
 
-		// only for Tex usage
-		VkDescriptorType tex_type{};
-		VkShaderStageFlags shader_stages{};
+	//	// only for Tex usage
+	//	VkDescriptorType tex_type{};
+	//	VkShaderStageFlags shader_stages{};
 
-		// only for Attach usage
-		AttachmentType attach_type{ AttachmentType::Unknown };
-		VkClearValue clear_value{};
+	//	// only for Attach usage
+	//	AttachmentType attach_type{ AttachmentType::Unknown };
+	//	VkClearValue clear_value{};
 
-		VkResolveModeFlagBits resolve_mode{};
-		VkImageLayout resolve_image_layout{};
-		// VkImageView         resolveImageView{};
+	//	VkResolveModeFlagBits resolve_mode{};
+	//	VkImageLayout resolve_image_layout{};
+	//	// VkImageView         resolveImageView{};
 
-		VkAttachmentLoadOp load_op;
-		VkAttachmentStoreOp store_op;
+	//	VkAttachmentLoadOp load_op;
+	//	VkAttachmentStoreOp store_op;
 
-		// some common functions
-		std::optional<VkSamplerCreateInfo> GetSamplerCI() const;
-		std::optional<VkImageViewCreateInfo> GetImgViewCI() const;
-		[[nodiscard]] Vk::TexSyncInfo GetTexSynInfo() const;
-	};
+	//	// some common functions
+	//	std::optional<VkSamplerCreateInfo> GetSamplerCI() const;
+	//	std::optional<VkImageViewCreateInfo> GetImgViewCI() const;
+	//	[[nodiscard]] Vk::TexSyncInfo GetTexSynInfo() const;
+	//};
 
-	class VkBufUsageInfoRG final : public RsrcUsageInfoInPass
-	{
-	public:
-		[[nodiscard]] Vk::BufSyncInfo GetBufSynInfo() const;
+	//class VkBufUsageInfoRG final : public RsrcUsageInfoInPass
+	//{
+	//public:
+	//	[[nodiscard]] Vk::BufSyncInfo GetBufSynInfo() const;
 
-	public:
-		VkBufUsageInfoRG(Vk::DescSetInfo slot_info_,
-			VkDescriptorType buf_type_,
+	//public:
+	//	VkBufUsageInfoRG(Vk::DescSetInfo slot_info_,
+	//		VkDescriptorType buf_type_,
 
-			VkAccessFlags access_mask_,
-			VkShaderStageFlags shader_staQueueges_,
-			Vk::RsrcAccessTypeRG access_t_,
-			std::optional<BufferSubRange> subrange_);
+	//		VkAccessFlags access_mask_,
+	//		VkShaderStageFlags shader_staQueueges_,
+	//		Vk::RsrcAccessTypeRG access_t_,
+	//		std::optional<BufferSubRange> subrange_);
 
-		// model usage
-		VkBufUsageInfoRG(Vk::RsrcAccessTypeRG access_t_,
-			std::optional<BufferSubRange> subrange_)
-			:
+	//	// model usage
+	//	VkBufUsageInfoRG(Vk::RsrcAccessTypeRG access_t_,
+	//		std::optional<BufferSubRange> subrange_)
+	//		:
 
-			RsrcUsageInfoInPass(Vk::RsrcType::Buffer, access_t_)
-			, subrange(subrange_)
-		{
-		}
+	//		RsrcUsageInfoInPass(Vk::RsrcType::Buffer, access_t_)
+	//		, subrange(subrange_)
+	//	{
+	//	}
 
-		VkBufUsageInfoRG(const VkBufUsageInfoRG& other) = delete;
+	//	VkBufUsageInfoRG(const VkBufUsageInfoRG& other) = delete;
 
-		VkBufUsageInfoRG& operator=(const VkBufUsageInfoRG& other) = delete;
-		VkBufUsageInfoRG(VkBufUsageInfoRG&& other) = delete;
-		VkBufUsageInfoRG& operator=(VkBufUsageInfoRG&& other) = delete;
+	//	VkBufUsageInfoRG& operator=(const VkBufUsageInfoRG& other) = delete;
+	//	VkBufUsageInfoRG(VkBufUsageInfoRG&& other) = delete;
+	//	VkBufUsageInfoRG& operator=(VkBufUsageInfoRG&& other) = delete;
 
-		~VkBufUsageInfoRG() override = default;
+	//	~VkBufUsageInfoRG() override = default;
 
-		Vk::DescSetInfo set_info{};
-		VkDescriptorType buf_type{};
+	//	Vk::DescSetInfo set_info{};
+	//	VkDescriptorType buf_type{};
+	//
 
+	//	VkAccessFlags access_mask{};
+	//	VkShaderStageFlags shader_stages{};
 
-		VkAccessFlags access_mask{};
-		VkShaderStageFlags shader_stages{};
-
-		std::optional<BufferSubRange> subrange;
-	};
+	//	std::optional<BufferSubRange> subrange;
+	//};
 
 
 

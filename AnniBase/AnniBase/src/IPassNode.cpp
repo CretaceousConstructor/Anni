@@ -1,7 +1,7 @@
 #include "IPassNode.h"
 namespace Anni::RenderGraphV1
 {
-	GraphicsPassNode::GraphicsPassNode(std::string name_, DeviceManager& device_manager_, SwapchainManager& swapchain_manager_, DescriptorLayoutManager& descriptor_set_layout_manager_, VkShaderFactory& shader_fac_, DescriptorAllocatorGrowable& descriptor_allocator_, std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map_, std::unordered_map<std::string, VirtualTexture>& rg_textures_map_) :
+	GraphicsPassNode::GraphicsPassNode(std::string name_, DeviceManager& device_manager_, SwapchainManager& swapchain_manager_, DescriptorLayoutManager& descriptor_set_layout_manager_, VkShaderFactory& shader_fac_, DescriptorSetAllocatorGrowable& descriptor_allocator_, std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map_, std::unordered_map<std::string, VirtualTexture>& rg_textures_map_) :
 		name(name_),
 		device_manager(device_manager_),
 		swapchain_manager(swapchain_manager_),
@@ -47,7 +47,7 @@ namespace Anni::RenderGraphV1
 		const std::unordered_map<std::string, VirtualBuffer>::iterator underlying_rsrc)
 	{
 
-		VULKAN_HPP_ASSERT(this == target_pass, "this sync info shouldn't be interted in this pass.");
+		ASSERT_WITH_MSG(this == target_pass, "this sync info shouldn't be interted in this pass.");
 		buf_syn_infos_head_same_q.emplace_back(source_syn_info, target_syn_info, underlying_rsrc);
 
 	}
@@ -61,7 +61,7 @@ namespace Anni::RenderGraphV1
 		const std::unordered_map<std::string, VirtualTexture>::iterator underlying_rsrc)
 	{
 
-		VULKAN_HPP_ASSERT(this == target_pass, "this sync info shouldn't be interted in this pass.");
+		ASSERT_WITH_MSG(this == target_pass, "this sync info shouldn't be interted in this pass.");
 		tex_syn_infos_head_same_q.emplace_back(source_syn_info, target_syn_info, underlying_rsrc);
 	}
 
@@ -95,12 +95,12 @@ namespace Anni::RenderGraphV1
 			}
 			else
 			{
-				pass_pair_to_t_sem[key].second.signal_stages |= sor_sem_insersion_info.signal_stages;
+				pass_pair_to_t_sem.at(key).second.signal_stages |= sor_sem_insersion_info.signal_stages;
 			}
 		}
 		else if (this == target_pass)
 		{
-			buf_syn_infos_head_diff_q.emplace_back(sema_sync, source_syn_info, target_syn_info, source_queue_, target_queue_, underlying_rsrc);
+			buf_syn_infos_head_diff_q.emplace_back(source_syn_info, target_syn_info, source_queue_, target_queue_, underlying_rsrc);
 
 			const auto key = PassNodePair{ source_pass,target_pass };
 
@@ -110,12 +110,12 @@ namespace Anni::RenderGraphV1
 			}
 			else
 			{
-				pass_pair_to_t_sem[key].second.wait_stages |= tar_sem_insersion_info.wait_stages;
+				pass_pair_to_t_sem.at(key).second.wait_stages |= tar_sem_insersion_info.wait_stages;
 			}
 		}
 		else
 		{
-			VULKAN_HPP_ASSERT(false, "this sync info shouldn't be interted here.");
+			ASSERT_WITH_MSG(false, "this sync info shouldn't be interted here.");
 		}
 	}
 
@@ -144,12 +144,12 @@ namespace Anni::RenderGraphV1
 			}
 			else
 			{
-				pass_pair_to_t_sem[key].second.signal_stages |= sor_sem_insersion_info.signal_stages;
+				pass_pair_to_t_sem.at(key).second.signal_stages |= sor_sem_insersion_info.signal_stages;
 			}
 		}
 		else if (this == target_pass)
 		{
-			tex_syn_infos_head_diff_q.emplace_back(sema_sync, source_syn_info, target_syn_info, source_queue_, target_queue_, underlying_rsrc);
+			tex_syn_infos_head_diff_q.emplace_back( source_syn_info, target_syn_info, source_queue_, target_queue_, underlying_rsrc);
 
 			const auto key = PassNodePair{ source_pass,target_pass };
 
@@ -159,12 +159,12 @@ namespace Anni::RenderGraphV1
 			}
 			else
 			{
-				pass_pair_to_t_sem[key].second.wait_stages |= tar_sem_insersion_info.wait_stages;
+				pass_pair_to_t_sem.at(key).second.wait_stages |= tar_sem_insersion_info.wait_stages;
 			}
 		}
 		else
 		{
-			VULKAN_HPP_ASSERT(false, "this sync info shouldn't be interted here.");
+			ASSERT_WITH_MSG(false, "this sync info shouldn't be interted here.");
 		}
 	}
 
@@ -189,6 +189,33 @@ namespace Anni::RenderGraphV1
 	{
 		SyncInsertAfterSameQ(cmd_buf, signal_sem_submit_info);
 		SyncInsertAfterDiffQ(cmd_buf, signal_sem_submit_info);
+	}
+
+	void GraphicsPassNode::GenerateAllAccessStages()
+	{
+		std::ranges::for_each
+		(
+			buf_usages,
+			[&](VirtualBufRsrcAndUsage& rsrc_usage)
+			{
+				all_access_stages |= rsrc_usage.usage.sync_info.stage_mask;
+			}
+		);
+
+		std::ranges::for_each
+		(
+			tex_usages,
+			[&](VirtualTexRsrcAndUsage& rsrc_usage)
+			{
+				all_access_stages |=
+					std::visit
+					([&](auto& variant_usage) -> vk::PipelineStageFlags2
+						{
+							return variant_usage.sync_info.stage_mask;
+						}, rsrc_usage.usage
+					);
+			}
+		);
 	}
 
 
@@ -512,6 +539,117 @@ namespace Anni::RenderGraphV1
 
 	}
 
+	void GraphicsPassNode::SyncInsertAfterSameQ(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info)
+	{
+		//we can use barriers.
+		//OPTIMIZATION: 合批
+
+		//After waiting, we can use barriers.
+		std::vector<vk::BufferMemoryBarrier2> buf_bars;
+		for (auto& tail_syn : buf_syn_infos_tail_same_q)
+		{
+			VirtualBuffer& buff = tail_syn.underlying_vrsrc->second;
+			vk::BufferMemoryBarrier2 buf_barrier = buff.GetBufBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
+			buf_bars.push_back(buf_barrier);
+		};
+
+		std::vector<vk::ImageMemoryBarrier2> tex_bars;
+		for (auto& tail_syn : tex_syn_infos_tail_same_q)
+		{
+			VirtualTexture& tex = tail_syn.underlying_vrsrc->second;
+			vk::ImageMemoryBarrier2 tex_barrier = tex.GetTexBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
+			tex_bars.push_back(tex_barrier);
+		}
+
+		auto depen_info = vk::DependencyInfo{};
+		depen_info.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+		depen_info.setImageMemoryBarriers(tex_bars);
+		depen_info.setBufferMemoryBarriers(buf_bars);
+		cmd_buf.pipelineBarrier2(depen_info);
+	}
+
+	void GraphicsPassNode::SyncInsertAfterDiffQ(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info)
+	{
+		//std::vector<VkSemaphoreSubmitInfo> signal_sem_submit_info_on_diff_q;
+
+		//for (auto& diffq_tail_sync : buf_syn_infos_tail_diff_q)
+		//{
+		//	uint64_t signal_value = diffq_tail_sync.signal_value.value_or(1);
+		//	signal_sem_submit_info.push_back(
+		//		VkSemaphoreSubmitInfo{
+		//			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+		//			.pNext = VK_NULL_HANDLE,
+		//			.semaphore = diffq_tail_sync.sync_sema->GetRawSem(),
+		//			.value = signal_value,
+		//			.stageMask = diffq_tail_sync.target_sync_info.stage_mask,
+		//			.deviceIndex = 0 }
+		//	);
+		//}
+
+		//for (auto& diffq_tail_sync : tex_syn_infos_tail_diff_q)
+		//{
+		//	uint64_t signal_value = diffq_tail_sync.signal_value.value_or(1);
+		//	signal_sem_submit_info.push_back(
+		//		VkSemaphoreSubmitInfo{
+		//			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+		//			.pNext = VK_NULL_HANDLE,
+		//			.semaphore = diffq_tail_sync.sync_sema->GetRawSem(),
+		//			.value = signal_value,
+		//			.stageMask = diffq_tail_sync.target_sync_info.stage_mask,
+		//			.deviceIndex = 0 });
+		//}
+
+		//VkCommandBufferSubmitInfo cmd_submit_info{
+		//	.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+		//	.pNext = VK_NULL_HANDLE,
+		//	.commandBuffer = VK_NULL_HANDLE
+		//};
+
+
+
+		//auto submit_info = VkSubmitInfo2{
+		//	.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+		//	.pNext = VK_NULL_HANDLE,
+		//	.flags = Vk::NoneFlag,
+
+		//	.waitSemaphoreInfoCount = 0u,
+		//	.pWaitSemaphoreInfos = VK_NULL_HANDLE,
+
+		//	.commandBufferInfoCount = 1u,
+		//	.pCommandBufferInfos = &cmd_submit_info,
+
+		//	.signalSemaphoreInfoCount = static_cast<uint32_t>(signal_sem_submit_info_on_diff_q.size()),
+		//	.pSignalSemaphoreInfos = signal_sem_submit_info_on_diff_q.data()
+		//};
+
+		//vkQueueSubmit2(execution_queue.GetQueue(), 1, &submit_info, VK_NULL_HANDLE);
+
+
+		//After waiting, we can use barriers.
+		std::vector<vk::BufferMemoryBarrier2> buf_bars;
+		for (auto& tail_syn : buf_syn_infos_tail_diff_q)
+		{
+			VirtualBuffer& buff = tail_syn.underlying_vrsrc->second;
+			vk::BufferMemoryBarrier2 buf_barrier = buff.GetBufBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
+			buf_bars.push_back(buf_barrier);
+		};
+
+		std::vector<vk::ImageMemoryBarrier2> tex_bars;
+		for (auto& tail_syn : tex_syn_infos_tail_diff_q)
+		{
+			VirtualTexture& tex = tail_syn.underlying_vrsrc->second;
+			vk::ImageMemoryBarrier2 tex_barrier = tex.GetTexBarrier(tail_syn.source_sync_info, tail_syn.target_sync_info);
+			tex_bars.push_back(tex_barrier);
+		}
+
+		auto depen_info = vk::DependencyInfo{};
+		depen_info.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+		depen_info.setImageMemoryBarriers(tex_bars);
+		depen_info.setBufferMemoryBarriers(buf_bars);
+		cmd_buf.pipelineBarrier2(depen_info);
+
+	}
+
 	void GraphicsPassNode::SyncInsertAhead(vk::CommandBuffer cmd_buf, std::vector<vk::SemaphoreSubmitInfo>& wait_sem_submit_info)
 	{
 		SyncInsertAheadSameQ(cmd_buf, wait_sem_submit_info);
@@ -550,8 +688,8 @@ namespace Anni::RenderGraphV1
 		const auto inlet_name = rsrc_name + "_" + this->name + "_In";        //把pass的名字作为后缀，创建导入导出口
 
 		//创建当前pass的资源的导入口
-		const auto cur_inlet_itr = ins_buf.try_emplace(inlet_name, rsrc_itr, vrsrc_usage, this);
-		VULKAN_HPP_ASSERT(cur_inlet_itr.second, "Same Inlet Exists!");
+		const auto cur_inlet_itr = ins_buf.try_emplace(inlet_name, vrsrc_usage, this);
+		ASSERT_WITH_MSG(cur_inlet_itr.second, "Same Inlet Exists!");
 
 		//[此资源不需要在当前pass实体化]
 		return vrsrc_usage;
@@ -600,13 +738,13 @@ namespace Anni::RenderGraphV1
 		//当前资源含有descriptor，资源就是在当前pass创建。
 
 		//资源的命名方式为：资源名 + _
-		const auto rsrc_name = rsrc_name + "_";
+		const auto rsrc_name_inmap = rsrc_name + "_";
 
 		//用传入的lambda函数改变descriptor
 		descriptor_modifier(buf_descriptor);
 
 		//加入资源的map中，当前资源含有descriptor，资源就是在当前pass创建，所以应该之前没有这个资源
-		const auto underlying_rsrc_itr = rg_buffers_map.try_emplace(rsrc_name, rsrc_name, buf_descriptor);
+		const auto underlying_rsrc_itr = rg_buffers_map.try_emplace(rsrc_name_inmap, rsrc_name_inmap, buf_descriptor);
 		//确保用户没有重复添加
 		assert(underlying_rsrc_itr.second);
 

@@ -9,64 +9,60 @@ namespace Anni
 {
 
 	//obsolete
-	class VkPipelineWrapper
-	{
+	//class VkPipelineWrapper
+	//{
 
-	public:
+	//public:
 
-		friend class VkPipelineBuilder;
+	//	friend class VkPipelineBuilder;
+	//	VkPipelineWrapper(GraphicsComponent& _gfx);
 
+	//	~VkPipelineWrapper();
 
+	//	VkPipelineWrapper() = delete;
 
+	//	VkPipelineWrapper(const VkPipelineWrapper&) = delete;
+	//	VkPipelineWrapper& operator=(const VkPipelineWrapper&) = delete;
 
-		VkPipelineWrapper(GraphicsComponent& _gfx);
-
-		~VkPipelineWrapper();
-
-		VkPipelineWrapper() = delete;
-
-		VkPipelineWrapper(const VkPipelineWrapper&) = delete;
-		VkPipelineWrapper& operator=(const VkPipelineWrapper&) = delete;
-
-		VkPipelineWrapper(VkPipelineWrapper&&) = delete;
-		VkPipelineWrapper& operator=(VkPipelineWrapper&&) = delete;
+	//	VkPipelineWrapper(VkPipelineWrapper&&) = delete;
+	//	VkPipelineWrapper& operator=(VkPipelineWrapper&&) = delete;
 
 
-		[[nodiscard]] VkPipeline GetPipeline() const;
+	//	[[nodiscard]] VkPipeline GetPipeline() const;
 
 
-	private:
+	//private:
 
-		//std::vector<VkVertexInputBindingDescription>     VIBDS;
-		////attributeDescriptions
-		//std::pair<std::vector<VkViewport>, std::vector<VkRect2D>> view_ports;
+	//	//std::vector<VkVertexInputBindingDescription>     VIBDS;
+	//	////attributeDescriptions
+	//	//std::pair<std::vector<VkViewport>, std::vector<VkRect2D>> view_ports;
 
-		//std::vector<VkDynamicState>                      dynamic_states;
-		////std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachment;
-
-
-		//VkPipelineDynamicStateCreateInfo       dynamic_state_CI{};
-		//VkPipelineVertexInputStateCreateInfo   vertex_input_state_CI{};
-		//VkPipelineInputAssemblyStateCreateInfo input_assembly_state_CI{};
-		//VkPipelineViewportStateCreateInfo      viewport_state_CI{};
-		//VkPipelineRasterizationStateCreateInfo rasterization_state_CI{};
-		//VkPipelineMultisampleStateCreateInfo   multisample_state_CI{};
-		//VkPipelineColorBlendStateCreateInfo    color_blend_state_CI{};
-		//VkPipelineDepthStencilStateCreateInfo  depth_stencil_CI{};
-
-		//VkGraphicsPipelineCreateInfo           pipeline_create_CI{};
-
-		//std::vector<VkShaderManager> shaders;
-		//std::vector<VkPipelineShaderStageCreateInfo>     shader_stages_CI;
+	//	//std::vector<VkDynamicState>                      dynamic_states;
+	//	////std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachment;
 
 
-	private:
+	//	//VkPipelineDynamicStateCreateInfo       dynamic_state_CI{};
+	//	//VkPipelineVertexInputStateCreateInfo   vertex_input_state_CI{};
+	//	//VkPipelineInputAssemblyStateCreateInfo input_assembly_state_CI{};
+	//	//VkPipelineViewportStateCreateInfo      viewport_state_CI{};
+	//	//VkPipelineRasterizationStateCreateInfo rasterization_state_CI{};
+	//	//VkPipelineMultisampleStateCreateInfo   multisample_state_CI{};
+	//	//VkPipelineColorBlendStateCreateInfo    color_blend_state_CI{};
+	//	//VkPipelineDepthStencilStateCreateInfo  depth_stencil_CI{};
 
-		GraphicsComponent& gfx;
-		const DeviceManager& device_manager;
-		VkPipeline  pipeline;
-	private:
-		PipelineMetaInfo pipeline_meta_info{};
+	//	//VkGraphicsPipelineCreateInfo           pipeline_create_CI{};
 
-	};
+	//	//std::vector<VkShaderManager> shaders;
+	//	//std::vector<VkPipelineShaderStageCreateInfo>     shader_stages_CI;
+
+
+	//private:
+
+	//	GraphicsComponent& gfx;
+	//	DeviceManager& device_manager;
+	//	VkPipeline  pipeline;
+	//private:
+	//	//PipelineMetaInfo pipeline_meta_info{};
+
+	//};
 }

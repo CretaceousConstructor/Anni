@@ -50,8 +50,8 @@ namespace Anni::RenderGraphV1
 			Vk::BufferSubRange tar_sub_range = target_sync.buf_subrange.value_or(Vk::BufferSubRange{ .offset = 0, .size = VK_WHOLE_SIZE });
 
 
-			VULKAN_HPP_ASSERT(tar_sub_range.offset == sor_sub_range.offset, "subranges diverge.");
-			VULKAN_HPP_ASSERT(tar_sub_range.size   == sor_sub_range.size,   "subranges diverge.");
+			ASSERT_WITH_MSG(tar_sub_range.offset == sor_sub_range.offset, "subranges diverge.");
+			ASSERT_WITH_MSG(tar_sub_range.size   == sor_sub_range.size,   "subranges diverge.");
 
 			vk::BufferMemoryBarrier2 result{};
 			result.srcStageMask = source_syn.stage_mask;

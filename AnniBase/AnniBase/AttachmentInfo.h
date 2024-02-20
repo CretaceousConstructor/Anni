@@ -37,10 +37,13 @@ namespace Anni
 	{
 	public:
 		explicit DynamicRenderingAttachmentFormatInfo() = default;
+
+
 		DynamicRenderingAttachmentFormatInfo(
 			AttachmentType     attach_type_,
 			vk::Format format_,
-			uint32_t index_);
+			uint32_t index_
+		);
 		//
 		vk::Format format;
 		//attach type only used to distribute to different attachment vector(may it be depth attach ,color attach etc.)

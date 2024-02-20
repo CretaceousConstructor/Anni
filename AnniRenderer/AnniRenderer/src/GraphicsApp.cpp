@@ -40,9 +40,6 @@ namespace Anni
 		device_manager.GetLogicalDevice().waitIdle();
 	}
 
-
-
-
 	void GraphicsApp::CreateRenderer()
 	{
 		renderer = std::make_unique<Renderer::RealtimeRenderer>(gfx);

@@ -9,6 +9,7 @@
 #include "SyncInfo.h"
 
 
+
 namespace Anni::RenderGraphV1
 {
 
@@ -24,6 +25,7 @@ namespace Anni::RenderGraphV1
 			FromPreviousFrame,
 			EstablishedInSitu
 		};
+
 
 		IRsrcUsage(
 			RsrcType rsrc_t_, RsrcAccessTypeRG access_t_) :
@@ -112,6 +114,7 @@ namespace Anni::RenderGraphV1
 
 		~TexUsage() = default;
 		TexUsage() = delete;
+
 		vk::Format format;
 		std::shared_ptr<ImgViewWrapper>      img_view;
 		std::shared_ptr<SamplerWrapper>      sampler;

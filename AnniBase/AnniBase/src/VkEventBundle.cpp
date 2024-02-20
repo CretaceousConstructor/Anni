@@ -17,7 +17,7 @@ namespace Anni
 		for (auto& event : syn_objects_bundle)
 		{
 			//When created, the event object is in the unsignaled state.
-			VK_CHECK_RESULT(vkCreateEvent(device_manager.GetLogicalDevice(), &event_CI, nullptr, &event))
+			VK_CHECK_RESULT(vkCreateEvent(device_manager.GetLogicalDevice(), &event_CI, nullptr, &event));
 		}
 	}
 

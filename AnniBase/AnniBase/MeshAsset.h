@@ -1,7 +1,8 @@
 #pragma once
 #include "Buffer.h"
-#include "Mate.h"
 #include "Mesh.h"
+#include "GLTFMaterialInstance.h"
+
 namespace Anni {
 
 struct MeshAsset // 所有三角形的集合（比如模型的一个部件比如一个车轮，一个引擎）
@@ -11,14 +12,14 @@ struct MeshAsset // 所有三角形的集合（比如模型的一个部件比如一个车轮，一个引擎）
     uint32_t startIndex;
     uint32_t count;
     Bounds bounds;
-    std::shared_ptr<GLTFMaterial> material;
+    std::shared_ptr<GLTFMaterialInstance> material;
   };
 
   struct GPUMeshBuffers // 一个mesh用到的所有buffer
   {
     std::shared_ptr<Anni::Buffer> indexBuffer;
     std::shared_ptr<Anni::Buffer> vertexBuffer;
-    VkDeviceAddress vertexBufferAddress;
+    vk::DeviceAddress vertexBufferAddress;
   };
 
   // holds the resources needed for a mesh

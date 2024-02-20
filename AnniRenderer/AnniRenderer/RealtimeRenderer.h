@@ -1,12 +1,8 @@
 #pragma once
 #include "AnniBase/BaseRenderer.h"
-#include "AnniBase/BufferCI.h"
 #include "AnniBase/FirstPersonCamera.h"
-#include "AnniBase/GltfModel.h"
 #include "AnniBase/KeyBoardInputManager.h"
-#include "AnniBase/RenderGraphV0.h"
 #include "AnniBase/RenderGraphV1.h"
-#include "AnniBase/VkImgui.h"
 #include "AnniBase/VkRenderpassManager.h"
 // #include "IrradianceMapGenPass.h"
 // #include "PrefilterAndLUTMapGenPass.h"
@@ -14,15 +10,11 @@
 #include "DeferedCompositionPass.h"
 #include "DeferedGeometryPass.h"
 // #include "MSAAPass.h"
-#include "AnniBase/AnniVkHeader.h"
 #include "AnniBase/DeferedGeometryPass.h"
 #include "AnniBase/MouseInputManager.h"
 #include "AnniBase/Vk.h"
-#include "AnniBase/VkMemoryManager.h"
-#include "AnniBase/VkRenderpassBase.h"
-#include "AnniBase/VkRsrcUsageInfo.h"
-#include "DeferedCompositionPassRGV0.h"
-#include "DeferedGeometryPassRGV0.h"
+#include "AnniBase/PresentPass.h"
+#include "RenderingMetaInfo.h" 
 
 #include <chrono>
 #include <memory>
@@ -45,6 +37,7 @@ namespace Anni::Renderer
 		{
 			std::shared_ptr<VkTexture> swapchain_attachment;
 			std::shared_ptr<Buffer>    uniform_buffer_gpu_MSAA;
+			MSAA::UBO                  matrix_buffer_cpu_MSAA;
 		};
 
 	public:
@@ -53,7 +46,6 @@ namespace Anni::Renderer
 		) :
 			IRenderer(gfx_),
 			descriptor_allocator(device_manager),
-
 			render_graph_v1(
 				device_manager,
 				swapchain_manager,
@@ -69,6 +61,7 @@ namespace Anni::Renderer
 		{
 		}
 
+		~RealtimeRenderer() = default;
 
 
 	public:
@@ -101,7 +94,7 @@ namespace Anni::Renderer
 
 
 	private:
-		void CreateDepthTextures();
+		//void CreateDepthTextures();
 		void CreateSwapchainTextures();
 
 		void ImportModelRsrcToRenderGraph(
@@ -125,29 +118,24 @@ namespace Anni::Renderer
 		std::vector<std::shared_ptr<TimelineSemWrapper>>  swap_img_rdy_4_rendering_helper_sem;
 		std::vector<std::shared_ptr<TimelineSemWrapper>>  present_finished_helper_sem;
 
-		//std::vector<std::shared_ptr<BinarySemWrapper>>  UI_rendering_finished_semaphores;
-		//std::vector<std::shared_ptr<FenceWrapper>>      frame_fences;
-		//std::vector<std::shared_ptr<FenceWrapper>>      image_fences;
-
 		// UI
 		//Anni::VkImgui imgui_UI;
+		//std::vector<std::shared_ptr<BinarySemWrapper>>  UI_rendering_finished_semaphores;
 
 		// FRAME DATA
 		std::array<FrameData, Vk::SWAP_IMG_COUNT> frame_datas;
-		MSAA::UBO             matrix_buffer_cpu_MSAA;
 
 		// MODEL
 		std::shared_ptr<Anni::LoadedGLTF> test_model_sponza;
 
-		//DESCRIPTOR ALLOCATOR
-		Anni::DescriptorAllocatorGrowable descriptor_allocator;
+		//DESCRIPTOR SET ALLOCATOR
+		Anni::DescriptorSetAllocatorGrowable descriptor_allocator;
 
 		// RENDER GRAPH
 		// you need to re-establish render graph for EVERY FRAME
 		Anni::RenderGraphV1::DependencyGraph render_graph_v1;
 
 	private:
-		~RealtimeRenderer() = default;
 
 		RealtimeRenderer() = delete;
 		RealtimeRenderer(const RealtimeRenderer&) = delete;
@@ -158,3 +146,4 @@ namespace Anni::Renderer
 	};
 
 }
+

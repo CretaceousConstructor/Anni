@@ -3,36 +3,37 @@
 
 namespace Anni
 {
-	class DescriptorAllocatorGrowable
+	class DescriptorSetAllocatorGrowable
 	{
 
 	public:
 		struct PoolSizeRatio
 		{
-			VkDescriptorType type;
+			vk::DescriptorType type;
 			float ratio;
 		};
 
 
 	public:
-		DescriptorAllocatorGrowable(DeviceManager& device_manager_);
-		DescriptorAllocatorGrowable(DeviceManager& device_manager_, uint32_t initialSets, std::span<PoolSizeRatio> poolRatios);
-		~DescriptorAllocatorGrowable();
+		//DescriptorSetAllocatorGrowable(DeviceManager& device_manager_);
+		DescriptorSetAllocatorGrowable(DeviceManager& device_manager_, uint32_t initialSets, std::span<PoolSizeRatio> poolRatios);
+		DescriptorSetAllocatorGrowable(DeviceManager& device_manager_);
+		~DescriptorSetAllocatorGrowable() = default;
 
 
-		void Init(uint32_t initialSets, std::span<PoolSizeRatio> poolRatios);
+		//void Init(uint32_t initialSets, std::span<PoolSizeRatio> poolRatios);
 		void ClearPools();
 		void DestroyPools();
-		VkDescriptorSet Allocate(VkDescriptorSetLayout layout);
+		vk::DescriptorSet Allocate(vk::DescriptorSetLayout layout);
 
 	private:
-		VkDescriptorPool get_pool();
-		VkDescriptorPool create_pool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
+		vk::UniqueDescriptorPool get_pool();
+		vk::UniqueDescriptorPool create_pool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
 
 		std::vector<PoolSizeRatio> ratios;
-		std::vector<VkDescriptorPool> full_pools;
-		std::vector<VkDescriptorPool> ready_pools;
-		uint32_t sets_per_pool{ 32 };
+		std::vector<vk::UniqueDescriptorPool> full_pools;
+		std::vector<vk::UniqueDescriptorPool> ready_pools;
+		uint32_t sets_per_pool;
 	private:
 		DeviceManager& device_manager;
 
