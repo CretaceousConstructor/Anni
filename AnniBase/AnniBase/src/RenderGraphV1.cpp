@@ -66,7 +66,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 	//{
 	//	auto p_random_q = queue_to_passes_on_it.begin()->first;
 	//	//helper of sync of swap chain image
-	//	for (auto& tex : rg_textures_map)
+	//	for (auto& tex : rg_textures)
 	//	{
 	//		auto& p_rsrc = tex.second.p_rsrc;
 	//		if (p_rsrc->IsSwapTexture())
@@ -175,7 +175,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 
 					ASSERT_WITH_MSG(1 == p_pass->tex_usages.size(), "Present pass can only have swap image as its only resource.");
 					auto& swap_img_usage = p_pass->tex_usages.front();
-					auto& swap_img = swap_img_usage.v_rsrc->second.p_rsrc;
+					auto& swap_img = swap_img_usage.v_rsrc->p_rsrc;
 					ASSERT_WITH_MSG(swap_img->IsSwapTexture(), "Present pass can only have swap image as its only resource.");
 
 
@@ -440,30 +440,26 @@ void Anni::RenderGraphV1::DependencyGraph::GeneratePassNodeDepen(GraphicsPassNod
 }
 void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(GraphicsPassNode& pass_node)
 {
-	for (auto& [_, inlet] : pass_node.ins_buf)
+	for (auto& inlet : pass_node.ins_buf)
 	{
 		//在当前pass中的使用方式usage
 		const BufUsage& buf_usage = inlet.GetRsrcUsage();
+
+
 		//如果使用了读的方式，则
 		if (Anni::RsrcAccessTypeRG::Read == buf_usage.GetRsrcAccessType())
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualBufRsrcAndUsage>>::iterator previous_outlet_itr;
-			auto providing_pass_and_source_outlet_itr = inlet.GetProvidingOutletItrAndPass();
-
+			auto& optinoal_ptr_providing_outlet = inlet.GetProvidingOutlet();
 			while (true)
 			{
 				//一直往前找，直到找不到提供的接口
-				//providing_outlet_itor一定是outlet
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
-
+					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_outlet_itr = providing_itr;
-
-					const auto providing_pass_access_type = providing_itr->second.GetRsrcUsage().GetRsrcAccessType();
+					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
@@ -472,10 +468,10 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 					}
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 				}
-				else   //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
+				else//如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
 				{
 					//established资源在对应的创建pass中一定会被标记为写入而不是被读取，所以在上一个loop就已经加入进了passes_depen_set，所以下面的代码是多余的
 					//if (inlet.second.GetItrInRsrcMap()->second.rsrc_type == VirtualResource<Buffer>::RsrcType::Established)
@@ -486,24 +482,18 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 				}
 			}
 		}
-		else if (buf_usage.GetRsrcAccessType() == Anni::RsrcAccessTypeRG::Write)
+		else if (Anni::RsrcAccessTypeRG::Write == buf_usage.GetRsrcAccessType())
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualBufRsrcAndUsage>>::iterator previous_out_itr;
-			auto providing_pass_and_source_outlet_itr = inlet.GetProvidingOutletItrAndPass();
-
+			auto& optinoal_ptr_providing_outlet = inlet.GetProvidingOutlet();
 			while (true)
 			{
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
-
+					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_out_itr = providing_itr;
-
-
-					const auto providing_pass_access_type = providing_itr->second.GetRsrcUsage().GetRsrcAccessType();
+					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
@@ -512,12 +502,12 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 					}
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 				}
 				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (inlet.GetUnderlyingRsrcItr()->second.rsrc_type == VRsrcType::Established)
+					if (VRsrcType::Established == inlet.GetUnderlyingRsrcItr()->rsrc_type)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -532,32 +522,31 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 	}
 }
 
+
+
 void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(GraphicsPassNode& pass_node)
 {
-	for (auto& [_, outlet] : pass_node.outs_buf)
+	for (auto& outlet : pass_node.outs_buf)
 	{
 		//在当前pass中的使用方式usage
-		const BufUsage& buf_usage = outlet.GetRsrcUsage();
+		const BufUsage& buf_usage = outlet.GetUsage();
+
 
 		//如果使用了读的方式，则
 		if (buf_usage.GetRsrcAccessType() == Anni::RsrcAccessTypeRG::Read)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualBufRsrcAndUsage>>::iterator previous_out_itr;
-			auto providing_pass_and_source_outlet_itr = outlet.GetProvidingOutletItrAndPass();
+			auto& optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
 
 			while (true)
 			{
-				//providing_outlet_itor一定是outlet
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
-
+					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_out_itr = providing_itr;
+					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
-					const auto providing_pass_access_type = providing_itr->second.GetRsrcUsage().GetRsrcAccessType();
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
@@ -565,7 +554,7 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(Graph
 					}
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 				}
 				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
@@ -583,20 +572,15 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(Graph
 		else if (buf_usage.GetRsrcAccessType() == Anni::RsrcAccessTypeRG::Write)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualBufRsrcAndUsage>>::iterator previous_out_itr;
-			auto providing_pass_and_source_outlet_itr = outlet.GetProvidingOutletItrAndPass();
-
+			auto& optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
 			while (true)
 			{
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
-
+					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_out_itr = providing_itr;
-
-					const auto providing_pass_access_type = providing_itr->second.GetRsrcUsage().GetRsrcAccessType();
+					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
@@ -605,12 +589,12 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(Graph
 					}
 					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 				}
 				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (outlet.GetUnderlyingRsrcItr()->second.rsrc_type == VRsrcType::Established)
+					if (outlet.GetUnderlyingRsrcItr()->rsrc_type == VRsrcType::Established)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -627,59 +611,57 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(Graph
 
 void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(GraphicsPassNode& pass_node)
 {
-	for (auto& [_, inlet] : pass_node.ins_tex)
+	for (auto& inlet : pass_node.ins_tex)
 	{
 		//在当前pass中的使用方式usage
 		std::variant<TexUsage, AttachUsage>& curlet_usage = inlet.GetRsrcUsage();
-		Anni::RsrcAccessTypeRG asscess_type
+		const Anni::RsrcAccessTypeRG asscess_type
 			= std::visit([](const auto& variant_usage) -> Anni::RsrcAccessTypeRG
 				{
-					return variant_usage.access_type;
+					return variant_usage.GetRsrcAccessType();
 				}, curlet_usage);
 
 
 		//如果使用了读的方式，则
 		if (asscess_type == Anni::RsrcAccessTypeRG::Read)
 		{
-			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualTexRsrcAndUsage>>::iterator previous_outlet_itr;
-			auto providing_pass_and_source_outlet_itr = inlet.GetProvidingOutletItrAndPass();
-			Anni::ImgSyncInfo previous_pass_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
+			Anni::ImgSyncInfo& previous_pass_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 				{
 					return variant_usage.GetSynInfo();
 				}, curlet_usage);
 
+			GraphicsPassNode* previous_pass = &pass_node;
+			auto& optinoal_ptr_providing_outlet = inlet.GetProvidingOutlet();
+
 			while (true)
 			{
 				//一直往前找，直到找不到提供的接口
-				//providing_outlet_itor一定是outlet
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
-					auto providing_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
-						{
-							return variant_usage.GetSynInfo();
-						}, providing_itr->second.GetRsrcUsage());
-
-
+					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_outlet_itr = providing_itr;
 
-					Anni::RsrcAccessTypeRG& cur_asscess_type
-						= std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG&
+					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
+					const Anni::ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 							{
-								return variant_usage.access_type;
-							}, providing_itr->second.GetRsrcUsage());
+								return variant_usage.GetSynInfo();
+							}, providing_pass_usage);
 
-					const auto& providing_pass_access_type = cur_asscess_type;
+					const Anni::RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+							{
+								return variant_usage.GetRsrcAccessType();
+							}, providing_pass_usage);
 
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
 						//先用之前的syn info做对比，如果img layout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
@@ -687,7 +669,7 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 							pass_node.passes_depen_set.insert(providing_pass);
 							break;
 						}
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 					previous_pass_syn_info = providing_syn_info;
 				}
@@ -704,45 +686,43 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 		}
 		else if (asscess_type == Anni::RsrcAccessTypeRG::Write)
 		{
-			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualTexRsrcAndUsage>>::iterator previous_out_itr;
-			auto providing_pass_and_source_outlet_itr = inlet.GetProvidingOutletItrAndPass();
 
-			Anni::ImgSyncInfo previous_pass_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
+
+			Anni::ImgSyncInfo& previous_pass_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 				{
 					return variant_usage.GetSynInfo();
 				}, curlet_usage);
+			GraphicsPassNode* previous_pass = &pass_node;
+			auto& optinoal_ptr_providing_outlet = inlet.GetProvidingOutlet();
 
 
 			while (true)
 			{
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
-
+					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_out_itr = providing_itr;
 
-					auto providing_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
-						{
-							return variant_usage.GetSynInfo();
-						}, providing_itr->second.GetRsrcUsage());
-
-
-					Anni::RsrcAccessTypeRG& cur_asscess_type
-						= std::visit([&](auto& variant_usage) -> Anni::RsrcAccessTypeRG&
+					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
+					const Anni::ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 							{
-								return variant_usage.access_type;
-							}, providing_itr->second.GetRsrcUsage());
-					const auto providing_pass_access_type = cur_asscess_type;
+								return variant_usage.GetSynInfo();
+							}, providing_pass_usage);
 
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+					const Anni::RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+							{
+								return variant_usage.GetRsrcAccessType();
+							}, providing_pass_usage);
+
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
-						//先用之前的syn info做对比，如果img layout不同，那么就要当作写入看待。
+						//先用之前的syninfo做对比，如果imglayout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
 						{
-							providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+							optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 						}
 						else
 						{
@@ -750,16 +730,16 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 							break;
 						}
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 
 					previous_pass_syn_info = providing_syn_info;
 				}
 				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (inlet.GetUnderlyingRsrcItr()->second.rsrc_type == VRsrcType::Established)
+					if (inlet.GetUnderlyingRsrcItr()->rsrc_type == VRsrcType::Established)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -776,63 +756,57 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 
 void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(GraphicsPassNode& pass_node)
 {
-	for (auto& [_, outlet] : pass_node.outs_tex)
+	for (auto& outlet : pass_node.outs_tex)
 	{
 		//在当前pass中的使用方式usage
-		std::variant<TexUsage, AttachUsage>& curlet_usage = outlet.GetRsrcUsage();
-
-		Anni::RsrcAccessTypeRG asscess_type
+		std::variant<TexUsage, AttachUsage>& curlet_usage = outlet.GetUsage();
+		const Anni::RsrcAccessTypeRG access_type
 			= std::visit([&](const auto& variant_usage) -> Anni::RsrcAccessTypeRG
 				{
-					return variant_usage.access_type;
+					return variant_usage.GetRsrcAccessType();
 				}, curlet_usage);
 
 
 		//如果使用了读的方式，则
-		if (Anni::RsrcAccessTypeRG::Read == asscess_type)
+		if (Anni::RsrcAccessTypeRG::Read == access_type)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualTexRsrcAndUsage>>::iterator previous_out_itr;
-			auto providing_pass_and_source_outlet_itr = outlet.GetProvidingOutletItrAndPass();
-
-			Anni::ImgSyncInfo previous_pass_syn_info =
-				std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
+			auto optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
+			Anni::ImgSyncInfo& previous_pass_syn_info =
+				std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 					{
 						return variant_usage.GetSynInfo();
 					}, curlet_usage);
 
-
-
 			while (true)
 			{
 				//providing_outlet_itor一定是outlet
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
-
+					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_out_itr = providing_itr;
 
-					auto providing_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
-						{
-							return variant_usage.GetSynInfo();
-						}, providing_itr->second.GetRsrcUsage());
-
-					Anni::RsrcAccessTypeRG cur_asscess_type
-						= std::visit([&](const auto& variant_usage) -> Anni::RsrcAccessTypeRG
+					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
+					const Anni::ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 							{
-								return variant_usage.access_type;
-							}, providing_itr->second.GetRsrcUsage());
+								return variant_usage.GetSynInfo();
+							}, providing_pass_usage);
+
+					const Anni::RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+							{
+								return variant_usage.GetRsrcAccessType();
+							}, providing_pass_usage);
 
 
-					const auto providing_pass_access_type = cur_asscess_type;
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
 						//先用之前的syn info做对比，如果img layout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
@@ -840,7 +814,7 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 							pass_node.passes_depen_set.insert(providing_pass);
 							break;
 						}
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 					previous_pass_syn_info = providing_syn_info;
 				}
@@ -856,50 +830,47 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 				}
 			}
 		}
-		else if (Anni::RsrcAccessTypeRG::Write == asscess_type)
+		else if (Anni::RsrcAccessTypeRG::Write == access_type)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
-			std::unordered_map<std::string, RsrcOutlet<VirtualTexRsrcAndUsage>>::iterator previous_out_itr;
-			auto providing_pass_and_source_outlet_itr = outlet.GetProvidingOutletItrAndPass();
-
-			Anni::ImgSyncInfo previous_pass_syn_info =
-				std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
+			auto optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
+			Anni::ImgSyncInfo& previous_pass_syn_info =
+				std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 					{
 						return variant_usage.GetSynInfo();
 					}, curlet_usage);
 
 
-
 			while (true)
 			{
-				if (providing_pass_and_source_outlet_itr)
+				if (optinoal_ptr_providing_outlet)
 				{
-					auto providing_itr = providing_pass_and_source_outlet_itr->second;
-					auto providing_pass = providing_pass_and_source_outlet_itr->first;
 
+					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
+					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
 					previous_pass = providing_pass;
-					previous_out_itr = providing_itr;
 
-					auto providing_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
-						{
-							return variant_usage.GetSynInfo();
-						}, providing_itr->second.GetRsrcUsage());
-
-
-					Anni::RsrcAccessTypeRG cur_asscess_type
-						= std::visit([&](const auto& variant_usage) -> Anni::RsrcAccessTypeRG
+					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
+					const Anni::ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
 							{
-								return variant_usage.access_type;
-							}, providing_itr->second.GetRsrcUsage());
+								return variant_usage.GetSynInfo();
+							}, providing_pass_usage);
 
-					const auto providing_pass_access_type = cur_asscess_type;
+					const Anni::RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+							{
+								return variant_usage.GetRsrcAccessType();
+							}, providing_pass_usage);
 
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+
+
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
 					{
 						//先用之前的syn info做对比，如果img layout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
 						{
-							providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+							optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 						}
 						else
 						{
@@ -909,14 +880,14 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 
 
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
 					{
-						providing_pass_and_source_outlet_itr = providing_itr->second.GetProvidingOutletItrAndPass();
+						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
 					}
 				}
 				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (outlet.GetUnderlyingRsrcItr()->second.rsrc_type == VRsrcType::Established)
+					if (outlet.GetUnderlyingRsrcItr()->rsrc_type == VRsrcType::Established)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -929,9 +900,10 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 			}
 		}
 	}
-
-
 }
+
+
+
 
 void Anni::RenderGraphV1::DependencyGraph::TopologicalDFSSort()
 {
@@ -1121,7 +1093,7 @@ void Anni::RenderGraphV1::DependencyGraph::MarkLayersMultiAccessSameRsrc()
 		if_level_accesses_same_rsrc_multimes.insert_or_assign(i, false);
 	}
 
-	for (auto& [_, vrsrc] : rg_buffers_map)
+	for (auto& vrsrc : rg_buffers)
 	{
 		for (auto& [level, passes_at_the_same_level] : vrsrc.level_to_passes_attached_to)
 		{
@@ -1132,7 +1104,7 @@ void Anni::RenderGraphV1::DependencyGraph::MarkLayersMultiAccessSameRsrc()
 		}
 	}
 
-	for (auto& [_, vrsrc] : rg_textures_map)
+	for (auto& vrsrc : rg_textures)
 	{
 		for (auto& [level, passes_at_the_same_level] : vrsrc.level_to_passes_attached_to)
 		{
@@ -1151,7 +1123,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 	///************************************************************
 
 	//首先对于所有的资源，所有使用到资源的pass按照layer排序以后，每一个layer层级内的pass都需要进行排序，否则这个执行顺序定不下来，根本写不了同步
-	for (auto& [_, vrsrc] : rg_buffers_map)
+	for (auto& vrsrc : rg_buffers)
 	{
 		for (auto level = 0; level <= max_level; ++level)
 		{
@@ -1228,7 +1200,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 
 
 	//首先对于所有的资源，所有使用到资源的pass按照layer排序以后，每一个layer层级内的pass都需要进行排序，否则这个执行顺序定不下来，根本写不了同步
-	for (auto& [_, vrsrc] : rg_textures_map)
+	for (auto& vrsrc : rg_textures)
 	{
 		for (auto level = 0; level <= max_level; ++level)
 		{
@@ -1311,7 +1283,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 void Anni::RenderGraphV1::DependencyGraph::SortPassesAccessingRsrc()
 {
 	//对每个资源的使用者（passes）进行排序
-	for (auto& [_, vrsc] : rg_buffers_map)
+	for (auto& vrsc : rg_buffers)
 	{
 		// Sorting the unordered vector based on the order of the order vector(that is, topologically_sorted_nodes)
 		std::ranges::sort(
@@ -1322,7 +1294,7 @@ void Anni::RenderGraphV1::DependencyGraph::SortPassesAccessingRsrc()
 			});
 	}
 
-	for (auto& [_, vrsc] : rg_textures_map)
+	for (auto& vrsc : rg_textures)
 	{
 		// Sorting the unordered vector based on the order of the order vector
 		std::ranges::sort
@@ -1370,7 +1342,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertion()
 	//按照level层次来loop，
 	for (auto cur_level = 0; cur_level <= max_level; ++cur_level)
 	{
-		for (auto cur_pass : topologically_sorted_nodes)
+		for (const auto cur_pass : topologically_sorted_nodes)
 		{
 			if (cur_pass->cur_level == cur_level)
 			{
@@ -1394,9 +1366,9 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertion()
 void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(GraphicsPassNode* const cur_pass)
 {
 	auto cur_pass_level = cur_pass->cur_level;
-	for (auto& [_, cur_let] : cur_pass->ins_buf)
+	for (auto& cur_let : cur_pass->ins_buf)
 	{
-		VirtualBuffer& curlet_underlying_rsrc = cur_let.GetUnderlyingRsrcItr()->second;
+		VirtualBuffer& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
 		BufUsage& curlet_usage = cur_let.GetRsrcUsage();
 		const IRsrcUsage::RsrcOrigin curlet_origin = curlet_usage.GetRsrcOrigin();
 
@@ -1450,7 +1422,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
 						[&curlet_underlying_rsrc](const auto& buf_usage)
 						{
-							return (&(buf_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
@@ -1480,7 +1452,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
 						[&curlet_underlying_rsrc](const auto& buf_usage)
 						{
-							return (&(buf_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
@@ -1575,7 +1547,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
 						[&curlet_underlying_rsrc](const auto& buf_usage)
 						{
-							return (&(buf_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
@@ -1664,10 +1636,10 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(GraphicsPassNode* const cur_pass)
 {
 	auto cur_level = cur_pass->cur_level;
-	for (auto& [_, cur_let] : cur_pass->outs_buf)
+	for (auto& cur_let : cur_pass->outs_buf)
 	{
-		VirtualBuffer& curlet_underlying_rsrc = cur_let.GetUnderlyingRsrcItr()->second;
-		BufUsage& curlet_usage = cur_let.GetRsrcUsage();
+		VirtualBuffer& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
+		BufUsage& curlet_usage = cur_let.GetUsage();
 		const IRsrcUsage::RsrcOrigin curlet_origin = curlet_usage.GetRsrcOrigin();
 
 		//直接在当前pass建立的资源，同步原语插入：
@@ -1719,12 +1691,12 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
 						[&curlet_underlying_rsrc](const auto& buf_usage)
 						{
-							return (&(buf_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
 					BufUsage& sor_buf_usage = founded_buf_usage->usage;
-					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
+					BufUsage& tar_buf_usage = target_let.GetUsage();
 
 					cur_pass->InsertSameQueueSyncInfo(
 						sor_pass,
@@ -1749,12 +1721,12 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
 						[&curlet_underlying_rsrc](const auto& buf_usage)
 						{
-							return (&(buf_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
 					BufUsage& sor_buf_usage = founded_buf_usage->usage;
-					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
+					BufUsage& tar_buf_usage = target_let.GetUsage();
 
 
 					const Anni::SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
@@ -1848,13 +1820,13 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
 						[&curlet_underlying_rsrc](const auto& buf_usage)
 						{
-							return (&(buf_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
 
 					auto& target_let = cur_let;
-					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
+					BufUsage& tar_buf_usage = target_let.GetUsage();
 					BufUsage& sor_buf_usage = founded_buf_usage->usage;
 
 
@@ -1930,9 +1902,9 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 	auto cur_level = cur_pass->cur_level;
 	//处理inlet tex
 
-	for (auto& [_, cur_let] : cur_pass->ins_tex)
+	for (auto& cur_let : cur_pass->ins_tex)
 	{
-		VirtualTexture& curlet_underlying_rsrc = cur_let.GetUnderlyingRsrcItr()->second;
+		VirtualTexture& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
 		auto& curlet_usage = cur_let.GetRsrcUsage();
 		IRsrcUsage::RsrcOrigin curlet_origin =
 			std::visit([&](auto& variant_usage) -> IRsrcUsage::RsrcOrigin
@@ -2113,7 +2085,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
 						[&curlet_underlying_rsrc](const auto& tex_usage)
 						{
-							return (&(tex_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
@@ -2161,7 +2133,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
 						[&curlet_underlying_rsrc](const auto& tex_usage)
 						{
-							return (&(tex_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 
 					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
@@ -2276,7 +2248,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
 						[&curlet_underlying_rsrc](const auto& tex_usage)
 						{
-							return (&(tex_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
@@ -2365,10 +2337,10 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 
 	auto cur_level = cur_pass->cur_level;
 	//处理inlet tex
-	for (auto& [_, cur_let] : cur_pass->outs_tex)
+	for (auto& cur_let : cur_pass->outs_tex)
 	{
-		VirtualTexture& curlet_underlying_rsrc = cur_let.GetUnderlyingRsrcItr()->second;
-		auto& curlet_usage = cur_let.GetRsrcUsage();
+		VirtualTexture& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
+		auto& curlet_usage = cur_let.GetUsage();
 		IRsrcUsage::RsrcOrigin curlet_origin =
 			std::visit([](auto& variant_usage) -> IRsrcUsage::RsrcOrigin
 				{
@@ -2561,12 +2533,12 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
 						[&curlet_underlying_rsrc](const auto& tex_usage)
 						{
-							return (&(tex_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
 					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
-					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
+					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetUsage();
 
 					Anni::ImgSyncInfo sor_tex_sync_ino =
 						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
@@ -2609,11 +2581,11 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
 						[&curlet_underlying_rsrc](const auto& tex_usage)
 						{
-							return (&(tex_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 
 					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
-					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
+					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetUsage();
 
 					Anni::ImgSyncInfo sor_tex_sync_ino =
 						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
@@ -2718,15 +2690,16 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					auto tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
 					auto& target_let = cur_let;
 
-					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
+					auto founded_tex_usage = std::ranges::find_if(
+						sor_pass->tex_usages,
 						[&curlet_underlying_rsrc](const auto& tex_usage)
 						{
-							return (&(tex_usage.v_rsrc->second) == &(curlet_underlying_rsrc));
+							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
 						});
 					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
 					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
-					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
+					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetUsage();
 
 					Anni::ImgSyncInfo sor_tex_sync_ino =
 						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo

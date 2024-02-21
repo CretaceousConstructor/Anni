@@ -7,8 +7,8 @@ Anni::RenderGraphV1::DeferedGeometryPass::DeferedGeometryPass(
 	DescriptorLayoutManager& descriptor_set_layout_manager_,
 	VkShaderFactory& shader_fac_,
 	DescriptorSetAllocatorGrowable& descriptor_allocator_,
-	std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map_,
-	std::unordered_map<std::string, VirtualTexture>& rg_textures_map_,
+	std::list<VirtualBuffer>& rg_buffers_,
+	std::list<VirtualTexture>& rg_textures_,
 	GFXPipelineCIBuilder& gfx_pipelineCI_builder_)
 	: GraphicsPassNode(
 		name_,
@@ -17,8 +17,8 @@ Anni::RenderGraphV1::DeferedGeometryPass::DeferedGeometryPass(
 		descriptor_set_layout_manager_,
 		shader_fac_,
 		descriptor_allocator_,
-		rg_buffers_map_,
-		rg_textures_map_),
+		rg_buffers_,
+		rg_textures_),
 
 	gfx_pipelineCI_builder(gfx_pipelineCI_builder_)
 {
@@ -34,7 +34,7 @@ void Anni::RenderGraphV1::DeferedGeometryPass::UpdateDescriptorSets()
 		if (Anni::RsrcType::Buffer == buf_usage.usage.GetRsrcType())
 		{
 			all_writes.push_back(
-				buf_usage.v_rsrc->second.p_rsrc->GetWriteDescriptorSetInfo(
+				buf_usage.v_rsrc->p_rsrc->GetWriteDescriptorSetInfo(
 					buf_usage.usage, common_descriptor_set));
 		}
 	}
@@ -48,7 +48,7 @@ void Anni::RenderGraphV1::DeferedGeometryPass::UpdateDescriptorSets()
 			if (Anni::RsrcType::Texture == texture_usage.GetRsrcType())
 			{
 				all_writes.push_back(
-					tex_usage.v_rsrc->second.p_rsrc->GetWriteDescriptorSetInfo(
+					tex_usage.v_rsrc->p_rsrc->GetWriteDescriptorSetInfo(
 						texture_usage, common_descriptor_set));
 			}
 		}
@@ -250,7 +250,7 @@ void Anni::RenderGraphV1::DeferedGeometryPass::AllocateDescriptorSets()
 void Anni::RenderGraphV1::DeferedGeometryPass::ImgViewAndSamplerGeneration(
 	VirtualTexRsrcAndUsage& rsrc_usage)
 {
-	std::shared_ptr<VkTexture>& ptr_tex = rsrc_usage.v_rsrc->second.p_rsrc;
+	std::shared_ptr<VkTexture>& ptr_tex = rsrc_usage.v_rsrc->p_rsrc;
 	std::variant<TexUsage, AttachUsage>& tex_usage = rsrc_usage.usage;
 
 	std::visit(

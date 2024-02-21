@@ -20,8 +20,6 @@ namespace Anni::RenderGraphV1
 
 	class IVirtualResource
 	{
-
-
 	public:
 		IVirtualResource(std::string name_, VRsrcType rsrc_type_);
 
@@ -40,10 +38,8 @@ namespace Anni::RenderGraphV1
 		std::string                                  name;
 		VRsrcType                                    rsrc_type;
 
-		std::map<size_t, std::vector<GraphicsPassNode*>> level_to_passes_attached_to;
-		std::map<size_t, std::vector<std::vector<GraphicsPassNode*>>> level_to_passes_attached_to_partitioned;
-		//std::map<size_t, std::shared_ptr<TimelineSemWrapper>>   level_to_t_semas;
-
+		std::map<size_t, std::vector<GraphicsPassNode*>>                  level_to_passes_attached_to;
+		std::map<size_t, std::vector<std::vector<GraphicsPassNode*>>>     level_to_passes_attached_to_partitioned;
 		std::vector<std::pair<GraphicsPassNode*, Anni::RsrcAccessTypeRG>> passes_access_this_rsrc;
 
 	};

@@ -62,11 +62,6 @@ namespace Anni::RenderGraphV1
 
 namespace Anni::RenderGraphV1
 {
-	class IPassNode
-	{
-	public:
-
-	};
 
 	enum PassType
 	{
@@ -78,11 +73,9 @@ namespace Anni::RenderGraphV1
 	};
 
 
-	class GraphicsPassNode : public IPassNode
+	class GraphicsPassNode
 	{
 	private:
-		using VBufItr = std::unordered_map<std::string, VirtualBuffer>::iterator;
-		using VTexItr = std::unordered_map<std::string, VirtualTexture>::iterator;
 
 	public:
 		GraphicsPassNode(
@@ -93,10 +86,11 @@ namespace Anni::RenderGraphV1
 			VkShaderFactory& shader_fac_,
 			DescriptorSetAllocatorGrowable& descriptor_allocator_,
 
-			std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map_,
-			std::unordered_map<std::string, VirtualTexture>& rg_textures_map_
-		);
+			std::list<VirtualBuffer>& rg_buffers_,
+			std::list<VirtualTexture>& rg_textures_
 
+		);
+		virtual ~GraphicsPassNode() = default;
 
 	protected:
 		std::string name;
@@ -107,18 +101,15 @@ namespace Anni::RenderGraphV1
 		DescriptorSetAllocatorGrowable& descriptor_allocator;
 
 	protected:
-		//虚拟资源
-		std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map;
-		std::unordered_map<std::string, VirtualTexture>& rg_textures_map;
+		//虚拟资源查表
+		std::unordered_map<std::string, VBufItr>  name_2_vbuf_itr;
+		std::unordered_map<std::string, VTexItr>  name_2_vtex_itr;
+		//虚拟资源存储
+		std::list<VirtualBuffer>&  rg_buffers;
+		std::list<VirtualTexture>& rg_textures;
 
 
 
-		//std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map;
-		//std::unordered_map<std::string, VirtualTexture>& rg_textures_map;
-
-		////虚拟资源存储
-		//std::list<VirtualBuffer>  rg_buffers_list;
-		//std::list<VirtualTexture> rg_textures_list;
 
 
 
@@ -134,13 +125,17 @@ namespace Anni::RenderGraphV1
 		std::vector<VirtualBufRsrcAndUsage>            buf_usages;
 		std::vector<VirtualTexRsrcAndUsage>            tex_usages;
 
-		//pass的输入输出接口，其中包含着VirtualBufRsrcAndUsage的引用
-	public:
-		std::unordered_map<std::string, RsrcOutlet<VirtualBufRsrcAndUsage>> outs_buf;
-		std::unordered_map<std::string, RsrcOutlet<VirtualTexRsrcAndUsage>> outs_tex;
 
-		std::unordered_map<std::string, RsrcInlet<VirtualBufRsrcAndUsage>> ins_buf;
-		std::unordered_map<std::string, RsrcInlet<VirtualTexRsrcAndUsage>> ins_tex;
+	public:
+		//pass的输入输出接口，其中包含着VirtualBufRsrcAndUsage的引用
+		std::unordered_set<std::string> inlet_names;
+		std::unordered_set<std::string> outlet_names;
+
+		std::vector<RsrcOutlet<VirtualBufRsrcAndUsage>> outs_buf;
+		std::vector<RsrcOutlet<VirtualTexRsrcAndUsage>> outs_tex;
+
+		std::vector<RsrcInlet<VirtualBufRsrcAndUsage>> ins_buf;
+		std::vector<RsrcInlet<VirtualTexRsrcAndUsage>> ins_tex;
 	public://依赖相关
 		std::unordered_set<GraphicsPassNode*> passes_depen_set;
 		std::unordered_set<GraphicsPassNode*> passes_depen_on_cur_pass_set;
@@ -150,8 +145,8 @@ namespace Anni::RenderGraphV1
 		//同步
 	protected:
 		std::unordered_map<PassNodePair, std::pair<vk::Semaphore, SemInsertInfoSafe>, PassNodePair::Hash> pass_pair_to_t_sem;
-		std::unordered_map<vk::Semaphore, SemInsertInfoSafe>                          t_sems;
-		std::unordered_map<vk::Semaphore, SemInsertInfoSafe>                          b_sems;
+		std::unordered_map<vk::Semaphore, SemInsertInfoSafe>                          timeline_sems;
+		std::unordered_map<vk::Semaphore, SemInsertInfoSafe>                          binary_sems;
 
 		//syncinfo暂时只用来作为command barrier insertion
 		//same queue 同步primitive
@@ -179,32 +174,32 @@ namespace Anni::RenderGraphV1
 	public:
 		void AddTimelineSyncSem(vk::Semaphore sem, SemInsertInfoSafe sem_insert_info)
 		{
-			if (!t_sems.contains(sem))
+			if (!timeline_sems.contains(sem))
 			{
-				t_sems.emplace(sem, sem_insert_info);
+				timeline_sems.emplace(sem, sem_insert_info);
 			}
 			else
 			{
-				assert(t_sems.at(sem).wait_val == sem_insert_info.wait_val);
-				assert(t_sems.at(sem).signal_val == sem_insert_info.signal_val);
-				t_sems.at(sem).wait_stages |= sem_insert_info.wait_stages;
-				t_sems.at(sem).signal_stages |= sem_insert_info.signal_stages;
+				assert(timeline_sems.at(sem).wait_val == sem_insert_info.wait_val);
+				assert(timeline_sems.at(sem).signal_val == sem_insert_info.signal_val);
+				timeline_sems.at(sem).wait_stages |= sem_insert_info.wait_stages;
+				timeline_sems.at(sem).signal_stages |= sem_insert_info.signal_stages;
 			}
 		}
 
 
 		void AddBinarySemSync(vk::Semaphore sem, SemInsertInfoSafe sem_insert_info)
 		{
-			if (!b_sems.contains(sem))
+			if (!binary_sems.contains(sem))
 			{
-				b_sems.emplace(sem, sem_insert_info);
+				binary_sems.emplace(sem, sem_insert_info);
 			}
 			else
 			{
-				assert(b_sems.at(sem).wait_val == sem_insert_info.wait_val);
-				assert(b_sems.at(sem).signal_val == sem_insert_info.signal_val);
-				b_sems.at(sem).wait_stages |= sem_insert_info.wait_stages;
-				b_sems.at(sem).signal_stages |= sem_insert_info.signal_stages;
+				assert(binary_sems.at(sem).wait_val == sem_insert_info.wait_val);
+				assert(binary_sems.at(sem).signal_val == sem_insert_info.signal_val);
+				binary_sems.at(sem).wait_stages |= sem_insert_info.wait_stages;
+				binary_sems.at(sem).signal_stages |= sem_insert_info.signal_stages;
 			}
 		}
 
@@ -212,13 +207,13 @@ namespace Anni::RenderGraphV1
 
 
 
-		void InsertSyncInfoForInitalLoad(const Anni::BufSyncInfo& source_syn_info, const Anni::BufSyncInfo& target_syn_info, const std::unordered_map<std::string, VirtualBuffer>::iterator underlying_rsrc, std::shared_ptr<TimelineSemWrapper>& sem_on_load, SemInsertInfoSafe sem_insersion_info)
+		void InsertSyncInfoForInitalLoad(const Anni::BufSyncInfo& source_syn_info, const Anni::BufSyncInfo& target_syn_info, VBufItr underlying_rsrc, std::shared_ptr<TimelineSemWrapper>& sem_on_load, SemInsertInfoSafe sem_insersion_info)
 		{
 			buf_syn_infos_head_same_q.emplace_back(source_syn_info, target_syn_info, underlying_rsrc);
 			AddTimelineSyncSem(sem_on_load->GetRaw(), sem_insersion_info);
 		}
 
-		void InsertSyncInfoForInitalLoad(const Anni::ImgSyncInfo& source_syn_info, const Anni::ImgSyncInfo& target_syn_info, const std::unordered_map<std::string, VirtualTexture>::iterator underlying_rsrc, std::shared_ptr<TimelineSemWrapper>& sem_on_load, SemInsertInfoSafe sem_insersion_info)
+		void InsertSyncInfoForInitalLoad(const Anni::ImgSyncInfo& source_syn_info, const Anni::ImgSyncInfo& target_syn_info, VTexItr underlying_rsrc, std::shared_ptr<TimelineSemWrapper>& sem_on_load, SemInsertInfoSafe sem_insersion_info)
 		{
 			tex_syn_infos_head_same_q.emplace_back(source_syn_info, target_syn_info, underlying_rsrc);
 			AddTimelineSyncSem(sem_on_load->GetRaw(), sem_insersion_info);
@@ -265,12 +260,12 @@ namespace Anni::RenderGraphV1
 		void InsertSyncInfoForInitalUsage(
 			const Anni::BufSyncInfo& source_syn_info,
 			const Anni::BufSyncInfo& target_syn_info,
-			const std::unordered_map<std::string, VirtualBuffer>::iterator underlying_rsrc);
+			VBufItr underlying_rsrc);
 
 		void InsertSyncInfoForInitalUsage(
 			const Anni::ImgSyncInfo& source_syn_info,
 			const Anni::ImgSyncInfo& target_syn_info,
-			const std::unordered_map<std::string, VirtualTexture>::iterator underlying_rsrc);
+			VTexItr underlying_rsrc);
 
 
 		void InsertSameQueueSyncInfo(
@@ -279,7 +274,7 @@ namespace Anni::RenderGraphV1
 			Queue* const queue_,
 			const Anni::BufSyncInfo& source_syn_info,
 			const Anni::BufSyncInfo& target_syn_info,
-			const std::unordered_map<std::string, VirtualBuffer>::iterator underlying_rsrc);
+			const VBufItr underlying_rsrc);
 
 		void InsertSameQueueSyncInfo(
 			GraphicsPassNode* const source_pass,
@@ -287,7 +282,7 @@ namespace Anni::RenderGraphV1
 			Queue* const queue_,
 			const Anni::ImgSyncInfo& source_syn_info,
 			const Anni::ImgSyncInfo& target_syn_info,
-			const std::unordered_map<std::string, VirtualTexture>::iterator underlying_rsrc);
+			VTexItr underlying_rsrc);
 
 
 
@@ -299,7 +294,7 @@ namespace Anni::RenderGraphV1
 			Queue* const target_queue_,
 			const Anni::BufSyncInfo& source_syn_info,
 			const Anni::BufSyncInfo& target_syn_info,
-			const std::unordered_map<std::string, VirtualBuffer>::iterator underlying_rsrc,
+			const VBufItr underlying_rsrc,
 
 			SemInsertInfoSafe sor_sem_insersion_info,
 			SemInsertInfoSafe tar_sem_insersion_info
@@ -313,7 +308,7 @@ namespace Anni::RenderGraphV1
 			Queue* const target_queue_,
 			const Anni::ImgSyncInfo& source_syn_info,
 			const Anni::ImgSyncInfo& target_syn_info,
-			const std::unordered_map<std::string, VirtualTexture>::iterator underlying_rsrc,
+			VTexItr underlying_rsrc,
 
 			SemInsertInfoSafe sor_sem_insersion_info,
 			SemInsertInfoSafe tar_sem_insersion_info
@@ -344,42 +339,48 @@ namespace Anni::RenderGraphV1
 
 	public:
 		virtual PassType GetRenderpassType();
+
+	public:
 		//************************************************************************************************
+		VirtualTexture& GetVRsrcFromRsrcItr(const VTexItr tex_itr);
+		VirtualBuffer&  GetVRsrcFromRsrcItr(const VBufItr buf_itr);
+		//************************************************************************************************
+		VBufItr CreateAndStoreVirtualBuffer(const std::string& underlying_vrsrc_name, std::shared_ptr<Buffer>& ptr_buf);
+		VBufItr CreateAndStoreVirtualBuffer(const std::string& underlying_vrsrc_name, const Buffer::Descriptor& buf_descriptor);
+
+		VTexItr CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name, std::shared_ptr<VkTexture>& ptr_tex);
+		VTexItr CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name, const VkTexture::Descriptor& buf_descriptor);
+		VTexItr CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name, std::vector<std::shared_ptr<VkTexture>>& model_textures);
+
+		void AddCurPass2VRsrc(VBufItr vbuf_itr, RsrcAccessTypeRG access_t_);
+		void AddCurPass2VRsrc(VTexItr vtex_itr, RsrcAccessTypeRG access_t_);
+
 		//In和Out只代表资源是否会导出给其他pass使用，IN和OUT函数调用时使用的相关的资源 既可能会被读也可能会被写
 		//In: 代表资源不会导出给其他pass使用，这通常不会引入dependency
 		//Out:代表资源 会导出给其他pass使用
 
-		//TODO：如何进行命名变迁?
 		//所有Buffer相关的输入输出函数
+		//************************************************************************************************
 		//接受buffer资源，并且此buf资源来自rendergraph外部引入。（外部引用资源直接用shared ptr传入），使用后不会导出
-
-		VirtualBufRsrcAndUsage& In(const std::string rsrc_name, std::shared_ptr<Buffer> ptr_buf, BufUsage buf_usage);
-
+		VirtualBufRsrcAndUsage& In(const std::string& rsrc_name, std::shared_ptr<Buffer> ptr_buf, BufUsage buf_usage);
 		//接受buf资源，并且此buf资源来自其他pass的输出，使用后不会导出
-		VirtualBufRsrcAndUsage& In(const std::string rsrc_name, GraphicsPassNode& source_pass, BufUsage buf_usage);
-
+		VirtualBufRsrcAndUsage& In(RsrcOutlet<VirtualBufRsrcAndUsage>& source_outlet, BufUsage buf_usage);
 		//buf资源在当前pass创建，经过当前pass读写以后，导出给其他pass使用。
-		VirtualBufRsrcAndUsage& Out(const std::string rsrc_name, Buffer::Descriptor buf_descriptor, const std::function<void(Buffer::Descriptor& desco)>& descriptor_modifier, BufUsage buf_usage);
-
+		RsrcOutlet<VirtualBufRsrcAndUsage>& Out(const std::string& rsrc_name, Buffer::Descriptor buf_descriptor, const std::function<void(Buffer::Descriptor& desco)>& descriptor_modifier, BufUsage buf_usage);
 		//buf资源本身来自rendergraph之外，经过当前pass读写以后，导出给其他pass使用的资源。
-		VirtualBufRsrcAndUsage& Out(const std::string rsrc_name, std::shared_ptr< Buffer> ptr_buf, BufUsage buf_usage);
-
+		RsrcOutlet<VirtualBufRsrcAndUsage>& Out(const std::string& rsrc_name, std::shared_ptr<Buffer>& ptr_buf, BufUsage buf_usage);
 		//接受buf资源，并且此buf资源来自其他pass的输出。经过当前pass读写以后，并且导出给其他pass使用的资源。
-		VirtualBufRsrcAndUsage& Out(const std::string rsrc_name, GraphicsPassNode& source_pass, BufUsage buf_usage);
+		RsrcOutlet<VirtualBufRsrcAndUsage>& Out(RsrcOutlet<VirtualBufRsrcAndUsage>& source_outlet, BufUsage buf_usage);
 
 		//所有Texture相关的输入输出函数
 		//************************************************************************************************
 		//资源来自rendergraph之外，并且是来自模型的texture。
-		VirtualTexRsrcAndUsage& In(const std::string rsrc_name, std::vector<std::shared_ptr<VkTexture>>& model_textures, std::variant<TexUsage, AttachUsage> tex_usage);
+		VirtualTexRsrcAndUsage& In(const std::string& rsrc_name, std::vector<std::shared_ptr<VkTexture>>& model_textures, std::variant<TexUsage, AttachUsage> tex_usage);
+		VirtualTexRsrcAndUsage& In(const std::string& rsrc_name, std::shared_ptr<VkTexture> ptr_tex, std::variant<TexUsage, AttachUsage> tex_usage);
+		VirtualTexRsrcAndUsage& In(RsrcOutlet<VirtualTexRsrcAndUsage>& source_outlet, std::variant<TexUsage, AttachUsage> tex_usage);
+		RsrcOutlet<VirtualTexRsrcAndUsage>& Out(const std::string& rsrc_name, VkTexture::Descriptor tex_descriptor, const std::function<void(VkTexture::Descriptor& desco)>& descriptor_modifier, std::variant<TexUsage, AttachUsage> tex_usage);
 
-		VirtualTexRsrcAndUsage& In(const std::string rsrc_name, std::shared_ptr<VkTexture> ptr_tex, std::variant<TexUsage, AttachUsage> tex_usage);
-
-		VirtualTexRsrcAndUsage& In(const std::string rsrc_name, GraphicsPassNode& source_pass, std::variant<TexUsage, AttachUsage> tex_usage);
-
-		VirtualTexRsrcAndUsage& Out(const std::string rsrc_name, VkTexture::Descriptor tex_descriptor, const std::function<void(VkTexture::Descriptor& desco)>& descriptor_modifier, std::variant<TexUsage, AttachUsage> tex_usage);
-
-		VirtualTexRsrcAndUsage& Out(const std::string rsrc_name, std::shared_ptr<VkTexture> ptr_tex, std::variant<TexUsage, AttachUsage> tex_usage);
-
-		VirtualTexRsrcAndUsage& Out(const std::string rsrc_name, GraphicsPassNode& source_pass, std::variant<TexUsage, AttachUsage> tex_usage);
+		RsrcOutlet<VirtualTexRsrcAndUsage>& Out(const std::string& rsrc_name, std::shared_ptr<VkTexture> ptr_tex, std::variant<TexUsage, AttachUsage> tex_usage);
+		RsrcOutlet<VirtualTexRsrcAndUsage>& Out(RsrcOutlet<VirtualTexRsrcAndUsage>& source_outlet, std::variant<TexUsage, AttachUsage> tex_usage);
 	};
 }

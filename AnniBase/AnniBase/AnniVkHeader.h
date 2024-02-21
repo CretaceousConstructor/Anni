@@ -41,7 +41,7 @@
   do {                                                                         \
     if (!(condition)) {                                                        \
       std::cerr << "Assertion failed: " << #condition << ", " << message       \
-                << std::endl;                                                  \
+                << '\n';                                                  \
       assert(condition);                                                       \
     }                                                                          \
   } while (false)

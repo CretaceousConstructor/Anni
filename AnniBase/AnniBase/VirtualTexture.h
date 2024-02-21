@@ -5,13 +5,17 @@
 
 namespace Anni::RenderGraphV1
 {
+
+
+
+
 	class VirtualTexture : public IVirtualResource
 	{
 		friend class VkTextureFactory;
 	public:
 
-		VirtualTexture(std::string name_, std::vector<std::shared_ptr<VkTexture>>* p_rsrcs_) :
-			IVirtualResource(name_, VRsrcType::Imported), p_rsrcs(p_rsrcs_), descriptor(std::nullopt)
+		VirtualTexture(std::string name_, std::vector<std::shared_ptr<VkTexture>>* const p_rsrcs_) :
+			IVirtualResource(name_, VRsrcType::Imported), descriptor(std::nullopt), p_rsrcs(p_rsrcs_)
 		{
 		}
 
@@ -30,7 +34,7 @@ namespace Anni::RenderGraphV1
 		VirtualTexture& operator=(const VirtualTexture&) = delete;
 		VirtualTexture(VirtualTexture&&) = delete;
 		VirtualTexture& operator=(VirtualTexture&&) = delete;
-		~VirtualTexture() = default;
+		~VirtualTexture() override = default;
 
 
 
@@ -71,11 +75,11 @@ namespace Anni::RenderGraphV1
 			}
 			else
 			{
-				ASSERT_WITH_MSG(false,"source and target sync info differ!");
+				ASSERT_WITH_MSG(false, "source and target sync info differ!");
 			}
 
 
-			ASSERT_WITH_MSG(p_rsrc || p_rsrcs,"no resources provided!");
+			ASSERT_WITH_MSG(p_rsrc || p_rsrcs, "no resources provided!");
 
 			vk::ImageMemoryBarrier2 result{};
 			result.srcStageMask = source_syn.stage_mask;
@@ -94,12 +98,10 @@ namespace Anni::RenderGraphV1
 
 		std::shared_ptr<VkTexture>                    p_rsrc;
 		std::optional<VkTexture::Descriptor>          descriptor;
-		std::optional<std::vector<std::shared_ptr<VkTexture>>*> p_rsrcs;
+		std::optional<std::vector<std::shared_ptr<VkTexture>>* const> p_rsrcs;
+
 	};
 
-
-
-
-
+	using VTexItr = std::list<VirtualTexture>::iterator;
 }
 

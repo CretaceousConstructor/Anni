@@ -15,8 +15,8 @@ namespace Anni::RenderGraphV1
 			DescriptorLayoutManager& descriptor_set_layout_manager_,
 			VkShaderFactory& shader_fac_,
 			DescriptorSetAllocatorGrowable& descriptor_allocator_,
-			std::unordered_map<std::string, VirtualBuffer>& rg_buffers_map_,
-			std::unordered_map<std::string, VirtualTexture>& rg_textures_map_);
+			std::list<VirtualBuffer>& rg_buffers_,
+			std::list<VirtualTexture>& rg_textures_);
 
 		void UpdateDescriptorSets() override;
 		void CreateDescriptorSetLayout() override;

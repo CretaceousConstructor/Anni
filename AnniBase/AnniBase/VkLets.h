@@ -34,7 +34,7 @@ namespace Anni
 	//		void      AddAccessingPassAndItr(PassNode* pass, std::unordered_map<std::string, RsrcInlet<R, U>>::iterator itr);
 	//		void      AssignProvidingPassAndProvidingOutItr(PassNode* pass, std::unordered_map<std::string, RsrcOutlet<R, U>>::iterator itr);
 	//		PassNode* GetPassAttachedTo() const;
-	//		U* GetRsrcUsage();
+	//		U* GetUsage();
 
 	//		std::vector<std::pair<RenderGraphV0::PassNode*, std::unordered_map<std::string, RsrcOutlet<R, U>>::iterator>> target_outlet_itrs;
 	//		std::vector<std::pair<RenderGraphV0::PassNode*, std::unordered_map<std::string, RsrcInlet<R, U>>::iterator>>  target_inlet_itrs;
@@ -75,7 +75,7 @@ namespace Anni
 
 	//		PassNode* GetPassAttachedTo() const;
 
-	//		U* GetRsrcUsage();
+	//		U* GetUsage();
 
 	//		std::optional<std::pair<RenderGraphV0::PassNode*, typename std::unordered_map<std::string, RsrcOutlet<R, U>>::iterator>> GetProvidingOutletItrAndPass();
 
@@ -132,7 +132,7 @@ namespace Anni
 	//	}
 
 	//	template <typename R, typename U>
-	//	U* RsrcOutlet<R, U>::GetRsrcUsage()
+	//	U* RsrcOutlet<R, U>::GetUsage()
 	//	{
 	//		return usage;
 	//	}
@@ -171,7 +171,7 @@ namespace Anni
 	//	}
 
 	//	template <typename R, typename U>
-	//	inline U* RsrcInlet<R, U>::GetRsrcUsage()
+	//	inline U* RsrcInlet<R, U>::GetUsage()
 	//	{
 	//		return usage;
 	//	}

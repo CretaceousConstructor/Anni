@@ -44,8 +44,5 @@ namespace Anni
 		vk::ShaderStageFlags desc_shader_stages_flags;
 	};
 
-
-
-
-
 }
+

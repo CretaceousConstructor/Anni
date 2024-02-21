@@ -114,8 +114,8 @@ namespace Anni::RenderGraphV1
 
 	private:
 		//全知全能的虚拟资源管理者
-		std::unordered_map<std::string, VirtualBuffer>  rg_buffers_map;
-		std::unordered_map<std::string, VirtualTexture> rg_textures_map;
+		std::list<VirtualBuffer>  rg_buffers;
+		std::list<VirtualTexture> rg_textures;
 		//当前帧所有的pass
 		std::vector<std::unique_ptr<GraphicsPassNode>> pass_nodes;
 		//拓扑排序以后的所有passnode	
@@ -175,8 +175,8 @@ namespace Anni::RenderGraphV1
 				descriptor_set_layout_manager,
 				shader_fac,
 				descriptor_allocator,
-				this->rg_buffers_map,
-				this->rg_textures_map,
+				this->rg_buffers,
+				this->rg_textures,
 				gfx_pipelineCI_builder
 			);
 		pass_nodes.push_back(std::move(gfx_node));
@@ -198,8 +198,8 @@ namespace Anni::RenderGraphV1
 				descriptor_set_layout_manager,
 				shader_fac,
 				descriptor_allocator,
-				this->rg_buffers_map,
-				this->rg_textures_map
+				this->rg_buffers,
+				this->rg_textures
 			);
 		pass_nodes.push_back(std::move(gfx_node));
 		auto& result = *pass_nodes.back();

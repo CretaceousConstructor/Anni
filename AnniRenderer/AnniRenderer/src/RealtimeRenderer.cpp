@@ -2,11 +2,9 @@
 
 namespace Anni::Renderer
 {
-
 	void
-		RealtimeRenderer::CreateGlobalModels()
+	RealtimeRenderer::CreateGlobalModels()
 	{
-
 		const std::string sponza_path = "Asset/Models/Sponza/glTF/Sponza.gltf";
 		test_model_sponza = gltf_model_fac.LoadGLTF(sponza_path);
 
@@ -56,7 +54,7 @@ namespace Anni::Renderer
 	//}
 
 	void
-		RealtimeRenderer::CreateGlobalBuffers()
+	RealtimeRenderer::CreateGlobalBuffers()
 	{
 		// GPU SIDE
 		// FLLOWING SHIT IS USED BY PBR
@@ -125,7 +123,7 @@ namespace Anni::Renderer
 	//}
 
 	void
-		RealtimeRenderer::InitRenderpasses()
+	RealtimeRenderer::InitRenderpasses()
 	{
 		// use factory mode to optimize
 		//
@@ -172,9 +170,8 @@ namespace Anni::Renderer
 	}
 
 	void
-		RealtimeRenderer::InitSynObjects()
+	RealtimeRenderer::InitSynObjects()
 	{
-
 		for (size_t i = 0; i < frame_num_semaphores.size(); ++i)
 		{
 			frame_num_semaphores[i] = std::make_shared<TimelineSemWrapper>(device_manager);
@@ -205,7 +202,7 @@ namespace Anni::Renderer
 
 
 	void
-		RealtimeRenderer::UpdateUniformBuffer(size_t current_image_index)
+	RealtimeRenderer::UpdateUniformBuffer(size_t current_image_index)
 	{
 		// struct UBO_VS_SCENE{
 		//	glm::mat4 projection;
@@ -278,18 +275,21 @@ namespace Anni::Renderer
 		//	&matrix_buffer_cpu_defered_rendering,
 		//	sizeof(matrix_buffer_cpu_defered_rendering));
 
-		frame_datas[current_image_index].matrix_buffer_cpu_MSAA.projection = camera->GetProjMatrix(Camera::ProjectionMtxSetting::ReversedZ); // for revered Z
+		frame_datas[current_image_index].matrix_buffer_cpu_MSAA.projection = camera->GetProjMatrix(
+			Camera::ProjectionMtxSetting::ReversedZ); // for revered Z
 		frame_datas[current_image_index].matrix_buffer_cpu_MSAA.view = camera->GetViewMatrix();
 		frame_datas[current_image_index].matrix_buffer_cpu_MSAA.view_inverse = camera->GetInverseViewMatrix();
 		frame_datas[current_image_index].matrix_buffer_cpu_MSAA.cam_pos = camera->GetEyePos();
 
 		// COPY
-		frame_datas[current_image_index].uniform_buffer_gpu_MSAA->CopyFromHost(&frame_datas[current_image_index].matrix_buffer_cpu_MSAA, sizeof(frame_datas[current_image_index].matrix_buffer_cpu_MSAA));
+		frame_datas[current_image_index].uniform_buffer_gpu_MSAA->CopyFromHost(
+			&frame_datas[current_image_index].matrix_buffer_cpu_MSAA,
+			sizeof(frame_datas[current_image_index].matrix_buffer_cpu_MSAA));
 	}
 
 
 	void
-		RealtimeRenderer::UpdateCamera(float dt)
+	RealtimeRenderer::UpdateCamera(float dt)
 	{
 		// TODO:用命令模式优化
 		static bool stop_cam = false;
@@ -307,7 +307,7 @@ namespace Anni::Renderer
 		if (keyboard->GetIsKeyDown(GLFW_KEY_ESCAPE))
 		{
 			glfwSetWindowShouldClose(const_cast<GLFWwindow*>(window.GetWindowPtr()),
-				GLFW_TRUE);
+			                         GLFW_TRUE);
 		}
 
 		if (keyboard->GetIsKeyDown(GLFW_KEY_W))
@@ -364,12 +364,14 @@ namespace Anni::Renderer
 	// }
 
 	void
-		RealtimeRenderer::SetUpUserInput()
+	RealtimeRenderer::SetUpUserInput()
 	{
-		std::vector<int> tracked_keys = { GLFW_KEY_ESCAPE, GLFW_KEY_W, GLFW_KEY_S,
-										  GLFW_KEY_A,      GLFW_KEY_D, GLFW_KEY_Q,
-										  GLFW_KEY_E,      GLFW_KEY_G, GLFW_KEY_UP,
-										  GLFW_KEY_DOWN };
+		std::vector<int> tracked_keys = {
+			GLFW_KEY_ESCAPE, GLFW_KEY_W, GLFW_KEY_S,
+			GLFW_KEY_A, GLFW_KEY_D, GLFW_KEY_Q,
+			GLFW_KEY_E, GLFW_KEY_G, GLFW_KEY_UP,
+			GLFW_KEY_DOWN
+		};
 		keyboard = std::make_unique<KeyBoardInputManager>(tracked_keys);
 		keyboard->SetupKeyInputs(window.GetWindowPtr());
 
@@ -377,7 +379,7 @@ namespace Anni::Renderer
 	}
 
 	void
-		RealtimeRenderer::CreateCamera()
+	RealtimeRenderer::CreateCamera()
 	{
 		camera = std::make_unique<FirstPersonCamera>();
 		camera->SetFrustum(
@@ -389,15 +391,16 @@ namespace Anni::Renderer
 	}
 
 	void
-		RealtimeRenderer::CreateGlobalAttachments()
+	RealtimeRenderer::CreateGlobalAttachments()
 	{
 		CreateSwapchainTextures();
 		//CreateDepthTextures();
 	}
+
 	//
 
 	void
-		RealtimeRenderer::CreateGlobalTextures()
+	RealtimeRenderer::CreateGlobalTextures()
 	{
 		// constexpr auto chiricahua_narrowPath_path =
 		// "../../data/textures/hdr/NarrowPath_3k.hdr"; const auto
@@ -411,14 +414,15 @@ namespace Anni::Renderer
 	/// which / haven't been implemented.
 
 	void
-		RealtimeRenderer::CreateSwapchainTextures()
+	RealtimeRenderer::CreateSwapchainTextures()
 	{
 		const auto swap_img_CI = CI::GetSwapchainImgCI();
 		const auto img_view_CI = CI::PopulateSwapchainImgViewCI(swapchain_manager);
 		for (const auto& [index, frame_data] : (frame_datas | std::views::enumerate))
 		{
 			frame_data.swapchain_attachment = tex_fac.ProduceSwapTexture(swap_img_CI, std::nullopt, img_view_CI, index);
-			frame_datas[index].swapchain_attachment->swap_img_rdy_4_rendering_helper_sem = swap_img_rdy_4_rendering_helper_sem[index];
+			frame_datas[index].swapchain_attachment->swap_img_rdy_4_rendering_helper_sem =
+				swap_img_rdy_4_rendering_helper_sem[index];
 			frame_datas[index].swapchain_attachment->present_finished_helper_sem = present_finished_helper_sem[index];
 		}
 	}
@@ -437,242 +441,264 @@ namespace Anni::Renderer
 	//	// }
 	//}
 
-	void
-		RealtimeRenderer::ImportModelRsrcToRenderGraph(
-			Anni::LoadedGLTF& model,
-			Anni::RenderGraphV1::GraphicsPassNode& pass_node)
+	void RealtimeRenderer::ImportModelRsrcToRenderGraph(
+		Anni::LoadedGLTF& model,
+		Anni::RenderGraphV1::GraphicsPassNode& pass_node)
 	{
 		// These model loading shit can be acheived by function
-		for (auto& [_, mesh] : model.meshes)
+		for (const auto& [_, mesh] : model.meshes)
 		{
 			// TODO:这些名字都可以自动生成
 			pass_node.In(mesh->name + "IndexBuffer",
-				mesh->meshBuffers.indexBuffer,
-				Anni::RenderGraphV1::BufUsage{
-				  Anni::RsrcType::IndexBuffer,
-				  Anni::BufSyncInfo{
-					.access_mask = vk::AccessFlagBits2::eIndexRead,
-					.stage_mask = vk::PipelineStageFlagBits2::eIndexInput,
-				  },
-				  Anni::RsrcAccessTypeRG::Read });
+			             mesh->meshBuffers.indexBuffer,
+			             Anni::RenderGraphV1::BufUsage{
+				             Anni::RsrcType::IndexBuffer,
+				             Anni::BufSyncInfo{
+					             .access_mask = vk::AccessFlagBits2::eIndexRead,
+					             .stage_mask = vk::PipelineStageFlagBits2::eIndexInput,
+				             },
+				             Anni::RsrcAccessTypeRG::Read
+			             });
 
 			pass_node.In(mesh->name + "VertexBuffer",
-				mesh->meshBuffers.vertexBuffer,
-				Anni::RenderGraphV1::BufUsage{
-				  Anni::RsrcType::AddressRefedBuffer,
-				  Anni::BufSyncInfo{
-					.access_mask = vk::AccessFlagBits2::eShaderRead,
-					.stage_mask = vk::PipelineStageFlagBits2::eVertexShader },
-				  Anni::RsrcAccessTypeRG::Read });
+			             mesh->meshBuffers.vertexBuffer,
+			             Anni::RenderGraphV1::BufUsage{
+				             Anni::RsrcType::AddressRefedBuffer,
+				             Anni::BufSyncInfo{
+					             .access_mask = vk::AccessFlagBits2::eShaderRead,
+					             .stage_mask = vk::PipelineStageFlagBits2::eVertexShader
+				             },
+				             Anni::RsrcAccessTypeRG::Read
+			             });
 		}
 
-		const auto& texures_vsrc_and_usage = pass_node.In(model.name + "Textures",
-			model.images_array,
-			Anni::RenderGraphV1::TexUsage(
-				Anni::ImgSyncInfo{
-				  .access_mask = vk::AccessFlagBits2::eShaderRead,
-				  .stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
-				  .layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal
-				}));
+		const auto& texures_vsrc_and_usage =
+			pass_node.In(model.name + "Textures",
+			             model.images_array,
+			             Anni::RenderGraphV1::TexUsage(
+				             Anni::ImgSyncInfo{
+					             .access_mask = vk::AccessFlagBits2::eShaderRead,
+					             .stage_mask =
+					             vk::PipelineStageFlagBits2::eFragmentShader,
+					             .layout_inpass =
+					             vk::ImageLayout::eShaderReadOnlyOptimal
+				             }));
 
 		pass_node.In(model.name + "UniformBuffer",
-			model.materialDataBuffer,
-			Anni::RenderGraphV1::BufUsage{
-			  Anni::RsrcType::ModelBuffer,
-			  Anni::BufSyncInfo{
-				.access_mask = vk::AccessFlagBits2::eShaderRead,
-				.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader },
-			  Anni::RsrcAccessTypeRG::Read,
-			});
+		             model.materialDataBuffer,
+		             Anni::RenderGraphV1::BufUsage{
+			             Anni::RsrcType::ModelBuffer,
+			             Anni::BufSyncInfo{
+				             .access_mask = vk::AccessFlagBits2::eShaderRead,
+				             .stage_mask = vk::PipelineStageFlagBits2::eFragmentShader
+			             },
+			             Anni::RsrcAccessTypeRG::Read,
+		             });
 
-		
-		pass_node.model_to_multi_tex_usage.emplace(&model, std::get<Anni::RenderGraphV1::TexUsage>(texures_vsrc_and_usage.usage));
+
+		pass_node.model_to_multi_tex_usage.emplace(
+			&model, std::get<Anni::RenderGraphV1::TexUsage>(texures_vsrc_and_usage.usage));
 	}
 
 	void
-		RealtimeRenderer::RenderGraphRendering(uint32_t img_index, uint32_t cur_frame)
+	RealtimeRenderer::RenderGraphRendering(uint32_t img_index, uint32_t cur_frame)
 	{
-
 		render_graph_v1.SetCurFrameAndImgIndex(cur_frame, img_index);
-
 		auto& DeferedGeoPass =
-			render_graph_v1.AddGfxPassNode<RenderGraphV1::DeferedGeometryPass>(
-				"DeferedGeometryPass");
+			render_graph_v1.AddGfxPassNode<RenderGraphV1::DeferedGeometryPass>("DeferedGeometryPass");
 		ImportModelRsrcToRenderGraph(*test_model_sponza, DeferedGeoPass);
 
 		DeferedGeoPass.In(
 			std::string("SceneData"),
 			frame_datas[img_index].uniform_buffer_gpu_MSAA,
 			Anni::RenderGraphV1::BufUsage(
-				Anni::DescriptorInfo{ Anni::DescriptorSetInfo{
-										.set = Vk::SetIndex<0>,
-										.binding = Vk::Binding<0>,
-										.array_element = Vk::BindingArrayElement<0>,
-									  },
-									  vk::DescriptorType::eUniformBuffer,
-									  vk::ShaderStageFlagBits::eVertex |
-										vk::ShaderStageFlagBits::eFragment },
-				Anni::BufSyncInfo{ .access_mask = vk::AccessFlagBits2::eShaderRead,
-								   .stage_mask =
-									 vk::PipelineStageFlagBits2::eVertexShader |
-									 vk::PipelineStageFlagBits2::eFragmentShader },
+				Anni::DescriptorInfo{
+					Anni::DescriptorSetInfo{
+						.set = Vk::SetIndex<0>,
+						.binding = Vk::Binding<0>,
+						.array_element = Vk::BindingArrayElement<0>,
+					},
+					vk::DescriptorType::eUniformBuffer,
+					vk::ShaderStageFlagBits::eVertex |
+					vk::ShaderStageFlagBits::eFragment
+				},
+				Anni::BufSyncInfo{
+					.access_mask = vk::AccessFlagBits2::eShaderRead,
+					.stage_mask =
+					vk::PipelineStageFlagBits2::eVertexShader |
+					vk::PipelineStageFlagBits2::eFragmentShader
+				},
 				Anni::RsrcAccessTypeRG::Read));
 
-		DeferedGeoPass.Out(
-			std::string("GBufPos"),
-			VkTexture::Descriptor{
-			  .tex_img_CI =
-				CI::GetTextureImgCI(DeferedRendering::G_position_format,
-									swapchain_manager.GetSwapChainImageExtent()),
-			  .img_view_CI =
-				CI::PopulateTextureImgViewCI(DeferedRendering::G_position_format),
-			  .sampler_CI = std::nullopt,
-			},
-
-			[](VkTexture::Descriptor& desco)
-			{
-				// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
-				desco.tex_img_CI.vk_image_CI.usage =
-					vk::ImageUsageFlagBits::eColorAttachment |
-					vk::ImageUsageFlagBits::eSampled;
-				desco.tex_img_CI.vk_image_CI.samples =
-					DeferedRendering::MSAA_sample_count;
-			},
-
-			Anni::RenderGraphV1::AttachUsage(
-				DeferedRendering::G_position_format,
-				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<0>,
-				  .attach_type = Anni::AttachmentType::ColorAttachment,
-				  .clear_value = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f },
+		auto& gbuf_pos_outlet =
+			DeferedGeoPass.Out(
+				std::string("GBufPos"),
+				VkTexture::Descriptor{
+					.tex_img_CI =
+					CI::GetTextureImgCI(DeferedRendering::G_position_format,
+					                    swapchain_manager.GetSwapChainImageExtent()),
+					.img_view_CI =
+					CI::PopulateTextureImgViewCI(DeferedRendering::G_position_format),
+					.sampler_CI = std::nullopt,
 				},
-				Anni::ImgSyncInfo{
-				  .access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
-				  .stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-				  .layout_inpass = vk::ImageLayout::eColorAttachmentOptimal },
-				  Anni::RsrcAccessTypeRG::Write));
 
-		DeferedGeoPass.Out(
-			std::string("GBufNormal"),
-			VkTexture::Descriptor{
-			  .tex_img_CI =
-				CI::GetTextureImgCI(DeferedRendering::G_normal_format,
-									swapchain_manager.GetSwapChainImageExtent()),
-			  .img_view_CI =
-				CI::PopulateTextureImgViewCI(DeferedRendering::G_normal_format),
-			  .sampler_CI = std::nullopt,
-			},
-			[](VkTexture::Descriptor& desco)
-			{
-				desco.tex_img_CI.vk_image_CI.usage =
-					vk::ImageUsageFlagBits::eColorAttachment |
-					vk::ImageUsageFlagBits::eSampled;
-				desco.tex_img_CI.vk_image_CI.samples =
-					DeferedRendering::MSAA_sample_count;
-			},
-			Anni::RenderGraphV1::AttachUsage(
-				DeferedRendering::G_normal_format,
-				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<1>,
-				  .attach_type = Anni::AttachmentType::ColorAttachment,
-				  .clear_value = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f } },
-				  Anni::ImgSyncInfo{
-					.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
-					.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-					.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal },
-					Anni::RsrcAccessTypeRG::Write));
-
-		DeferedGeoPass.Out(
-			std::string("GBufAlbedo"),
-			VkTexture::Descriptor{
-			  .tex_img_CI =
-				CI::GetTextureImgCI(DeferedRendering::G_albedo_format,
-									swapchain_manager.GetSwapChainImageExtent()),
-			  .img_view_CI =
-				CI::PopulateTextureImgViewCI(DeferedRendering::G_albedo_format),
-			  .sampler_CI = std::nullopt,
-			},
-			[](VkTexture::Descriptor& desco)
-			{
-				// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
-				desco.tex_img_CI.vk_image_CI.usage =
-					vk::ImageUsageFlagBits::eColorAttachment |
-					vk::ImageUsageFlagBits::eSampled;
-				desco.tex_img_CI.vk_image_CI.samples =
-					DeferedRendering::MSAA_sample_count;
-			},
-
-			Anni::RenderGraphV1::AttachUsage(
-				DeferedRendering::G_albedo_format,
-				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<2>,
-				  .attach_type = Anni::AttachmentType::ColorAttachment,
-				  .clear_value = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f } },
-				  Anni::ImgSyncInfo{
-					.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
-					.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-					.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal },
-					Anni::RsrcAccessTypeRG::Write));
-
-		DeferedGeoPass.Out(
-			"GBufPosZGradient",
-			VkTexture::Descriptor{ .tex_img_CI = CI::GetTextureImgCI(
-									 DeferedRendering::G_posZgrad_format,
-									 swapchain_manager.GetSwapChainImageExtent()),
-								   .img_view_CI = CI::PopulateTextureImgViewCI(
-									 DeferedRendering::G_posZgrad_format),
-								   .sampler_CI = std::nullopt },
-			[](VkTexture::Descriptor& desco)
-			{
-				// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
-				desco.tex_img_CI.vk_image_CI.usage =
-					vk::ImageUsageFlagBits::eColorAttachment |
-					vk::ImageUsageFlagBits::eSampled;
-				desco.tex_img_CI.vk_image_CI.samples =
-					DeferedRendering::MSAA_sample_count;
-			},
-			Anni::RenderGraphV1::AttachUsage(
-				DeferedRendering::G_posZgrad_format,
-
-				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<3>,
-				  .attach_type = Anni::AttachmentType::ColorAttachment,
-				  .clear_value = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f } },
-				  Anni::ImgSyncInfo{
-					.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
-					.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-					.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal },
-
-					Anni::RsrcAccessTypeRG::Write));
-
-		DeferedGeoPass.Out(
-			"GBufDepth",
-			VkTexture::Descriptor{
-			  .tex_img_CI =
-				CI::GetTextureImgCI(DeferedRendering::G_depth_format,
-									swapchain_manager.GetSwapChainImageExtent()),
-			  .img_view_CI =
-				CI::PopulateTextureImgViewCI(DeferedRendering::G_depth_format),
-			  .sampler_CI = std::nullopt,
-			},
-			[](VkTexture::Descriptor& desco)
-			{
-				desco.tex_img_CI.vk_image_CI.usage =
-					vk::ImageUsageFlagBits::eDepthStencilAttachment |
-					vk::ImageUsageFlagBits::eSampled,
+				[](VkTexture::Descriptor& desco)
+				{
+					// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
+					desco.tex_img_CI.vk_image_CI.usage =
+						vk::ImageUsageFlagBits::eColorAttachment |
+						vk::ImageUsageFlagBits::eSampled;
 					desco.tex_img_CI.vk_image_CI.samples =
-					DeferedRendering::MSAA_sample_count;
-			},
-			Anni::RenderGraphV1::AttachUsage(
-				DeferedRendering::G_depth_format,
-				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<4>,
-				  .attach_type = Anni::AttachmentType::DepthAttachment,
-				  .clear_value = vk::ClearDepthStencilValue{ 0.0f, 0 } },
-				  Anni::ImgSyncInfo{
-					.access_mask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
-					.stage_mask = vk::PipelineStageFlagBits2::eLateFragmentTests,
-					.layout_inpass = vk::ImageLayout::eDepthAttachmentOptimal },
+						DeferedRendering::MSAA_sample_count;
+				},
+
+				Anni::RenderGraphV1::AttachUsage(
+					DeferedRendering::G_position_format,
+					Anni::AttachmentInfo{
+						.attachment_index = Vk::AttachmentIndex<0>,
+						.attach_type = Anni::AttachmentType::ColorAttachment,
+						.clear_value = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f},
+					},
+					Anni::ImgSyncInfo{
+						.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
+						.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+						.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal
+					},
+					Anni::RsrcAccessTypeRG::Write));
+
+		auto& gbuf_normal_outlet =
+			DeferedGeoPass.Out(
+				std::string("GBufNormal"),
+				VkTexture::Descriptor{
+					.tex_img_CI =
+					CI::GetTextureImgCI(DeferedRendering::G_normal_format,
+					                    swapchain_manager.GetSwapChainImageExtent()),
+					.img_view_CI =
+					CI::PopulateTextureImgViewCI(DeferedRendering::G_normal_format),
+					.sampler_CI = std::nullopt,
+				},
+				[](VkTexture::Descriptor& desco)
+				{
+					desco.tex_img_CI.vk_image_CI.usage =
+						vk::ImageUsageFlagBits::eColorAttachment |
+						vk::ImageUsageFlagBits::eSampled;
+					desco.tex_img_CI.vk_image_CI.samples =
+						DeferedRendering::MSAA_sample_count;
+				},
+				Anni::RenderGraphV1::AttachUsage(
+					DeferedRendering::G_normal_format,
+					Anni::AttachmentInfo{
+						.attachment_index = Vk::AttachmentIndex<1>,
+						.attach_type = Anni::AttachmentType::ColorAttachment,
+						.clear_value = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}
+					},
+					Anni::ImgSyncInfo{
+						.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
+						.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+						.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal
+					},
+					Anni::RsrcAccessTypeRG::Write));
+
+		auto& gbuf_albedo_outlet =
+			DeferedGeoPass.Out(
+				std::string("GBufAlbedo"),
+				VkTexture::Descriptor{
+					.tex_img_CI =
+					CI::GetTextureImgCI(DeferedRendering::G_albedo_format,
+					                    swapchain_manager.GetSwapChainImageExtent()),
+					.img_view_CI =
+					CI::PopulateTextureImgViewCI(DeferedRendering::G_albedo_format),
+					.sampler_CI = std::nullopt,
+				},
+				[](VkTexture::Descriptor& desco)
+				{
+					// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
+					desco.tex_img_CI.vk_image_CI.usage =
+						vk::ImageUsageFlagBits::eColorAttachment |
+						vk::ImageUsageFlagBits::eSampled;
+					desco.tex_img_CI.vk_image_CI.samples =
+						DeferedRendering::MSAA_sample_count;
+				},
+
+				Anni::RenderGraphV1::AttachUsage(
+					DeferedRendering::G_albedo_format,
+					Anni::AttachmentInfo{
+						.attachment_index = Vk::AttachmentIndex<2>,
+						.attach_type = Anni::AttachmentType::ColorAttachment,
+						.clear_value = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}
+					},
+					Anni::ImgSyncInfo{
+						.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
+						.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+						.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal
+					},
+					Anni::RsrcAccessTypeRG::Write));
+
+		auto& gbuf_posZGradient_outlet =
+			DeferedGeoPass.Out(
+				"GBufPosZGradient",
+				VkTexture::Descriptor{
+					.tex_img_CI = CI::GetTextureImgCI(
+						DeferedRendering::G_posZgrad_format,
+						swapchain_manager.GetSwapChainImageExtent()),
+					.img_view_CI = CI::PopulateTextureImgViewCI(
+						DeferedRendering::G_posZgrad_format),
+					.sampler_CI = std::nullopt
+				},
+				[](VkTexture::Descriptor& desco)
+				{
+					// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
+					desco.tex_img_CI.vk_image_CI.usage =
+						vk::ImageUsageFlagBits::eColorAttachment |
+						vk::ImageUsageFlagBits::eSampled;
+					desco.tex_img_CI.vk_image_CI.samples =
+						DeferedRendering::MSAA_sample_count;
+				},
+				Anni::RenderGraphV1::AttachUsage(
+					DeferedRendering::G_posZgrad_format,
+
+					Anni::AttachmentInfo{
+						.attachment_index = Vk::AttachmentIndex<3>,
+						.attach_type = Anni::AttachmentType::ColorAttachment,
+						.clear_value = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}
+					},
+					Anni::ImgSyncInfo{
+						.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
+						.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+						.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal
+					},
+
+					Anni::RsrcAccessTypeRG::Write));
+
+		auto& gbuf_depth_outlet =
+			DeferedGeoPass.Out(
+				"GBufDepth",
+				VkTexture::Descriptor{
+					.tex_img_CI =
+					CI::GetTextureImgCI(DeferedRendering::G_depth_format,
+					                    swapchain_manager.GetSwapChainImageExtent()),
+					.img_view_CI =
+					CI::PopulateTextureImgViewCI(DeferedRendering::G_depth_format),
+					.sampler_CI = std::nullopt,
+				},
+				[](VkTexture::Descriptor& desco)
+				{
+					desco.tex_img_CI.vk_image_CI.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment |
+						vk::ImageUsageFlagBits::eSampled;
+					desco.tex_img_CI.vk_image_CI.samples = DeferedRendering::MSAA_sample_count;
+				},
+				Anni::RenderGraphV1::AttachUsage(
+					DeferedRendering::G_depth_format,
+					Anni::AttachmentInfo{
+						.attachment_index = Vk::AttachmentIndex<4>,
+						.attach_type = Anni::AttachmentType::DepthAttachment,
+						.clear_value = vk::ClearDepthStencilValue{0.0f, 0}
+					},
+					Anni::ImgSyncInfo{
+						.access_mask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+						.stage_mask = vk::PipelineStageFlagBits2::eLateFragmentTests,
+						.layout_inpass = vk::ImageLayout::eDepthAttachmentOptimal
+					},
 
 					Anni::RsrcAccessTypeRG::Write));
 
@@ -684,120 +710,134 @@ namespace Anni::Renderer
 			"SceneData",
 			frame_datas[img_index].uniform_buffer_gpu_MSAA,
 			Anni::RenderGraphV1::BufUsage(
-				Anni::DescriptorInfo{ Anni::DescriptorSetInfo{
-										.set = Vk::SetIndex<0>,
-										.binding = Vk::Binding<0>,
-										.array_element = Vk::BindingArrayElement<0>,
-									  },
-									  vk::DescriptorType::eUniformBuffer,
-									  vk::ShaderStageFlagBits::eVertex |
-										vk::ShaderStageFlagBits::eFragment },
-				Anni::BufSyncInfo{ .access_mask = vk::AccessFlagBits2::eShaderRead,
-								   .stage_mask =
-									 vk::PipelineStageFlagBits2::eFragmentShader |
-									 vk::PipelineStageFlagBits2::eVertexShader },
+				Anni::DescriptorInfo{
+					Anni::DescriptorSetInfo{
+						.set = Vk::SetIndex<0>,
+						.binding = Vk::Binding<0>,
+						.array_element = Vk::BindingArrayElement<0>,
+					},
+					vk::DescriptorType::eUniformBuffer,
+					vk::ShaderStageFlagBits::eVertex |
+					vk::ShaderStageFlagBits::eFragment
+				},
+				Anni::BufSyncInfo{
+					.access_mask = vk::AccessFlagBits2::eShaderRead,
+					.stage_mask =
+					vk::PipelineStageFlagBits2::eFragmentShader |
+					vk::PipelineStageFlagBits2::eVertexShader
+				},
 				Anni::RsrcAccessTypeRG::Read));
 
 		DeferedComPass.In(
-			"GBufPos",
-			DeferedGeoPass,
+			gbuf_pos_outlet,
 			Anni::RenderGraphV1::TexUsage(
 				DeferedRendering::G_position_format,
-				Anni::DescriptorInfo{ Anni::DescriptorSetInfo{
-										.set = Vk::SetIndex<0>,
-										.binding = Vk::Binding<1>,
-										.array_element = Vk::BindingArrayElement<0>,
-									  },
-									  vk::DescriptorType::eSampledImage,
-									  vk::ShaderStageFlagBits::eFragment },
-									  Anni::ImgSyncInfo{
-										.access_mask = vk::AccessFlagBits2::eShaderRead,
-										.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
-										.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal },
-										Anni::RsrcAccessTypeRG::Read));
+				Anni::DescriptorInfo{
+					Anni::DescriptorSetInfo{
+						.set = Vk::SetIndex<0>,
+						.binding = Vk::Binding<1>,
+						.array_element = Vk::BindingArrayElement<0>,
+					},
+					vk::DescriptorType::eSampledImage,
+					vk::ShaderStageFlagBits::eFragment
+				},
+				Anni::ImgSyncInfo{
+					.access_mask = vk::AccessFlagBits2::eShaderRead,
+					.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
+					.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal
+				},
+				Anni::RsrcAccessTypeRG::Read));
 
 		DeferedComPass.In(
-			"GBufNormal",
-			DeferedGeoPass,
+			gbuf_normal_outlet,
 			Anni::RenderGraphV1::TexUsage(
 				DeferedRendering::G_normal_format,
-				Anni::DescriptorInfo{ Anni::DescriptorSetInfo{
-										.set = Vk::SetIndex<0>,
-										.binding = Vk::Binding<2>,
-										.array_element = Vk::BindingArrayElement<0>,
-									  },
-									  vk::DescriptorType::eSampledImage,
-									  vk::ShaderStageFlagBits::eFragment },
-									  Anni::ImgSyncInfo{
-										.access_mask = vk::AccessFlagBits2::eShaderRead,
-										.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
-										.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal },
-										Anni::RsrcAccessTypeRG::Read));
+				Anni::DescriptorInfo{
+					Anni::DescriptorSetInfo{
+						.set = Vk::SetIndex<0>,
+						.binding = Vk::Binding<2>,
+						.array_element = Vk::BindingArrayElement<0>,
+					},
+					vk::DescriptorType::eSampledImage,
+					vk::ShaderStageFlagBits::eFragment
+				},
+				Anni::ImgSyncInfo{
+					.access_mask = vk::AccessFlagBits2::eShaderRead,
+					.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
+					.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal
+				},
+				Anni::RsrcAccessTypeRG::Read));
 
 		DeferedComPass.In(
-			"GBufAlbedo",
-			DeferedGeoPass,
+			gbuf_albedo_outlet,
 			Anni::RenderGraphV1::TexUsage(
 				DeferedRendering::G_albedo_format,
-				Anni::DescriptorInfo{ Anni::DescriptorSetInfo{
-										.set = Vk::SetIndex<0>,
-										.binding = Vk::Binding<3>,
-										.array_element = Vk::BindingArrayElement<0>,
-									  },
-									  vk::DescriptorType::eSampledImage,
-									  vk::ShaderStageFlagBits::eFragment },
-									  Anni::ImgSyncInfo{
-										.access_mask = vk::AccessFlagBits2::eShaderRead,
-										.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
-										.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal },
-										Anni::RsrcAccessTypeRG::Read));
+				Anni::DescriptorInfo{
+					Anni::DescriptorSetInfo{
+						.set = Vk::SetIndex<0>,
+						.binding = Vk::Binding<3>,
+						.array_element = Vk::BindingArrayElement<0>,
+					},
+					vk::DescriptorType::eSampledImage,
+					vk::ShaderStageFlagBits::eFragment
+				},
+				Anni::ImgSyncInfo{
+					.access_mask = vk::AccessFlagBits2::eShaderRead,
+					.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
+					.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal
+				},
+				Anni::RsrcAccessTypeRG::Read));
 
 		DeferedComPass.In(
-			"GBufPosZGradient",
-			DeferedGeoPass,
+			gbuf_posZGradient_outlet,
 			Anni::RenderGraphV1::TexUsage(
 				DeferedRendering::G_posZgrad_format,
-				Anni::DescriptorInfo{ Anni::DescriptorSetInfo{
-										.set = Vk::SetIndex<0>,
-										.binding = Vk::Binding<4>,
-										.array_element = Vk::BindingArrayElement<0>,
-									  },
-									  vk::DescriptorType::eSampledImage,
-									  vk::ShaderStageFlagBits::eFragment },
+				Anni::DescriptorInfo{
+					Anni::DescriptorSetInfo{
+						.set = Vk::SetIndex<0>,
+						.binding = Vk::Binding<4>,
+						.array_element = Vk::BindingArrayElement<0>,
+					},
+					vk::DescriptorType::eSampledImage,
+					vk::ShaderStageFlagBits::eFragment
+				},
 
-									  Anni::ImgSyncInfo{
-										.access_mask = vk::AccessFlagBits2::eShaderRead,
-										.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
-										.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal },
-										Anni::RsrcAccessTypeRG::Read));
+				Anni::ImgSyncInfo{
+					.access_mask = vk::AccessFlagBits2::eShaderRead,
+					.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
+					.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal
+				},
+				Anni::RsrcAccessTypeRG::Read));
 
 		DeferedComPass.In(
-			"GBufDepth",
-			DeferedGeoPass,
+			gbuf_depth_outlet,
 			Anni::RenderGraphV1::TexUsage(
 				DeferedRendering::G_depth_format,
-				Anni::DescriptorInfo{ Anni::DescriptorSetInfo{
-										.set = Vk::SetIndex<0>,
-										.binding = Vk::Binding<4>,
-										.array_element = Vk::BindingArrayElement<0>,
-									  },
-									  vk::DescriptorType::eSampledImage,
-									  vk::ShaderStageFlagBits::eFragment },
-									  Anni::ImgSyncInfo{
-										.access_mask = vk::AccessFlagBits2::eShaderRead,
-										.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
-										.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal },
-										Anni::RsrcAccessTypeRG::Read));
+				Anni::DescriptorInfo{
+					Anni::DescriptorSetInfo{
+						.set = Vk::SetIndex<0>,
+						.binding = Vk::Binding<4>,
+						.array_element = Vk::BindingArrayElement<0>,
+					},
+					vk::DescriptorType::eSampledImage,
+					vk::ShaderStageFlagBits::eFragment
+				},
+				Anni::ImgSyncInfo{
+					.access_mask = vk::AccessFlagBits2::eShaderRead,
+					.stage_mask = vk::PipelineStageFlagBits2::eFragmentShader,
+					.layout_inpass = vk::ImageLayout::eShaderReadOnlyOptimal
+				},
+				Anni::RsrcAccessTypeRG::Read));
 
 		auto& MSColorAttach = DeferedComPass.Out(
 			"MSColorAttach",
 			VkTexture::Descriptor{
-			  .tex_img_CI =
+				.tex_img_CI =
 				CI::GetTextureImgCI(swapchain_manager.GetSwapChainImageFormat(),
-									swapchain_manager.GetSwapChainImageExtent()),
-			  .img_view_CI =
+				                    swapchain_manager.GetSwapChainImageExtent()),
+				.img_view_CI =
 				CI::PopulateTextureImgViewCI(DeferedRendering::C_color_attch_format),
-			  .sampler_CI = std::nullopt,
+				.sampler_CI = std::nullopt,
 			},
 			[](VkTexture::Descriptor& desco)
 			{
@@ -813,25 +853,27 @@ namespace Anni::Renderer
 				DeferedRendering::C_color_attch_format,
 
 				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<0>,
-				  .attach_type = Anni::AttachmentType::ColorAttachment,
-				  .clear_value = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f } },
-				  Anni::ImgSyncInfo{
+					.attachment_index = Vk::AttachmentIndex<0>,
+					.attach_type = Anni::AttachmentType::ColorAttachment,
+					.clear_value = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}
+				},
+				Anni::ImgSyncInfo{
 					.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
 					.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
 
-					.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal },
-					Anni::RsrcAccessTypeRG::Write));
+					.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal
+				},
+				Anni::RsrcAccessTypeRG::Write));
 
 		auto& MSDepthStencilAttach = DeferedComPass.Out(
 			"MSDepthStencilAttach",
 			VkTexture::Descriptor{
-			  .tex_img_CI =
+				.tex_img_CI =
 				CI::GetTextureImgCI(DeferedRendering::C_depth_stencil_format,
-									swapchain_manager.GetSwapChainImageExtent()),
-			  .img_view_CI =
+				                    swapchain_manager.GetSwapChainImageExtent()),
+				.img_view_CI =
 				CI::PopulateDepthImgViewCI(DeferedRendering::C_depth_stencil_format),
-			  .sampler_CI = std::nullopt,
+				.sampler_CI = std::nullopt,
 			},
 			[](VkTexture::Descriptor& desco)
 			{
@@ -846,14 +888,16 @@ namespace Anni::Renderer
 			Anni::RenderGraphV1::AttachUsage(
 				DeferedRendering::C_depth_stencil_format,
 				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<1>,
-				  .attach_type = Anni::AttachmentType::DepthAttachment,
-				  .clear_value = vk::ClearDepthStencilValue{ 0.0f, 0u } },
-				  Anni::ImgSyncInfo{
+					.attachment_index = Vk::AttachmentIndex<1>,
+					.attach_type = Anni::AttachmentType::DepthAttachment,
+					.clear_value = vk::ClearDepthStencilValue{0.0f, 0u}
+				},
+				Anni::ImgSyncInfo{
 					.access_mask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
 					.stage_mask = vk::PipelineStageFlagBits2::eLateFragmentTests,
-					.layout_inpass = vk::ImageLayout::eDepthStencilAttachmentOptimal },
-					Anni::RsrcAccessTypeRG::Write));
+					.layout_inpass = vk::ImageLayout::eDepthStencilAttachmentOptimal
+				},
+				Anni::RsrcAccessTypeRG::Write));
 
 		auto& MSColorResolveTar = DeferedComPass.Out(
 			"SwapImage",
@@ -862,57 +906,61 @@ namespace Anni::Renderer
 				DeferedRendering::C_color_attch_format,
 
 				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<0>,
-				  .attach_type = Anni::AttachmentType::ResolveOpTargetAttachment,
-				  .clear_value = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f } },
+					.attachment_index = Vk::AttachmentIndex<0>,
+					.attach_type = Anni::AttachmentType::ResolveOpTargetAttachment,
+					.clear_value = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}
+				},
 
-				  Anni::ImgSyncInfo{
+				Anni::ImgSyncInfo{
 					.access_mask = vk::AccessFlagBits2::eColorAttachmentWrite,
 					.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-					.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal },
+					.layout_inpass = vk::ImageLayout::eColorAttachmentOptimal
+				},
 
-					Anni::RsrcAccessTypeRG::Write));
+				Anni::RsrcAccessTypeRG::Write));
 
 		auto& MSDepthStencilResolveTar = DeferedComPass.Out(
 			"DepthImage",
 			VkTexture::Descriptor{
-			  .tex_img_CI = CI::GetDepthImgCI(swapchain_manager),
-			  .img_view_CI = CI::PopulateDepthImgViewCI(swapchain_manager),
-			  .sampler_CI = std::nullopt,
+				.tex_img_CI = CI::GetDepthImgCI(swapchain_manager),
+				.img_view_CI = CI::PopulateDepthImgViewCI(swapchain_manager),
+				.sampler_CI = std::nullopt,
 			},
 			[](VkTexture::Descriptor& desco)
-			{},
+			{
+			},
 			Anni::RenderGraphV1::AttachUsage(
 				DeferedRendering::C_depth_stencil_format,
 
 				Anni::AttachmentInfo{
-				  .attachment_index = Vk::AttachmentIndex<1>,
-				  .attach_type = Anni::AttachmentType::ResolveOpTargetAttachment,
-				  .clear_value = vk::ClearDepthStencilValue{ 0.0f, 0u } },
-				  Anni::ImgSyncInfo{
+					.attachment_index = Vk::AttachmentIndex<1>,
+					.attach_type = Anni::AttachmentType::ResolveOpTargetAttachment,
+					.clear_value = vk::ClearDepthStencilValue{0.0f, 0u}
+				},
+				Anni::ImgSyncInfo{
 					.access_mask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite |
-								   vk::AccessFlagBits2::eDepthStencilAttachmentRead,
+					vk::AccessFlagBits2::eDepthStencilAttachmentRead,
 
 					.stage_mask = vk::PipelineStageFlagBits2::eEarlyFragmentTests,
-					.layout_inpass = vk::ImageLayout::eDepthStencilAttachmentOptimal },
+					.layout_inpass = vk::ImageLayout::eDepthStencilAttachmentOptimal
+				},
 
 				Anni::RsrcAccessTypeRG::Write));
 
-		MSColorAttach.PreBindResolveTarget(MSColorResolveTar);
-		MSDepthStencilAttach.PreBindResolveTarget(MSDepthStencilResolveTar);
+		MSColorAttach.GetRsrcAndUsage().PreBindResolveTarget(MSColorResolveTar.GetRsrcAndUsage());
+		MSDepthStencilAttach.GetRsrcAndUsage().PreBindResolveTarget(MSDepthStencilResolveTar.GetRsrcAndUsage());
 
 		auto& PresentPass = render_graph_v1.AddGfxPassNode<RenderGraphV1::PresentPass>("PresentPass");
 		PresentPass.Out(
-			"SwapImage",
-			DeferedComPass,
+			MSColorResolveTar,
 			Anni::RenderGraphV1::AttachUsage(
 				DeferedRendering::C_color_attch_format,
 				Anni::AttachmentInfo{},
 
 				Anni::ImgSyncInfo{
-				  .access_mask = vk::AccessFlagBits2::eMemoryRead,
-				  .stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-				  .layout_inpass = vk::ImageLayout::ePresentSrcKHR
+					.access_mask = vk::AccessFlagBits2::eMemoryRead,
+					.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+					.layout_inpass = vk::ImageLayout::ePresentSrcKHR
 				},
 				Anni::RsrcAccessTypeRG::Write
 			));
@@ -920,21 +968,22 @@ namespace Anni::Renderer
 		// RenderGraph编译
 		render_graph_v1.Compile();
 		// RenderGraph执行
-		render_graph_v1.CmdBufRecordingAndExecuting(img_index, cur_frame, frame_num_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP]->GetRaw());
-
+		render_graph_v1.CmdBufRecordingAndExecuting(img_index, cur_frame,
+		                                            frame_num_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP]->GetRaw());
 	}
 
 	void RealtimeRenderer::Render(float time_diff)
 	{
 		static uint64_t cur_frame = 0;
 
-		uint32_t img_index;
-		vk::AcquireNextImageInfoKHR acquire_next_img_info(
+		uint32_t img_index = 0;
+		const vk::AcquireNextImageInfoKHR acquire_next_img_info(
 			swapchain_manager.GetSwapChain(),
 			UINT64_MAX,
 			present_finished_semaphores[cur_frame]->GetRaw(),
 			VK_NULL_HANDLE);
-		vk::ResultValue<uint32_t> result = device_manager.GetLogicalDevice().acquireNextImage2KHR(acquire_next_img_info);
+		const vk::ResultValue<uint32_t> result = 
+			device_manager.GetLogicalDevice().acquireNextImage2KHR(acquire_next_img_info);
 
 		switch (result.result)
 		{
@@ -956,8 +1005,10 @@ namespace Anni::Renderer
 			break;
 		}
 
-		frame_datas[img_index].swapchain_attachment->present_finished_sem = present_finished_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP];
-		frame_datas[img_index].swapchain_attachment->ready_for_present_sem = ready_present_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP];
+		frame_datas[img_index].swapchain_attachment->present_finished_sem = present_finished_semaphores[cur_frame %
+			Vk::MAX_FRAMES_OVERLAP];
+		frame_datas[img_index].swapchain_attachment->ready_for_present_sem = ready_present_semaphores[cur_frame %
+			Vk::MAX_FRAMES_OVERLAP];
 
 
 		UpdateUniformBuffer(img_index);
@@ -1090,5 +1141,4 @@ namespace Anni::Renderer
 		// }
 		// cur_frame = (cur_frame + 1) % Vk::MAX_FRAMES_OVERLAP;
 	}
-
 } // namespace Anni::Renderer

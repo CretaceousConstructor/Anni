@@ -27,7 +27,8 @@ namespace Anni::RenderGraphV1
 		VirtualBuffer& operator=(const VirtualBuffer&) = delete;
 		VirtualBuffer(VirtualBuffer&&) = delete;
 		VirtualBuffer& operator=(VirtualBuffer&&) = delete;
-		~VirtualBuffer() = default;
+		~VirtualBuffer() override = default;
+		
 
 
 
@@ -73,6 +74,7 @@ namespace Anni::RenderGraphV1
 	};
 
 
+	using VBufItr = std::list<VirtualBuffer>::iterator;
 
 
 

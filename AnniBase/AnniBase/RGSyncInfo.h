@@ -9,6 +9,8 @@ namespace Anni::RenderGraphV1
 	template<typename T>
 	concept RsrcT = std::is_same_v<T, VirtualBuffer> || std::is_same_v<T, VirtualTexture>;
 
+	template <typename R>
+	using VRsrcItr = std::list<R>::iterator;
 
 	template <RsrcT R>
 	struct SyncInfoType
@@ -36,7 +38,7 @@ namespace Anni::RenderGraphV1
 		SyncInfoSameQueue(
 			S                                            source_sync_info_,
 			S                                            target_sync_info_,
-			std::unordered_map<std::string, R>::iterator underlying_rsrc_
+			VRsrcItr<R> underlying_rsrc_
 		);
 
 
@@ -64,7 +66,7 @@ namespace Anni::RenderGraphV1
 
 		S                                            source_sync_info;
 		S                                            target_sync_info;
-		std::unordered_map<std::string, R>::iterator underlying_vrsrc;
+		VRsrcItr<R> underlying_vrsrc;
 
 	public:
 		std::vector<std::pair<std::shared_ptr<TimelineSemWrapper>, uint64_t>> signal_sync_semas;
@@ -87,7 +89,7 @@ namespace Anni::RenderGraphV1
 			S                                   target_sync_info_,
 			Queue* source_queue_,
 			Queue* target_queue_,
-			std::unordered_map<std::string, R>::iterator underlying_rsrc_
+			VRsrcItr<R> underlying_rsrc_
 		);
 	public:
 		void AddSemToWaitOn(std::shared_ptr<TimelineSemWrapper> sync_sem, uint64_t wait_val = 1)
@@ -115,7 +117,7 @@ namespace Anni::RenderGraphV1
 		S      target_sync_info;
 		Queue* source_queue;
 		Queue* target_queue;
-		std::unordered_map<std::string, R>::iterator underlying_vrsrc;
+		VRsrcItr<R> underlying_vrsrc;
 	public:
 		std::vector<std::pair<std::shared_ptr<TimelineSemWrapper>, uint64_t>> signal_sync_semas;
 		std::vector<std::pair<std::shared_ptr<TimelineSemWrapper>, uint64_t>> wait_sync_semas;
@@ -136,7 +138,7 @@ namespace Anni::RenderGraphV1
 		S                       target_sync_info_,
 		Queue* source_queue_,
 		Queue* target_queue_,
-		std::unordered_map<std::string, R>::iterator underlying_rsrc_
+		VRsrcItr<R> underlying_rsrc_
 	) :
 		source_sync_info(source_sync_info_),
 		target_sync_info(target_sync_info_),
@@ -153,7 +155,7 @@ namespace Anni::RenderGraphV1
 
 
 	template<typename R, typename S>
-	inline SyncInfoSameQueue<R, S>::SyncInfoSameQueue(S source_sync_info_, S target_sync_info_, std::unordered_map<std::string, R>::iterator underlying_rsrc_)
+	inline SyncInfoSameQueue<R, S>::SyncInfoSameQueue(S source_sync_info_, S target_sync_info_, VRsrcItr<R> underlying_rsrc_)
 		:
 		source_sync_info(source_sync_info_),
 		target_sync_info(target_sync_info_),
