@@ -8,4 +8,11 @@ glm      : A math library.\
 imgui    : For gui used in the engine.\
 ktx      : For loading ktx images.\
 std_image: For loading stb images.\
-vma      : Device memory allocation.
+vma      : Device memory allocation.\
+ 
+Features under development:\
+RenderGraph: 
+    1)Automatic resources lifetime management.
+    2)Automatic resources barriers insertion.
+    3)Multi-frame inflight syncronization.
+    4)Multi-queue execution scheduling.
