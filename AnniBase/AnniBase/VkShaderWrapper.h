@@ -23,6 +23,7 @@ namespace Anni
 		};
 
 		VkShaderWrapper(const ShaderCI& para_pack, GraphicsComponent& gfx_);
+
 		VkShaderWrapper(VkShaderStageFlagBits binding_stage, std::string shader_path_, GraphicsComponent& gfx_);
 		VkShaderWrapper(VkShaderStageFlagBits binding_stage_, const std::string& shader_path_, VkShaderModule shader_module_, GraphicsComponent& gfx_);
 
@@ -36,10 +37,10 @@ namespace Anni
 		VkShaderWrapper(VkShaderWrapper&&) = delete;
 		VkShaderWrapper& operator=(VkShaderWrapper&&) = delete;
 
-		[[nodiscard]] VkPipelineShaderStageCreateInfo GetShaderStageCI() const;
+		[[nodiscard]] vk::PipelineShaderStageCreateInfo GetShaderStageCI() const;
 
 	private:
-		[[nodiscard]] void CreateShaderModule(const std::vector<char>& code);
+		void CreateShaderModule(const std::vector<char>& code);
 
 	private:
 		static std::vector<char> ReadFile(const std::string& filename);

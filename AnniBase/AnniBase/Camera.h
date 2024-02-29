@@ -20,6 +20,9 @@ namespace Anni
 			NormalZ = 2,
 		};
 
+
+
+
 		// 获取摄像机位置
 		//[[nodiscard]] glm::vec3 GetPosition() const;
 		////设置相机位置

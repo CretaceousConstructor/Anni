@@ -405,3 +405,5 @@ Assets/
 # build folder
 Build/
 
+# unused files
+Unused/

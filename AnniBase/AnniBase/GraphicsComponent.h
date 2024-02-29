@@ -1,7 +1,6 @@
 #pragma once
 #include "DeviceManager.h"
 #include "InstanceWrapper.h"
-#include "PoolBundle.h"
 #include "QueueManager.h"
 
 #include "SwapchainManager.h"

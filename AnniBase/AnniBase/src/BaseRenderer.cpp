@@ -32,11 +32,15 @@ namespace Anni::Renderer
 
 	void IRenderer::RenderingPreparation()
 	{
-		//***************USER INPUT***************
+		//***************USER INPUT********************
 		this->SetUpUserInput();
 		//Init Camera
 		this->CreateCamera();
 
+
+		//**************SYNC OBJECTS INIT**************
+		//prepare sync objects
+		this->InitSynObjects();
 		//**************GLOBAL RESOURCES***************
 		//images
 		this->CreateGlobalAttachments();
@@ -52,9 +56,6 @@ namespace Anni::Renderer
 
 		//*************RENDERPASS INIT***************
 		this->InitRenderpasses();
-
-		//prepare sync objects
-		this->InitSynObjects();
 
 		//*************COMMAND BUFFER RECORDING***************
 		//command buffer recording

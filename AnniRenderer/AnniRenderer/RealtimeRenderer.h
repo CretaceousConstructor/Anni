@@ -3,7 +3,6 @@
 #include "AnniBase/FirstPersonCamera.h"
 #include "AnniBase/KeyBoardInputManager.h"
 #include "AnniBase/RenderGraphV1.h"
-#include "AnniBase/VkRenderpassManager.h"
 // #include "IrradianceMapGenPass.h"
 // #include "PrefilterAndLUTMapGenPass.h"
 // #include "PbrRenderingPass.h"
@@ -11,6 +10,7 @@
 #include "DeferedGeometryPass.h"
 // #include "MSAAPass.h"
 #include "AnniBase/DeferedGeometryPass.h"
+#include "AnniBase/DeferedCompositionPass.h"
 #include "AnniBase/MouseInputManager.h"
 #include "AnniBase/Vk.h"
 #include "AnniBase/PresentPass.h"
@@ -56,12 +56,13 @@ namespace Anni::Renderer
 				buf_fac,
 				tex_fac,
 				shader_fac,
-				gfx_pipe_CI_builder
+				gfx_pipe_CI_builder,
+				pipeline_builder
 			)
 		{
 		}
 
-		~RealtimeRenderer() = default;
+		~RealtimeRenderer() override = default;
 
 
 	public:
@@ -74,6 +75,8 @@ namespace Anni::Renderer
 		void SetUpUserInput() override;
 		void CreateCamera() override;
 
+		void InitSynObjects() override;
+
 		void CreateGlobalAttachments() override;
 		void CreateGlobalTextures() override;
 		void CreateGlobalBuffers() override;
@@ -84,7 +87,6 @@ namespace Anni::Renderer
 
 		void InitRenderpasses() override;
 
-		void InitSynObjects() override;
 		//void CommandBufferRecording() override;
 
 
@@ -97,7 +99,7 @@ namespace Anni::Renderer
 		//void CreateDepthTextures();
 		void CreateSwapchainTextures();
 
-		void ImportModelRsrcToRenderGraph(
+		static void ImportModelRsrcToRenderGraph(
 			Anni::LoadedGLTF& model,
 			Anni::RenderGraphV1::GraphicsPassNode& pass_node
 		);
@@ -142,7 +144,6 @@ namespace Anni::Renderer
 		RealtimeRenderer& operator=(const RealtimeRenderer&) = delete;
 		RealtimeRenderer(RealtimeRenderer&&) = delete;
 		RealtimeRenderer& operator=(RealtimeRenderer&&) = delete;
-
 	};
 
 }

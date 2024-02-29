@@ -4,7 +4,7 @@
 #include "VkShaderWrapper.h"
 #include <Windows.h>
 #include <codecvt>
-#include <dxc/dxcapi.h>
+#include <dxcapi.h>
 #include <locale>
 #include <string>
 #include <vector>
@@ -17,7 +17,7 @@ class VkShaderFactory
   public:
 	VkShaderFactory(GraphicsComponent &gfx_);
 
-	[[nodiscard]] std::shared_ptr<VkShaderWrapper>    GetShader(const std::string &path, VkShaderStageFlagBits stage) const;
+	[[nodiscard]] std::shared_ptr<VkShaderWrapper> GetShader(const std::string &path, VkShaderStageFlagBits stage) const;
 	//[[nodiscard]] std::shared_ptr<VkShaderExtWrapper> GetShaderExt(const std::string &path, VkShaderCreateInfoEXT shader_CI) const;
 
   private:

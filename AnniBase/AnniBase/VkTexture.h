@@ -55,9 +55,6 @@ namespace Anni
 
 		ImgSyncInfo GetSynInfoOnLoad();
 
-
-
-
 	public:
 		[[nodiscard]] std::shared_ptr<ImageBaseReFac> GetTextureImage();
 		[[nodiscard]] VkImage                         GetTextureRawImage() const;

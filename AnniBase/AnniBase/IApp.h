@@ -1,11 +1,13 @@
 #pragma once
+#include "AnniVkHeader.h"
+
 
 namespace Anni
 {
 	class IApp
 	{
 	public:
-		explicit IApp() = default;
+		explicit IApp() ;
 	public:
 		virtual ~IApp() = 0;
 

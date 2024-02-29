@@ -4,8 +4,8 @@ namespace Anni
 {
 	GraphicsApp::GraphicsApp()
 		:
-		context(),
-		instance(context),
+		IApp(),
+		instance(),
 		window(instance),
 		device_manager(instance, window),
 		queue_manager(device_manager, window),

@@ -15,10 +15,7 @@ namespace Anni
 			GraphicsComponent& gfx_,
 			vk::Image          image_,
 			ImageCIEnhanced&    image_CI_
-			) :
-			gfx(gfx_), device_manager(gfx.DeviceMan()), image(image_), vk_image_CI(image_CI_)
-		{
-		}
+			);
 
 		virtual ~ImageBaseReFac() = default;
 
@@ -28,24 +25,13 @@ namespace Anni
 		ImageBaseReFac(ImageBaseReFac&&) = delete;
 		ImageBaseReFac& operator=(ImageBaseReFac&&) = delete;
 
-		[[nodiscard]] vk::Image GetImage() const
-		{
-			return image;
-		}
+		[[nodiscard]] vk::Image GetImage() const;
 
-		[[nodiscard]] vk::Format GetImageFormat() const
-		{
-			return vk_image_CI.vk_image_CI.format;
-		}
-		[[nodiscard]] const ImageCIEnhanced& GetCI() const
-		{
-			return vk_image_CI;
-		}
+		[[nodiscard]] vk::Format GetImageFormat() const;
 
-		std::shared_ptr<TimelineSemWrapper>& GetSemUsedToTransfer()
-		{
-			return sem_used_to_transfer;
-		}
+		[[nodiscard]] const ImageCIEnhanced& GetCI() const;
+
+		std::shared_ptr<TimelineSemWrapper>& GetSemUsedToTransfer();
 
 	public:
 		//void TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout, const DeviceManager::CommandPoolType command_type, std::optional<VkImageSubresourceRange> subresource_range) const;

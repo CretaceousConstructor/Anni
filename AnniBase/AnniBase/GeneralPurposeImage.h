@@ -1,5 +1,6 @@
 #pragma once
 #include "ImageBase.h"
+#include "TimelineSemPoolUnsafe.h"
 namespace Anni
 {
 	class GeneralPurposeImageReFac final : public ImageBaseReFac

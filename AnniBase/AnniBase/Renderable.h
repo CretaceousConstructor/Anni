@@ -44,33 +44,16 @@ namespace Anni
 		glm::mat4 localTransform;
 		glm::mat4 worldTransform;
 
-		void refreshTransform(const glm::mat4& parentMatrix)
-		{
-			worldTransform = parentMatrix * localTransform;
-			for (auto c : children)
-			{
-				c->refreshTransform(worldTransform);
-			}
-		}
+		void refreshTransform(const glm::mat4& parentMatrix);
 
-		virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx)
-		{
-			// draw children
-			for (auto& c : children)
-			{
-				c->Draw(topMatrix, ctx);
-			}
-		}
+		virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx);
 	};
 
 	struct LoadedGLTF : public IRenderable
 	{
 	public:
-		LoadedGLTF(GLTFMetallicRoughnessProducer& metallic_roughness_) :
-			metallic_roughness(metallic_roughness_)
-		{
-		}
-
+		LoadedGLTF(GLTFMetallicRoughnessProducer& metallic_roughness_);
+		~LoadedGLTF() = default;
 		// storage for all the data on a given gltf file
 		std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
 		std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
@@ -86,75 +69,17 @@ namespace Anni
 		std::string name{ "Shit" };
 
 		GLTFMetallicRoughnessProducer& metallic_roughness;
+		void UpdateDescriptorSet(DeviceManager& device_manager, const Anni::RenderGraphV1::TexUsage& all_tex_usage) const;
 
-
-
-
-		void UpdateDescriptorSet(DeviceManager& device_manager, const Anni::RenderGraphV1::TexUsage& all_tex_usage)
-		{
-			for (auto& mat : materials)
-			{
-				mat.second->UpdateDescriptorSet(device_manager, all_tex_usage);
-			}
-		}
-
-
-		std::pair<vk::UniquePipeline, vk::UniquePipelineLayout> BuildPipeline(GFXPipelineCI& gfx_pipe_CI)
-		{
-			return metallic_roughness.BuildPipelines(gfx_pipe_CI);
-		}
-
-
-		virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx)
-		{
-			// create renderables from the scenenodes
-			for (auto& n : topNodes)
-			{
-				n->Draw(topMatrix, ctx);
-			}
-		}
-
-
-		//	void SetTextureUsage()
-		//	{
-
-		//	}
-
-		//private:
-		//	Anni::RenderGraphV1::TexUsage textures_usage;
+		std::pair<vk::UniquePipeline, vk::UniquePipelineLayout> BuildPipeline(const GFXPipelineCI& gfx_pipe_CI) const;
+		virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 	};
 
 	struct MeshNode : public Node
 	{
 		std::shared_ptr<MeshAsset> mesh;
-		virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override
-		{
-			glm::mat4 nodeMatrix = topMatrix * worldTransform;
-
-			for (auto& s : mesh->surfaces)
-			{
-				RenderObject def;
-				def.indexCount = s.count;
-				def.firstIndex = s.startIndex;
-				def.indexBuffer = mesh->meshBuffers.indexBuffer;
-				def.material = &s.material->data;
-				def.bounds = s.bounds;
-				def.transform = nodeMatrix;
-				def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-
-				//if (s.material->data.passType == MaterialPassType::Transparent)
-				//{
-				//	ctx.TransparentSurfaces.push_back(def);
-				//}
-				//else
-				{
-					ctx.OpaqueSurfaces.push_back(def);
-				}
-			}
-
-			// recurse down
-			Node::Draw(topMatrix, ctx);
-		}
+		virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+		virtual ~MeshNode() = default;
 	};
 
 }

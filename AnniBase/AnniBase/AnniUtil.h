@@ -19,7 +19,7 @@ namespace Anni::Util
 
 		struct TypeIdHash
 		{
-			std::size_t operator()(void (*id)()) const
+			inline std::size_t operator()(void (*id)()) const
 			{
 				return std::hash<void *>{}(reinterpret_cast<void *>(id));
 			}
@@ -27,7 +27,7 @@ namespace Anni::Util
 
 		struct TypeIdEqual
 		{
-			bool operator()(void(*id1)(), void(*id2)()) const
+			inline bool operator()(void(*id1)(), void(*id2)()) const
 			{
 				return id1 == id2;
 			}
@@ -38,7 +38,4 @@ namespace Anni::Util
 
 	[[nodiscard]] std::vector<char> ReadFile(const std::string& filename);
 	[[nodiscard]] std::string GetFileExtensionName(const std::string& filename);
-
-
-
 }        // namespace Anni::Util

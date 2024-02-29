@@ -3,6 +3,7 @@
 #include "ExtensionUtility.h"
 #include "InstanceWrapper.h"
 #include "WindowsSys.h"
+
 #include <algorithm>
 #include <array>
 #include <list>
@@ -30,8 +31,8 @@ namespace Anni
 	public:
 		struct SwapChainSupportDetails
 		{
-			vk::SurfaceCapabilities2KHR        capabilities{};
-			std::vector<vk::SurfaceFormat2KHR> formats;
+			vk::SurfaceCapabilitiesKHR        capabilities{};
+			std::vector<vk::SurfaceFormatKHR> formats;
 			std::vector<vk::PresentModeKHR>   present_modes;
 		};
 
@@ -71,6 +72,7 @@ namespace Anni
 	private:
 		std::list<VkCommandPool>             command_pools;
 		std::vector<vk::QueueFamilyProperties2> queue_families_props;
+		std::vector<std::vector<float>> queues_within_a_fam_priorities;
 
 	private:
 		InstanceWrapper& instance_wrapper;

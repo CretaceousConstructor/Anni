@@ -34,12 +34,12 @@ namespace Anni
 		const VkExtent2D extent = ChooseSwapExtent(swapchain_support.capabilities, window);
 
 		//3，因为想要3帧inflight
-		image_count = swapchain_support.capabilities.surfaceCapabilities.minImageCount + 1;
+		image_count = swapchain_support.capabilities.minImageCount + 1;
 
 		//swapChainSupport.capabilities.maxImageCount如果等于0表示没有限制
-		if (swapchain_support.capabilities.surfaceCapabilities.maxImageCount > 0 && image_count > swapchain_support.capabilities.surfaceCapabilities.maxImageCount)
+		if (swapchain_support.capabilities.maxImageCount > 0 && image_count > swapchain_support.capabilities.maxImageCount)
 		{
-			image_count = swapchain_support.capabilities.surfaceCapabilities.maxImageCount;
+			image_count = swapchain_support.capabilities.maxImageCount;
 		}
 
 		ASSERT_WITH_MSG(Vk::SWAP_IMG_COUNT == image_count, "not enough swap chain images");
@@ -57,7 +57,7 @@ namespace Anni
 		//swapchain_CI.queueFamilyIndexCount = 0;                                // Optional
 		//swapchain_CI.pQueueFamilyIndices = nullptr;                            // Optional
 
-		swapchain_CI.preTransform = swapchain_support.capabilities.surfaceCapabilities.currentTransform;        //旋转90°操作，反转操作等。。。目前这个显卡gtx1650除了 不变 以外都不支持
+		swapchain_CI.preTransform = swapchain_support.capabilities.currentTransform;        //旋转90°操作，反转操作等。。。目前这个显卡gtx1650除了 不变 以外都不支持
 		swapchain_CI.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;                      //blending with another window
 
 		swapchain_CI.presentMode = this->present_mode;
@@ -74,12 +74,12 @@ namespace Anni
 		raw_swap_chain_images = device_manager.GetLogicalDevice().getSwapchainImagesKHR(swap_chain.get());
 	}
 
-	vk::SurfaceFormat2KHR SwapchainManager::ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormat2KHR>& available_formats)
+	vk::SurfaceFormatKHR SwapchainManager::ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& available_formats)
 	{
 		//if the SRGB color space is supported or not ： VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 		for (const auto& available_format : available_formats)
 		{
-			if (available_format.surfaceFormat.format == vk::Format::eB8G8R8A8Srgb && available_format.surfaceFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+			if (available_format.format == vk::Format::eB8G8R8A8Srgb && available_format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
 			{
 				return available_format;
 			}
@@ -105,11 +105,11 @@ namespace Anni
 		return vk::PresentModeKHR::eFifo;
 	}
 
-	vk::Extent2D SwapchainManager::ChooseSwapExtent(const vk::SurfaceCapabilities2KHR& capabilities, const WindowsSys& window)
+	vk::Extent2D SwapchainManager::ChooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const WindowsSys& window)
 	{
-		if (capabilities.surfaceCapabilities.currentExtent.width != UINT32_MAX)
+		if (capabilities.currentExtent.width != UINT32_MAX)
 		{
-			return capabilities.surfaceCapabilities.currentExtent;
+			return capabilities.currentExtent;
 		}
 		else
 		{
@@ -121,8 +121,8 @@ namespace Anni
 			};
 
 			//控制在最大和最小之内
-			actualExtent.width = std::max<uint32_t>(capabilities.surfaceCapabilities.minImageExtent.width, std::min<uint32_t>(capabilities.surfaceCapabilities.maxImageExtent.width, actualExtent.width));
-			actualExtent.height = std::max<uint32_t>(capabilities.surfaceCapabilities.minImageExtent.height, std::min<uint32_t>(capabilities.surfaceCapabilities.maxImageExtent.height, actualExtent.height));
+			actualExtent.width = std::max<uint32_t>(capabilities.minImageExtent.width, std::min<uint32_t>(capabilities.maxImageExtent.width, actualExtent.width));
+			actualExtent.height = std::max<uint32_t>(capabilities.minImageExtent.height, std::min<uint32_t>(capabilities.maxImageExtent.height, actualExtent.height));
 
 			return actualExtent;
 		}

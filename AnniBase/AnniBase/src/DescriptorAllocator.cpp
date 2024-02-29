@@ -20,16 +20,10 @@ namespace Anni
 			PoolSizeRatio{vk::DescriptorType::eInputAttachment          ,1.0},
 			PoolSizeRatio{vk::DescriptorType::eInlineUniformBlock       ,1.0},
 			PoolSizeRatio{vk::DescriptorType::eInlineUniformBlockEXT    ,1.0},
-			PoolSizeRatio{vk::DescriptorType::eAccelerationStructureKHR ,1.0},
-			PoolSizeRatio{vk::DescriptorType::eAccelerationStructureNV  ,1.0},
-			PoolSizeRatio{vk::DescriptorType::eMutableVALVE             ,1.0},
-			PoolSizeRatio{vk::DescriptorType::eSampleWeightImageQCOM    ,1.0},
-			PoolSizeRatio{vk::DescriptorType::eBlockMatchImageQCOM      ,1.0},
-			PoolSizeRatio{vk::DescriptorType::eMutableEXT               ,1.0},
 		};
 
 		sets_per_pool = 32;
-		vk::UniqueDescriptorPool newPool = create_pool(sets_per_pool, ratios);
+		vk::UniqueDescriptorPool newPool = CreatePool(sets_per_pool, ratios);
 		sets_per_pool = static_cast<uint32_t>(sets_per_pool * 1.5); //grow it next allocation
 		ready_pools.push_back(std::move(newPool));
 
@@ -46,7 +40,7 @@ namespace Anni
 			ratios.push_back(r);
 		}
 
-		vk::UniqueDescriptorPool newPool = create_pool(initialSets, poolRatios);
+		vk::UniqueDescriptorPool newPool = CreatePool(initialSets, poolRatios);
 
 		sets_per_pool = static_cast<uint32_t>(initialSets * 1.5); //grow it next allocation
 		ready_pools.push_back(std::move(newPool));
@@ -62,7 +56,7 @@ namespace Anni
 	//		ratios.push_back(r);
 	//	}
 
-	//	VkDescriptorPool newPool = create_pool(initialSets, poolRatios);
+	//	VkDescriptorPool newPool = CreatePool(initialSets, poolRatios);
 
 	//	sets_per_pool = initialSets * 1.5; //grow it next allocation
 	//	ready_pools.push_back(newPool);
@@ -92,10 +86,10 @@ namespace Anni
 
 	vk::DescriptorSet DescriptorSetAllocatorGrowable::Allocate(vk::DescriptorSetLayout layout)
 	{
-		VkDescriptorSetLayout temp_layout = layout;
+		const VkDescriptorSetLayout temp_layout = layout;
 
 		//get or create a pool to allocate from
-		vk::UniqueDescriptorPool poolToUse = get_pool();
+		vk::UniqueDescriptorPool poolToUse = GetPool();
 
 		VkDescriptorSetAllocateInfo allocInfo = {};
 		allocInfo.pNext = nullptr;
@@ -112,7 +106,7 @@ namespace Anni
 		{
 			full_pools.push_back(std::move(poolToUse));
 
-			poolToUse = get_pool();
+			poolToUse = GetPool();
 			allocInfo.descriptorPool = poolToUse.get();
 
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device_manager.GetLogicalDevice(), &allocInfo, &ds));
@@ -122,7 +116,7 @@ namespace Anni
 	}
 
 
-	vk::UniqueDescriptorPool DescriptorSetAllocatorGrowable::get_pool()
+	vk::UniqueDescriptorPool DescriptorSetAllocatorGrowable::GetPool()
 	{
 		vk::UniqueDescriptorPool newPool;
 		if (ready_pools.size() != 0)
@@ -133,7 +127,7 @@ namespace Anni
 		else
 		{
 			//need to create a new pool
-			newPool = create_pool(sets_per_pool, ratios);
+			newPool = CreatePool(sets_per_pool, ratios);
 
 			sets_per_pool = sets_per_pool * 1.5;
 			if (sets_per_pool > 4092)
@@ -144,7 +138,7 @@ namespace Anni
 		return newPool;
 	}
 
-	vk::UniqueDescriptorPool DescriptorSetAllocatorGrowable::create_pool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios)
+	vk::UniqueDescriptorPool DescriptorSetAllocatorGrowable::CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios)
 	{
 
 		//比如 imge descriptor ratio是5.0，并且set count = 6，那么最后imge descriptor就是30个

@@ -29,7 +29,8 @@ namespace Anni
 			&img_CI.vma_allocation_info
 		));
 
-		vk::Image result_image{};
+		vk::Image result_image{temp_image};
+
 		auto result = std::make_shared<GeneralPurposeImageReFac>(gfx, vam_allocator, result_image, vma_allocation, img_CI, sem_pool);
 
 		return result;

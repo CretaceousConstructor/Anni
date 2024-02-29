@@ -1,28 +1,21 @@
 #pragma once
 
+#include "Lets.h"
 #include "SyncInfo.h"
-#include "VkRenderpassBaseRG.h"
-#include "VkRsrcUsageInfoRG.h"
 #include "QueueManager.h"
 #include "VkShaderFactory.h"
 #include "VirtualBuffer.h"
 #include "VirtualTexture.h"
 #include "DesSetLayoutManager.h"
 #include "ImgViewWrapper.h"
-#include "SamplerWrapper.h"
-#include "Renderable.h"
 #include "RsrcUsage.h"
-#include "RGSyncInfo.h"
-#include "VirtualRsrcAndUsage.h"
 
-#include "Lets.h"
 #include "IPassNode.h"
 #include "DeferedGeometryPass.h"
+#include "DeferedCompositionPass.h"
 #include "PresentPass.h"
 #include <variant>
 #include <vector>
-#include <ranges>
-#include <functional>
 
 
 namespace Anni::RenderGraphV1
@@ -32,6 +25,15 @@ namespace Anni::RenderGraphV1
 
 namespace Anni::RenderGraphV1
 {
+
+
+	inline void PreBindResolveTarget(const RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle& source, RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle& bind_target)
+	{
+		const auto source_pass = source.pass_attached_to;
+		auto& source_let = source_pass->outs_tex[source.handle];
+		source_let.resolve_target_let = bind_target;
+	}
+
 
 	class DependencyGraph
 	{
@@ -46,7 +48,9 @@ namespace Anni::RenderGraphV1
 			BufferFactory& buf_fac_,
 			VkTextureFactory& tex_fac_,
 			VkShaderFactory& shader_fac_,
-			GFXPipelineCIBuilder& gfx_pipelineCI_builder_);
+			GFXPipelineCIBuilder& gfx_pipelineCI_builder_,
+			VkPipelineBuilder& pipeline_builder
+		);
 
 	public:
 		template <typename P>
@@ -61,6 +65,7 @@ namespace Anni::RenderGraphV1
 			uint32_t cur_frame,
 			vk::Semaphore frame_number_semaphore);
 
+
 	public:
 		DependencyGraph() = delete;
 		~DependencyGraph() = default;
@@ -69,6 +74,8 @@ namespace Anni::RenderGraphV1
 		DependencyGraph& operator=(const DependencyGraph&) = delete;
 		DependencyGraph(DependencyGraph&&) = delete;
 		DependencyGraph& operator=(DependencyGraph&&) = delete;
+
+
 
 	private:
 
@@ -91,7 +98,9 @@ namespace Anni::RenderGraphV1
 
 		void TopologicalDFSSort();
 		void VisitNode(size_t cur_index, GraphicsPassNode* cur_node_pass, std::vector<bool>& visited, std::vector<bool>& on_stack, std::vector<GraphicsPassNode*>& topologically_sorted_nodes);
-		size_t FindIndexInPassNodeArray(GraphicsPassNode* node_pass, const std::vector<std::unique_ptr<GraphicsPassNode>>& all_nodes);
+		size_t FindIndexInPassNodeArray(const GraphicsPassNode* const  node_pass,
+			const std::vector<std::unique_ptr<
+			GraphicsPassNode>>&all_nodes);
 
 		void DependencyLevelsGeneration();
 
@@ -111,11 +120,10 @@ namespace Anni::RenderGraphV1
 		void SyncPrimitivesInsertionInletTexture(GraphicsPassNode* const cur_pass);
 		void SyncPrimitivesInsertionOutletTexture(GraphicsPassNode* const cur_pass);
 
-
 	private:
 		//全知全能的虚拟资源管理者
-		std::list<VirtualBuffer>  rg_buffers;
-		std::list<VirtualTexture> rg_textures;
+		std::vector<VirtualBuffer>  rg_buffers;
+		std::vector<VirtualTexture> rg_textures;
 		//当前帧所有的pass
 		std::vector<std::unique_ptr<GraphicsPassNode>> pass_nodes;
 		//拓扑排序以后的所有passnode	
@@ -124,7 +132,7 @@ namespace Anni::RenderGraphV1
 		//当前帧的所有pass最大层级
 		using Level = size_t;
 		Level         max_level{ 0 };
-		std::unordered_map<Level, bool>                if_level_accesses_same_rsrc_multimes;
+		std::unordered_map<Level, bool>                 if_level_accesses_same_rsrc_multimes;
 		std::map<Level, std::vector<GraphicsPassNode*>> level_to_all_passes_attached;
 
 		//pass在queue上的执行信息
@@ -134,7 +142,7 @@ namespace Anni::RenderGraphV1
 
 		//同步信息
 		using DependencyLevel = size_t;
-		std::unordered_map<PassNodePair, std::shared_ptr<TimelineSemWrapper>,  PassNodePair::Hash> diff_queue_sync_sema;
+		std::unordered_map<PassNodePair, std::shared_ptr<TimelineSemWrapper>, PassNodePair::Hash> diff_queue_sync_sema;
 
 		//swap image同步信息
 		std::list<std::pair< std::vector<std::shared_ptr<BinarySemWrapper>>, uint64_t>> vec_swap_imgs_finshed_using; //这里用list防止容器失效
@@ -159,6 +167,7 @@ namespace Anni::RenderGraphV1
 		VkShaderFactory& shader_fac;
 
 		GFXPipelineCIBuilder& gfx_pipelineCI_builder;
+		VkPipelineBuilder& pipeline_builder;
 
 	};
 
@@ -175,6 +184,7 @@ namespace Anni::RenderGraphV1
 				descriptor_set_layout_manager,
 				shader_fac,
 				descriptor_allocator,
+				pipeline_builder,
 				this->rg_buffers,
 				this->rg_textures,
 				gfx_pipelineCI_builder
@@ -198,6 +208,7 @@ namespace Anni::RenderGraphV1
 				descriptor_set_layout_manager,
 				shader_fac,
 				descriptor_allocator,
+				pipeline_builder,
 				this->rg_buffers,
 				this->rg_textures
 			);
@@ -208,7 +219,28 @@ namespace Anni::RenderGraphV1
 		return derived_pass;
 	}
 
+	template <>
+	inline DeferedCompositionPass& DependencyGraph::AddGfxPassNode<DeferedCompositionPass>(std::string name)
+	{
+		auto gfx_node =
+			std::make_unique<DeferedCompositionPass>(
+				name,
+				device_manager,
+				swapchain_manager,
+				descriptor_set_layout_manager,
+				shader_fac,
+				descriptor_allocator,
+				pipeline_builder,
+				this->rg_buffers,
+				this->rg_textures,
+				gfx_pipelineCI_builder
+			);
+		pass_nodes.push_back(std::move(gfx_node));
+		auto& result = *pass_nodes.back();
+		DeferedCompositionPass& derived_pass = static_cast<DeferedCompositionPass&>(result);
 
+		return derived_pass;
+	}
 
 
 

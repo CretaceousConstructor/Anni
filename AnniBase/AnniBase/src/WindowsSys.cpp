@@ -47,13 +47,10 @@ namespace Anni
 		//创建windows的表面，这个函数应当在检查物理设备之前调用，会对物理设备的选择产生影响
 		VK_CHECK_RESULT(glfwCreateWindowSurface(instance.GetInstanceReFac(), raw_window_ptr, nullptr, &surface));
 
-		surface_refac = vk::UniqueSurfaceKHR
-		(
-			vk::SurfaceKHR(surface),
-			vk::ObjectDestroy<vk::Instance, vk::DispatchLoaderStatic>(instance.GetInstanceReFac(), VK_NULL_HANDLE)
-		);
+		surface_refac = vk::UniqueSurfaceKHR(surface);
 
 	}
+	
 
 
 }        // namespace Anni

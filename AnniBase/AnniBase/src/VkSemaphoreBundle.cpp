@@ -39,3 +39,13 @@
 //		vkDestroySemaphore(device_manager.GetLogicalDevice(), semaphore, nullptr);
 //	}
 //}
+Anni::BinarySemWrapper::BinarySemWrapper(DeviceManager& device_manager_):device_manager(device_manager_)
+{
+	constexpr vk::SemaphoreCreateInfo semaphore_CI{};
+	semaphore = device_manager.GetLogicalDevice().createSemaphoreUnique(semaphore_CI);
+}
+
+vk::Semaphore& Anni::BinarySemWrapper::GetRaw()
+{
+	return semaphore.get();
+}

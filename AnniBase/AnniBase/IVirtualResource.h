@@ -22,14 +22,13 @@ namespace Anni::RenderGraphV1
 	{
 	public:
 		IVirtualResource(std::string name_, VRsrcType rsrc_type_);
-
 		IVirtualResource() = delete;
 
-		IVirtualResource(const IVirtualResource&) = delete;
-		IVirtualResource& operator=(const IVirtualResource&) = delete;
+		IVirtualResource(const IVirtualResource&) = default;
+		IVirtualResource& operator=(const IVirtualResource&) = default;
 
-		IVirtualResource(IVirtualResource&&) = delete;
-		IVirtualResource& operator=(IVirtualResource&&) = delete;
+		IVirtualResource(IVirtualResource&&) = default;
+		IVirtualResource& operator=(IVirtualResource&&) = default;
 
 		virtual ~IVirtualResource() = default;
 

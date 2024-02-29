@@ -24,7 +24,7 @@ namespace Anni
 		constexpr BufferCreateInfoEnhanced(
 			vk::BufferUsageFlags    usage_,
 			VmaMemoryUsage          vma_usage_,
-			VmaAllocationCreateFlags vma_allo_flags = VmaAllocationCreateFlags(VK_ZERO_FLAG)
+			VmaAllocationCreateFlags vma_allo_flags = static_cast<VmaAllocationCreateFlags>(VK_ZERO_FLAG)
 		);
 
 

@@ -161,7 +161,7 @@ namespace Anni
 
 	std::shared_ptr<VkTexture> VkTextureFactory::ProduceSwapTexture(ImageCIEnhanced texture_img_CI, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, size_t index) const
 	{
-		std::shared_ptr<VkTexture> result;
+		std::shared_ptr<VkTexture> result_tex;
 		const std::vector<vk::Image>& swap_images = swapchain_manager.GetSwapChainImages();
 
 		texture_img_CI.vk_image_CI.format = swapchain_manager.GetSwapChainImageFormat();
@@ -176,10 +176,10 @@ namespace Anni
 		};
 
 		auto       tex_img = std::make_shared<SwapchainImageReFac>(gfx, swap_images[index], texture_img_CI);
-		const auto tex = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
-		ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *tex, *tex_img);
+		result_tex = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
+		ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *result_tex, *tex_img);
 
-		return result;
+		return result_tex;
 	}
 
 

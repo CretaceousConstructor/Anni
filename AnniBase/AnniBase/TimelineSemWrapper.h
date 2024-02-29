@@ -9,10 +9,7 @@ namespace Anni
 		uint64_t       ReturnState();
 		vk::Semaphore& GetRaw();
 
-		std::uint64_t& GetLastValue()
-		{
-			return last_value;
-		}
+		std::uint64_t& GetLastValue();
 
 		TimelineSemWrapper() = delete;
 		TimelineSemWrapper(const TimelineSemWrapper&) = delete;

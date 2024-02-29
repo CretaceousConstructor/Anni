@@ -38,9 +38,9 @@ namespace Anni
 		[[nodiscard]] const std::vector<vk::Image>& GetSwapChainImages() const;
 
 	private:
-		static vk::SurfaceFormat2KHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormat2KHR>& availableFormats);
+		static vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
 		static vk::PresentModeKHR    ChooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
-		static vk::Extent2D          ChooseSwapExtent(const vk::SurfaceCapabilities2KHR& capabilities, const WindowsSys& window);
+		static vk::Extent2D          ChooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const WindowsSys& window);
 
 	private:
 		vk::UniqueSwapchainKHR swap_chain;

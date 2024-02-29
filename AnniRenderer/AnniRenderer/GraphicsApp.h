@@ -15,7 +15,6 @@ namespace Anni
 		explicit GraphicsApp();
 		~GraphicsApp() override = default;
 	private:
-		vk::raii::Context   context;
 		InstanceWrapper     instance;
 		WindowsSys          window;
 		DeviceManager       device_manager;

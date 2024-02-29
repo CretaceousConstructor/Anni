@@ -9,10 +9,8 @@
 #include "SyncInfo.h"
 
 
-
 namespace Anni::RenderGraphV1
 {
-
 	// Base usage class
 	class IRsrcUsage
 	{
@@ -26,41 +24,21 @@ namespace Anni::RenderGraphV1
 			EstablishedInSitu
 		};
 
-
 		IRsrcUsage(
-			RsrcType rsrc_t_, RsrcAccessTypeRG access_t_) :
-			rsrc_type(rsrc_t_), access_type(access_t_)
-		{
-		}
+			RsrcType rsrc_t_, RsrcAccessTypeRG access_t_);
 
 
 		IRsrcUsage(RsrcType rsrc_t_, RsrcAccessTypeRG access_t_, RsrcOrigin origin_,
-			std::shared_ptr<BinarySemWrapper>   available_semaphore_ = nullptr,
-			std::shared_ptr<BinarySemWrapper>   finished_using_semaphore_ = nullptr
-		)
-			:rsrc_type(rsrc_t_), access_type(access_t_), origin(origin_)
-		{
-		}
+		           std::shared_ptr<BinarySemWrapper> available_semaphore_ = nullptr,
+		           std::shared_ptr<BinarySemWrapper> finished_using_semaphore_ = nullptr
+		);
 
-		virtual ~IRsrcUsage() = 0;
+		virtual ~IRsrcUsage();
 
-		[[nodiscard]] RsrcType GetRsrcType() const
-		{
-			return rsrc_type;
-		}
-
-		[[nodiscard]] RsrcAccessTypeRG GetRsrcAccessType() const
-		{
-			return access_type;
-		}
-		[[nodiscard]] RsrcOrigin GetRsrcOrigin() const
-		{
-			return origin;
-		}
-		void SetRsrcOrigin(IRsrcUsage::RsrcOrigin origin_)
-		{
-			origin = origin_;
-		}
+		[[nodiscard]] RsrcType GetRsrcType() const;
+		[[nodiscard]] RsrcAccessTypeRG GetRsrcAccessType() const;
+		[[nodiscard]] RsrcOrigin GetRsrcOrigin() const;
+		void SetRsrcOrigin(RsrcOrigin origin_);
 
 
 		RsrcType rsrc_type{};
@@ -73,54 +51,34 @@ namespace Anni::RenderGraphV1
 	{
 	public:
 		// use as model textures importing
-		TexUsage(
-			ImgSyncInfo      sync_info_
-		) :
-			IRsrcUsage(RsrcType::ModelTextures, RsrcAccessTypeRG::Read),
-			sync_info(sync_info_)
-		{
-
-		}
+		explicit TexUsage(
+			const ImgSyncInfo& sync_info_
+		);
 
 		// use as texture
 		TexUsage(
-			vk::Format       format_,
-			DescriptorInfo desc_info_,
-			ImgSyncInfo    sync_info_,
+			vk::Format format_,
+			const DescriptorInfo& desc_info_,
+			const ImgSyncInfo& sync_info_,
 			RsrcAccessTypeRG access_t,
 
-			std::optional<vk::ImageViewCreateInfo>      img_view_CI_ = std::nullopt,
-			std::optional<vk::SamplerCreateInfo>        sampler_CI_ = std::nullopt,
+			const std::optional<vk::ImageViewCreateInfo>& img_view_CI_ = std::nullopt,
+			const std::optional<vk::SamplerCreateInfo>& sampler_CI_ = std::nullopt,
 
-			std::shared_ptr<BinarySemWrapper>   available_semaphore_ = nullptr,
-			std::shared_ptr<BinarySemWrapper>   finished_using_semaphore_ = nullptr
+			std::shared_ptr<BinarySemWrapper> available_semaphore_ = nullptr,
+			std::shared_ptr<BinarySemWrapper> finished_using_semaphore_ = nullptr
+		);
 
-		)
-			:
-			IRsrcUsage(RsrcType::Texture, access_t),
-			format(format_),
-			img_view_CI(img_view_CI_),
-			sampler_CI(sampler_CI_),
-			desc_info(desc_info_),
-			sync_info(sync_info_)
-		{
-
-		}
-
-		ImgSyncInfo& GetSynInfo()
-		{
-			return sync_info;
-		}
-
-		~TexUsage() = default;
+		ImgSyncInfo& GetSynInfo();
+		~TexUsage() override = default;
 		TexUsage() = delete;
 
 		vk::Format format;
-		std::shared_ptr<ImgViewWrapper>      img_view;
-		std::shared_ptr<SamplerWrapper>      sampler;
+		std::shared_ptr<ImgViewWrapper> img_view;
+		std::shared_ptr<SamplerWrapper> sampler;
 
-		std::optional<vk::ImageViewCreateInfo>      img_view_CI;
-		std::optional<vk::SamplerCreateInfo>      sampler_CI;
+		std::optional<vk::ImageViewCreateInfo> img_view_CI;
+		std::optional<vk::SamplerCreateInfo> sampler_CI;
 
 		DescriptorInfo desc_info;
 		ImgSyncInfo sync_info;
@@ -131,127 +89,71 @@ namespace Anni::RenderGraphV1
 	class AttachUsage final : public IRsrcUsage
 	{
 	public:
-
-
 		AttachUsage(
 			vk::Format format_,
-			AttachmentInfo attach_info_,
-			ImgSyncInfo sync_info_,
+			const AttachmentInfo& attach_info_,
+			const ImgSyncInfo& sync_info_,
 			RsrcAccessTypeRG access_t_,
 
-			std::optional<VkImageViewCreateInfo>      img_view_CI_ = std::nullopt,
-			std::optional<VkSamplerCreateInfo>        sampler_CI_ = std::nullopt,
+			const std::optional<VkImageViewCreateInfo>& img_view_CI_ = std::nullopt,
+			const std::optional<VkSamplerCreateInfo>& sampler_CI_ = std::nullopt,
 
-			std::shared_ptr<BinarySemWrapper>   available_semaphore_ = nullptr,
-			std::shared_ptr<BinarySemWrapper>   finished_using_semaphore_ = nullptr
-
-		) :
-			IRsrcUsage(RsrcType::Attachment, access_t_),
-			format(format_),
-			img_view_CI(img_view_CI_),
-			sampler_CI(sampler_CI_),
-			attach_info(attach_info_),
-			sync_info(sync_info_)
-
-		{
-
-		}
+			std::shared_ptr<BinarySemWrapper> available_semaphore_ = nullptr,
+			std::shared_ptr<BinarySemWrapper> finished_using_semaphore_ = nullptr
+		);
 
 
-		ImgSyncInfo& GetSynInfo()
-		{
-			return sync_info;
-		}
+		ImgSyncInfo& GetSynInfo();
 
 
-		vk::RenderingAttachmentInfo GetVkRenderingAttachmentInfo()
-		{
-			vk::RenderingAttachmentInfo rendering_attachment_info;
-			rendering_attachment_info.imageView = img_view->GetRawImgView();
-			rendering_attachment_info.imageLayout = sync_info.layout_inpass;
+		vk::RenderingAttachmentInfo GetVkRenderingAttachmentInfo() const;
 
-			rendering_attachment_info.loadOp = attach_info.load_op;
-			rendering_attachment_info.storeOp = attach_info.store_op;
-			rendering_attachment_info.clearValue = attach_info.clear_value;
-			rendering_attachment_info.resolveMode = attach_info.resolve_mode;
-
-			if (resolve_img_view)
-			{
-				rendering_attachment_info.resolveImageView = resolve_img_view->GetRawImgView();
-			}
-			rendering_attachment_info.resolveImageLayout = resolve_target_layout;
-
-			return rendering_attachment_info;
-		}
-
-		DynamicRenderingAttachmentFormatInfo GetDynamicRenderingAttachmentFormatInfo()
-		{
-			return DynamicRenderingAttachmentFormatInfo(attach_info.attach_type, format, attach_info.attachment_index);
-		}
+		DynamicRenderingAttachmentFormatInfo GetDynamicRenderingAttachmentFormatInfo() const;
 
 		AttachUsage() = delete;
-		~AttachUsage() = default;
+		~AttachUsage() override = default;
 
-
-		void BindResolveTarget(std::shared_ptr<ImgViewWrapper> resolve_img_view_, vk::ImageLayout resolve_target_layout_)
-		{
-			resolve_img_view = std::move(resolve_img_view_);
-			resolve_target_layout = resolve_target_layout_;
-		}
-
+		void BindResolveTarget(std::shared_ptr<ImgViewWrapper> resolve_img_view_,
+		                       vk::ImageLayout resolve_target_layout_);
 
 	public:
 		// common ones
 		vk::Format format;
-		std::shared_ptr<ImgViewWrapper>      img_view;
-		std::shared_ptr<SamplerWrapper>      sampler;
+		std::shared_ptr<ImgViewWrapper> img_view;
+		std::shared_ptr<SamplerWrapper> sampler;
 
-		std::optional<vk::ImageViewCreateInfo>      img_view_CI;
-		std::optional<vk::SamplerCreateInfo>        sampler_CI;
+		std::optional<vk::ImageViewCreateInfo> img_view_CI;
+		std::optional<vk::SamplerCreateInfo> sampler_CI;
 
 		AttachmentInfo attach_info;
-		ImgSyncInfo    sync_info;
+		ImgSyncInfo sync_info;
+
 	private:
 		std::shared_ptr<ImgViewWrapper> resolve_img_view;
-		vk::ImageLayout resolve_target_layout{ vk::ImageLayout::eUndefined};
-
+		vk::ImageLayout resolve_target_layout{vk::ImageLayout::eUndefined};
 	};
-
-
-
 
 
 	class BufUsage final : public IRsrcUsage
 	{
 	public:
 		BufUsage(
-			DescriptorInfo desc_info_,
-			BufSyncInfo	sync_info_,
+			const DescriptorInfo& desc_info_,
+			const BufSyncInfo& sync_info_,
 			RsrcAccessTypeRG access_t_,
 
-			std::shared_ptr<BinarySemWrapper>   available_semaphore_ = nullptr,
-			std::shared_ptr<BinarySemWrapper>   finished_using_semaphore_ = nullptr
-		)
-			:
-			IRsrcUsage(RsrcType::Buffer, access_t_),
-			desc_info(desc_info_),
-			sync_info(sync_info_)
-		{
-		}
+			std::shared_ptr<BinarySemWrapper> available_semaphore_ = nullptr,
+			std::shared_ptr<BinarySemWrapper> finished_using_semaphore_ = nullptr
+		);
 
 		BufUsage(
 			RsrcType rsrc_type_,
-			BufSyncInfo	sync_info_,
+			const BufSyncInfo& sync_info_,
 			RsrcAccessTypeRG access_t_,
 
-			std::shared_ptr<BinarySemWrapper>   available_semaphore_ = nullptr,
-			std::shared_ptr<BinarySemWrapper>   finished_using_semaphore_ = nullptr
-		) :
-			IRsrcUsage(rsrc_type_, access_t_),
-			sync_info(sync_info_)
-		{
-
-		}
+			std::shared_ptr<BinarySemWrapper> available_semaphore_ = nullptr,
+			std::shared_ptr<BinarySemWrapper> finished_using_semaphore_ = nullptr
+		);
 
 		BufSyncInfo& GetSynInfo()
 		{
@@ -259,14 +161,10 @@ namespace Anni::RenderGraphV1
 		}
 
 		BufUsage() = delete;
-		~BufUsage() = default;
+		~BufUsage() override = default;
 
 		DescriptorInfo desc_info;
-		BufSyncInfo    sync_info;
+		BufSyncInfo sync_info;
 		vk::DescriptorBufferInfo des_buf_info;
 	};
-
-
-
 }
-

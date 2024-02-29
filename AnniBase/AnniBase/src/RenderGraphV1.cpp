@@ -1,9 +1,19 @@
 #include "RenderGraphV1.h"
 
 
-
-Anni::RenderGraphV1::DependencyGraph::DependencyGraph(DeviceManager& device_manager_, SwapchainManager& swapchain_manager_, QueueManager& queue_manager_, DescriptorLayoutManager& descriptor_set_layout_manager_, DescriptorSetAllocatorGrowable& descriptor_allocator_, VkTimelineSemPoolUnsafe& semaphore_pool_, BufferFactory& buf_fac_, VkTextureFactory& tex_fac_, VkShaderFactory& shader_fac_, GFXPipelineCIBuilder& gfx_pipelineCI_builder_)
+Anni::RenderGraphV1::DependencyGraph::DependencyGraph(DeviceManager& device_manager_,
+	SwapchainManager& swapchain_manager_,
+	QueueManager& queue_manager_,
+	DescriptorLayoutManager& descriptor_set_layout_manager_,
+	DescriptorSetAllocatorGrowable& descriptor_allocator_,
+	VkTimelineSemPoolUnsafe& semaphore_pool_, BufferFactory& buf_fac_,
+	VkTextureFactory& tex_fac_, VkShaderFactory& shader_fac_,
+	GFXPipelineCIBuilder& gfx_pipelineCI_builder_,
+	VkPipelineBuilder& pipeline_builder_
+)
 	:
+	cur_frame(0),
+	img_index(0),
 	device_manager(device_manager_),
 	swapchain_manager(swapchain_manager_),
 	queue_manager(queue_manager_),
@@ -13,7 +23,9 @@ Anni::RenderGraphV1::DependencyGraph::DependencyGraph(DeviceManager& device_mana
 	buf_fac(buf_fac_),
 	tex_fac(tex_fac_),
 	shader_fac(shader_fac_),
-	gfx_pipelineCI_builder(gfx_pipelineCI_builder_)
+	gfx_pipelineCI_builder(gfx_pipelineCI_builder_),
+	pipeline_builder(pipeline_builder_)
+
 {
 }
 
@@ -29,9 +41,9 @@ void Anni::RenderGraphV1::DependencyGraph::Compile()
 	//TODO: Trim all invalid passes and unused resources
 	//->Render graph compilation starts.
 	//************************************
-	topologically_sorted_nodes.clear();        //清除最后的执行顺序。 
-	GeneratePassNodeDepen();                   //根据In,Out函数声明确定可以推断出来的顺序。
-	TopologicalDFSSort();                      //排序
+	topologically_sorted_nodes.clear(); //清除最后的执行顺序。 
+	GeneratePassNodeDepen(); //根据In,Out函数声明确定可以推断出来的顺序。
+	TopologicalDFSSort(); //排序
 	DependencyLevelsGeneration();
 	GPUWorkDistribution();
 	SyncPrimitivesAquisition();
@@ -43,9 +55,9 @@ void Anni::RenderGraphV1::DependencyGraph::Compile()
 	//<-Render graph compilation finished.
 }
 
-void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t img_index, uint32_t cur_frame, vk::Semaphore frame_number_semaphore)
+void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t img_index, uint32_t cur_frame,
+	vk::Semaphore frame_number_semaphore)
 {
-
 	//TODO: PARALLEL RECORDING MULTI CMD BUF. Should be done in a per-queue basis? You can't fill command buffers created by the same pool from multi threads, now we just seqentially record.
 	for (size_t level = 0; level <= max_level; ++level)
 	{
@@ -158,7 +170,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 			for (auto p_pass : level_to_all_passes_attached[level])
 			{
 				//PRESENT PASS SPECIAL TEATMENT
-				if (PassType::Present == p_pass->GetRenderpassType())
+				if (Present == p_pass->GetRenderpassType())
 				{
 					p_pass->ResourcesAcquisition(tex_fac, buf_fac);
 
@@ -166,66 +178,73 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 					std::vector<vk::SemaphoreSubmitInfo> signal_sem_submit_info;
 
 					Queue& cur_present_pass_queue = *pass_to_queue_info.at(p_pass).first;
-					std::pair<vk::CommandBuffer, vk::Semaphore> cmd_buf_and_sem = cur_present_pass_queue.GetOneBufAndAssociatedSem();
+					std::pair<vk::CommandBuffer, vk::Semaphore> cmd_buf_and_sem = cur_present_pass_queue.
+						GetOneBufAndAssociatedSem();
 
 					p_pass->SyncInsertAhead(cmd_buf_and_sem.first, wait_sem_submit_info);
 					//p_pass->RecordCommandBuffer(cmd_buf_and_sem.first);
 					p_pass->SyncInsertAfter(cmd_buf_and_sem.first, signal_sem_submit_info);
 
 
-					ASSERT_WITH_MSG(1 == p_pass->tex_usages.size(), "Present pass can only have swap image as its only resource.");
-					auto& swap_img_usage = p_pass->tex_usages.front();
-					auto& swap_img = swap_img_usage.v_rsrc->p_rsrc;
-					ASSERT_WITH_MSG(swap_img->IsSwapTexture(), "Present pass can only have swap image as its only resource.");
+					ASSERT_WITH_MSG(1 == p_pass->outs_tex.size(),
+						"Present pass can only have swap image as its only resource.");
+					auto& swap_img_usage = p_pass->outs_tex.front();
+					auto& swap_img = p_pass->GetVRsrcFromRsrcHandle(swap_img_usage.rsrc_handle).p_rsrc;
 
+
+					ASSERT_WITH_MSG(swap_img->IsSwapTexture(),
+						"Present pass can only have swap image as its only resource.");
 
 					{
-						for (const auto& swap_img_finshed_using : vec_swap_imgs_finshed_using.back().first)  //
+						for (const auto& swap_img_finshed_using : vec_swap_imgs_finshed_using.back().first) //
 						{
 							constexpr uint64_t wait_value = 1;
-							wait_sem_submit_info.push_back(
-								vk::SemaphoreSubmitInfo(
-									swap_img_finshed_using->GetRaw(),
-									wait_value,
-									vk::PipelineStageFlagBits2::eAllCommands
-								)
+							wait_sem_submit_info.emplace_back
+							(
+								swap_img_finshed_using->GetRaw(),
+								wait_value,
+								vk::PipelineStageFlagBits2::eAllCommands
 							);
 						}
 					}
 
 
 					{
-						auto& rdy_4_ren_helper_sem = swap_img->swap_img_rdy_4_rendering_helper_sem;        // timeline sem
-						uint64_t signal_val = ++rdy_4_ren_helper_sem->GetLastValue();   //1
+						auto& rdy_4_ren_helper_sem = swap_img->swap_img_rdy_4_rendering_helper_sem; // timeline sem
+						uint64_t signal_val = ++rdy_4_ren_helper_sem->GetLastValue(); //1
 
 						signal_sem_submit_info.push_back(
 							vk::SemaphoreSubmitInfo(
 								rdy_4_ren_helper_sem->GetRaw(),
 								signal_val,
-								vk::PipelineStageFlagBits2::eAllCommands                   //
+								vk::PipelineStageFlagBits2::eAllCommands //
 							)
 						);
 
-						auto& present_finished_helper_sem = swap_img->present_finished_helper_sem;         //timeline sem
-						signal_val = ++present_finished_helper_sem->GetLastValue();   //1
+						auto& present_finished_helper_sem = swap_img->present_finished_helper_sem; //timeline sem
+						signal_val = ++present_finished_helper_sem->GetLastValue(); //1
 
 						signal_sem_submit_info.push_back(
 							vk::SemaphoreSubmitInfo(
 								present_finished_helper_sem->GetRaw(),
 								signal_val,
-								vk::PipelineStageFlagBits2::eAllCommands                   //
+								vk::PipelineStageFlagBits2::eAllCommands //
 							)
 						);
 					}
 
 
 					{
-						const uint64_t wait_value = cur_frame < (Vk::MAX_FRAMES_OVERLAP - 1) ? 0 : cur_frame - (Vk::MAX_FRAMES_OVERLAP - 1);//binary sem需要用VkWaitTimelineSemaphore来防止多个等待
+						const uint64_t wait_value = cur_frame < (Vk::MAX_FRAMES_OVERLAP - 1)
+							? 0
+							: cur_frame - (Vk::MAX_FRAMES_OVERLAP - 1);
+						//binary sem需要用VkWaitTimelineSemaphore来防止多个等待
 						vk::SemaphoreWaitInfo wait_info;
 						wait_info
 							.setSemaphores(frame_number_semaphore)
 							.setValues(wait_value);
-						const auto sem_wait_result = device_manager.GetLogicalDevice().waitSemaphores(wait_info, UINT64_MAX);
+						const auto sem_wait_result = device_manager.GetLogicalDevice().waitSemaphores(
+							wait_info, UINT64_MAX);
 
 						ASSERT_WITH_MSG(sem_wait_result == vk::Result::eSuccess, "Waiting for semaphore failed");
 
@@ -233,9 +252,12 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 						{
 							// Find the first element satisfying the condition
 							auto it = std::ranges::find_if(vec_swap_imgs_finshed_using,
-								[&cur_frame](std::pair< std::vector<std::shared_ptr<BinarySemWrapper>>, uint64_t>& sems_and_frame_num)
+								[&cur_frame](
+									std::pair<std::vector<std::shared_ptr<BinarySemWrapper>>,
+									uint64_t>& sems_and_frame_num)
 								{
-									return sems_and_frame_num.second == (cur_frame - Vk::MAX_FRAMES_OVERLAP);
+									return sems_and_frame_num.second == (cur_frame -
+										Vk::MAX_FRAMES_OVERLAP);
 								}
 							);
 
@@ -244,7 +266,8 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 							vec_swap_imgs_finshed_using.erase(it);
 						}
 
-						auto& present_finished_sem = swap_img->present_finished_sem;                    //binary sem需要用VkWaitTimelineSemaphore来防止多个等待 
+						auto& present_finished_sem = swap_img->present_finished_sem;
+						//binary sem需要用VkWaitTimelineSemaphore来防止多个等待 
 						constexpr uint64_t wait_val = 1;
 						wait_sem_submit_info.push_back(
 							vk::SemaphoreSubmitInfo(
@@ -254,12 +277,12 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 							)
 						);
 
-						constexpr uint64_t signal_value = 1;                                           //binary sem需要用VkWaitTimelineSemaphore来防止多个等待
+						constexpr uint64_t signal_value = 1; //binary sem需要用VkWaitTimelineSemaphore来防止多个等待
 						signal_sem_submit_info.push_back(
 							vk::SemaphoreSubmitInfo(
 								swap_img->ready_for_present_sem->GetRaw(),
 								signal_value,
-								vk::PipelineStageFlagBits2::eAllCommands                   //
+								vk::PipelineStageFlagBits2::eAllCommands //
 							)
 						);
 					}
@@ -277,8 +300,6 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 					cur_present_pass_queue.GetQueue().submit2(submit_info);
 
 
-
-
 					vk::PresentInfoKHR present_info{};
 					present_info.setWaitSemaphores(swap_img->ready_for_present_sem->GetRaw());
 					present_info.setSwapchains(swapchain_manager.GetSwapChain());
@@ -292,7 +313,6 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 					//	// recreateSwapChain();
 					//	return;
 					//}
-
 				}
 				else
 				{
@@ -301,7 +321,8 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 					std::vector<vk::SemaphoreSubmitInfo> signal_sem_submit_info;
 
 					Queue& cur_pass_queue = *pass_to_queue_info.at(p_pass).first;
-					std::pair<VkCommandBuffer, VkSemaphore> cmd_buf_and_sem = cur_pass_queue.GetOneBufAndAssociatedSem();
+					std::pair<VkCommandBuffer, VkSemaphore> cmd_buf_and_sem = cur_pass_queue.
+						GetOneBufAndAssociatedSem();
 
 					p_pass->SyncInsertAhead(cmd_buf_and_sem.first, wait_sem_submit_info);
 					//TODO: sampler and view change. this can't be done at the resource level,cause command buffers can be recoured parallelly
@@ -315,7 +336,8 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 
 					p_pass->SyncInsertAfter(cmd_buf_and_sem.first, signal_sem_submit_info);
 
-					CmdBufExecuteOnQueue(p_pass, cur_frame, cmd_buf_and_sem.first, &cur_pass_queue, frame_number_semaphore, wait_sem_submit_info, signal_sem_submit_info);
+					CmdBufExecuteOnQueue(p_pass, cur_frame, cmd_buf_and_sem.first, &cur_pass_queue,
+						frame_number_semaphore, wait_sem_submit_info, signal_sem_submit_info);
 				}
 			}
 		}
@@ -338,9 +360,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 			//		//CmdBufExecuteOnQueue(ptr_pass, cmd_buf_and_sem.first, ptr_queue, image_available_semaphore);
 			//	}
 			//}
-
 		}
-
 	}
 
 	//Harvests all Timeline Semaphores across all queues
@@ -365,20 +385,22 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 	}
 
 	p_queue_used_to_finalize->FinalizeGeneralRendering(all_waiting_queue_sems, cur_frame, frame_number_semaphore);
-
-
 }
-void Anni::RenderGraphV1::DependencyGraph::CmdBufExecuteOnQueue(GraphicsPassNode* p_pass, uint32_t cur_frame, vk::CommandBuffer cmd_buf, Queue* execution_queue, VkSemaphore frame_num_sem, std::vector<vk::SemaphoreSubmitInfo>& wait_sem_submit_infos, std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_infos)
+
+void Anni::RenderGraphV1::DependencyGraph::CmdBufExecuteOnQueue(GraphicsPassNode* p_pass, uint32_t cur_frame,
+	vk::CommandBuffer cmd_buf, Queue* execution_queue,
+	VkSemaphore frame_num_sem,
+	std::vector<vk::SemaphoreSubmitInfo>&
+	wait_sem_submit_infos,
+	std::vector<vk::SemaphoreSubmitInfo>&
+	signal_sem_submit_infos)
 {
 	//wait and signal semaphore
 	const uint64_t wait_value = cur_frame < (Vk::MAX_FRAMES_OVERLAP - 1) ? 0 : cur_frame - (Vk::MAX_FRAMES_OVERLAP - 1);
-	wait_sem_submit_infos.push_back(
-		vk::SemaphoreSubmitInfo
-		(
-			frame_num_sem,
-			wait_value,
-			vk::PipelineStageFlagBits2::eAllCommands
-		)
+	wait_sem_submit_infos.emplace_back(
+		frame_num_sem,
+		wait_value,
+		vk::PipelineStageFlagBits2::eAllCommands
 	);
 
 	//uint64_t signal_value = cur_frame;
@@ -415,10 +437,7 @@ void Anni::RenderGraphV1::DependencyGraph::GeneratePassNodeDepen()
 		// Remove all nullptr elements from the set
 
 		pass_node->passes_depen_set.erase(nullptr);
-
-
 	}
-
 
 
 	//生成每个pass之后才能执行的pass 和 每个pass之前必须先执行的pass
@@ -438,6 +457,7 @@ void Anni::RenderGraphV1::DependencyGraph::GeneratePassNodeDepen(GraphicsPassNod
 	DependencyProducedFromTexInlet(pass_node);
 	DependencyProducedFromTexOutlet(pass_node);
 }
+
 void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(GraphicsPassNode& pass_node)
 {
 	for (auto& inlet : pass_node.ins_buf)
@@ -447,7 +467,7 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 
 
 		//如果使用了读的方式，则
-		if (Anni::RsrcAccessTypeRG::Read == buf_usage.GetRsrcAccessType())
+		if (RsrcAccessTypeRG::Read == buf_usage.GetRsrcAccessType())
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
 			auto& optinoal_ptr_providing_outlet = inlet.GetProvidingOutlet();
@@ -456,22 +476,22 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 				//一直往前找，直到找不到提供的接口
 				if (optinoal_ptr_providing_outlet)
 				{
-					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
-					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+					const auto providing_pass_access_type = providing_outlet.GetRsrcUsage().GetRsrcAccessType();
+					if (providing_pass_access_type == RsrcAccessTypeRG::Write)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_pass_access_type == RsrcAccessTypeRG::Read)
 					{
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 				}
-				else//如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
 				{
 					//established资源在对应的创建pass中一定会被标记为写入而不是被读取，所以在上一个loop就已经加入进了passes_depen_set，所以下面的代码是多余的
 					//if (inlet.second.GetItrInRsrcMap()->second.rsrc_type == VirtualResource<Buffer>::RsrcType::Established)
@@ -482,7 +502,7 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 				}
 			}
 		}
-		else if (Anni::RsrcAccessTypeRG::Write == buf_usage.GetRsrcAccessType())
+		else if (RsrcAccessTypeRG::Write == buf_usage.GetRsrcAccessType())
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
 			auto& optinoal_ptr_providing_outlet = inlet.GetProvidingOutlet();
@@ -490,24 +510,26 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 			{
 				if (optinoal_ptr_providing_outlet)
 				{
-					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
-					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+					const auto providing_pass_access_type = providing_outlet.GetRsrcUsage().GetRsrcAccessType();
+					if (providing_pass_access_type == RsrcAccessTypeRG::Read)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_pass_access_type == RsrcAccessTypeRG::Write)
 					{
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 				}
-				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (VRsrcType::Established == inlet.GetUnderlyingRsrcItr()->rsrc_type)
+					const auto& vsrc = inlet.GetPassAttachedTo()->GetVRsrcFromRsrcHandle(
+						inlet.GetUnderlyingRsrcHandle());
+					if (VRsrcType::Established == vsrc.rsrc_type)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -523,17 +545,15 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufInlet(Graphi
 }
 
 
-
 void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(GraphicsPassNode& pass_node)
 {
 	for (auto& outlet : pass_node.outs_buf)
 	{
 		//在当前pass中的使用方式usage
-		const BufUsage& buf_usage = outlet.GetUsage();
-
+		const BufUsage& buf_usage = outlet.GetRsrcUsage();
 
 		//如果使用了读的方式，则
-		if (buf_usage.GetRsrcAccessType() == Anni::RsrcAccessTypeRG::Read)
+		if (buf_usage.GetRsrcAccessType() == RsrcAccessTypeRG::Read)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
 			auto& optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
@@ -542,22 +562,23 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(Graph
 			{
 				if (optinoal_ptr_providing_outlet)
 				{
-					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
-					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+					const auto providing_pass_access_type = providing_outlet.GetRsrcUsage().GetRsrcAccessType();
+
+					if (providing_pass_access_type == RsrcAccessTypeRG::Write)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_pass_access_type == RsrcAccessTypeRG::Read)
 					{
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 				}
-				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
 				{
 					//established资源在对应的创建pass中一定会被写入而不是被读取，所以在上一个loop就已经加入进了passes_depen_set
 					//if (inlet.second.GetItrInRsrcMap()->second.rsrc_type == VirtualResource<Buffer>::RsrcType::Established)
@@ -569,7 +590,7 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(Graph
 				}
 			}
 		}
-		else if (buf_usage.GetRsrcAccessType() == Anni::RsrcAccessTypeRG::Write)
+		else if (buf_usage.GetRsrcAccessType() == RsrcAccessTypeRG::Write)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
 			auto& optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
@@ -577,24 +598,27 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromBufOutlet(Graph
 			{
 				if (optinoal_ptr_providing_outlet)
 				{
-					RsrcOutlet<VirtualBufRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
-					const auto providing_pass_access_type = ptr_providing_outlet->GetUsage().GetRsrcAccessType();
 
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Read)
+					const auto providing_pass_access_type = providing_outlet.GetRsrcUsage().GetRsrcAccessType();
+					if (providing_pass_access_type == RsrcAccessTypeRG::Read)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_pass_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_pass_access_type == RsrcAccessTypeRG::Write)
 					{
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 				}
-				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (outlet.GetUnderlyingRsrcItr()->rsrc_type == VRsrcType::Established)
+					const auto& vsrc = outlet.GetPassAttachedTo()->GetVRsrcFromRsrcHandle(
+						outlet.GetUnderlyingRsrcHandle());
+
+					if (VRsrcType::Established == vsrc.rsrc_type)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -615,17 +639,17 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 	{
 		//在当前pass中的使用方式usage
 		std::variant<TexUsage, AttachUsage>& curlet_usage = inlet.GetRsrcUsage();
-		const Anni::RsrcAccessTypeRG asscess_type
-			= std::visit([](const auto& variant_usage) -> Anni::RsrcAccessTypeRG
+		const RsrcAccessTypeRG asscess_type
+			= std::visit([](const auto& variant_usage) -> RsrcAccessTypeRG
 				{
 					return variant_usage.GetRsrcAccessType();
 				}, curlet_usage);
 
 
 		//如果使用了读的方式，则
-		if (asscess_type == Anni::RsrcAccessTypeRG::Read)
+		if (asscess_type == RsrcAccessTypeRG::Read)
 		{
-			Anni::ImgSyncInfo& previous_pass_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+			ImgSyncInfo& previous_pass_syn_info = std::visit([](auto& variant_usage) -> ImgSyncInfo&
 				{
 					return variant_usage.GetSynInfo();
 				}, curlet_usage);
@@ -638,30 +662,31 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 				//一直往前找，直到找不到提供的接口
 				if (optinoal_ptr_providing_outlet)
 				{
-					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
 
-					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
-					const Anni::ImgSyncInfo& providing_syn_info =
-						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+					auto& providing_pass_usage = providing_outlet.GetRsrcUsage();
+
+					const ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> ImgSyncInfo&
 							{
 								return variant_usage.GetSynInfo();
 							}, providing_pass_usage);
 
-					const Anni::RsrcAccessTypeRG& providing_access_type =
-						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+					const RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> RsrcAccessTypeRG
 							{
 								return variant_usage.GetRsrcAccessType();
 							}, providing_pass_usage);
 
 
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_access_type == RsrcAccessTypeRG::Write)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_access_type == RsrcAccessTypeRG::Read)
 					{
 						//先用之前的syn info做对比，如果img layout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
@@ -669,11 +694,11 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 							pass_node.passes_depen_set.insert(providing_pass);
 							break;
 						}
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 					previous_pass_syn_info = providing_syn_info;
 				}
-				else   //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
 				{
 					//established资源在对应的创建pass中一定会被标记为写入而不是被读取，所以在上一个loop就已经加入进了passes_depen_set，所以下面的代码是多余的
 					//if (inlet.second.GetItrInRsrcMap()->second.rsrc_type == VirtualResource<Buffer>::RsrcType::Established)
@@ -684,11 +709,9 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 				}
 			}
 		}
-		else if (asscess_type == Anni::RsrcAccessTypeRG::Write)
+		else if (asscess_type == RsrcAccessTypeRG::Write)
 		{
-
-
-			Anni::ImgSyncInfo& previous_pass_syn_info = std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+			ImgSyncInfo& previous_pass_syn_info = std::visit([](auto& variant_usage) -> ImgSyncInfo&
 				{
 					return variant_usage.GetSynInfo();
 				}, curlet_usage);
@@ -700,29 +723,29 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 			{
 				if (optinoal_ptr_providing_outlet)
 				{
-					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
 
-					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
-					const Anni::ImgSyncInfo& providing_syn_info =
-						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+					auto& providing_pass_usage = providing_outlet.GetRsrcUsage();
+					const ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> ImgSyncInfo&
 							{
 								return variant_usage.GetSynInfo();
 							}, providing_pass_usage);
 
-					const Anni::RsrcAccessTypeRG& providing_access_type =
-						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+					const RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> RsrcAccessTypeRG
 							{
 								return variant_usage.GetRsrcAccessType();
 							}, providing_pass_usage);
 
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_access_type == RsrcAccessTypeRG::Read)
 					{
 						//先用之前的syninfo做对比，如果imglayout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
 						{
-							optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+							optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 						}
 						else
 						{
@@ -730,16 +753,18 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexInlet(Graphi
 							break;
 						}
 					}
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_access_type == RsrcAccessTypeRG::Write)
 					{
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 
 					previous_pass_syn_info = providing_syn_info;
 				}
-				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (inlet.GetUnderlyingRsrcItr()->rsrc_type == VRsrcType::Established)
+					const auto& vsrc = inlet.GetPassAttachedTo()->GetVRsrcFromRsrcHandle(
+						inlet.GetUnderlyingRsrcHandle());
+					if (VRsrcType::Established == vsrc.rsrc_type)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -759,21 +784,21 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 	for (auto& outlet : pass_node.outs_tex)
 	{
 		//在当前pass中的使用方式usage
-		std::variant<TexUsage, AttachUsage>& curlet_usage = outlet.GetUsage();
-		const Anni::RsrcAccessTypeRG access_type
-			= std::visit([&](const auto& variant_usage) -> Anni::RsrcAccessTypeRG
+		std::variant<TexUsage, AttachUsage>& curlet_usage = outlet.GetRsrcUsage();
+		const RsrcAccessTypeRG access_type
+			= std::visit([&](const auto& variant_usage) -> RsrcAccessTypeRG
 				{
 					return variant_usage.GetRsrcAccessType();
 				}, curlet_usage);
 
 
 		//如果使用了读的方式，则
-		if (Anni::RsrcAccessTypeRG::Read == access_type)
+		if (RsrcAccessTypeRG::Read == access_type)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
 			auto optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
-			Anni::ImgSyncInfo& previous_pass_syn_info =
-				std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+			ImgSyncInfo& previous_pass_syn_info =
+				std::visit([](auto& variant_usage) -> ImgSyncInfo&
 					{
 						return variant_usage.GetSynInfo();
 					}, curlet_usage);
@@ -783,30 +808,30 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 				//providing_outlet_itor一定是outlet
 				if (optinoal_ptr_providing_outlet)
 				{
-					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
 
-					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
-					const Anni::ImgSyncInfo& providing_syn_info =
-						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+					auto& providing_pass_usage = providing_outlet.GetRsrcUsage();
+					const ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> ImgSyncInfo&
 							{
 								return variant_usage.GetSynInfo();
 							}, providing_pass_usage);
 
-					const Anni::RsrcAccessTypeRG& providing_access_type =
-						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+					const RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> RsrcAccessTypeRG
 							{
 								return variant_usage.GetRsrcAccessType();
 							}, providing_pass_usage);
 
 
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_access_type == RsrcAccessTypeRG::Write)
 					{
 						pass_node.passes_depen_set.insert(providing_pass);
 						break;
 					}
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_access_type == RsrcAccessTypeRG::Read)
 					{
 						//先用之前的syn info做对比，如果img layout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
@@ -814,11 +839,11 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 							pass_node.passes_depen_set.insert(providing_pass);
 							break;
 						}
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 					previous_pass_syn_info = providing_syn_info;
 				}
-				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的（如何处理来自上一帧甚至上上一帧的资源？比如TAA的情况） 或者 资源是在当前pass创建的（）。
 				{
 					//established资源在对应的创建pass中一定会被写入而不是被读取，所以在上一个loop就已经加入进了passes_depen_set
 					//if (inlet.second.GetItrInRsrcMap()->second.rsrc_type == VirtualResource<Buffer>::RsrcType::Established)
@@ -830,12 +855,12 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 				}
 			}
 		}
-		else if (Anni::RsrcAccessTypeRG::Write == access_type)
+		else if (RsrcAccessTypeRG::Write == access_type)
 		{
 			GraphicsPassNode* previous_pass = &pass_node;
 			auto optinoal_ptr_providing_outlet = outlet.GetProvidingOutlet();
-			Anni::ImgSyncInfo& previous_pass_syn_info =
-				std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+			const ImgSyncInfo& previous_pass_syn_info =
+				std::visit([](auto& variant_usage) -> ImgSyncInfo&
 					{
 						return variant_usage.GetSynInfo();
 					}, curlet_usage);
@@ -845,49 +870,47 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 			{
 				if (optinoal_ptr_providing_outlet)
 				{
-
-					RsrcOutlet<VirtualTexRsrcAndUsage>* ptr_providing_outlet = optinoal_ptr_providing_outlet.value();
-					const auto providing_pass = ptr_providing_outlet->GetPassAttachedTo();
+					auto providing_pass = optinoal_ptr_providing_outlet.value().pass_attached_to;
+					auto& providing_outlet = providing_pass->GetOulet(optinoal_ptr_providing_outlet.value());
 					previous_pass = providing_pass;
 
-					auto& providing_pass_usage = ptr_providing_outlet->GetUsage();
-					const Anni::ImgSyncInfo& providing_syn_info =
-						std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo&
+					auto& providing_pass_usage = providing_outlet.GetRsrcUsage();
+					const ImgSyncInfo& providing_syn_info =
+						std::visit([](auto& variant_usage) -> ImgSyncInfo&
 							{
 								return variant_usage.GetSynInfo();
 							}, providing_pass_usage);
 
-					const Anni::RsrcAccessTypeRG& providing_access_type =
-						std::visit([](auto& variant_usage) -> Anni::RsrcAccessTypeRG
+					const RsrcAccessTypeRG& providing_access_type =
+						std::visit([](auto& variant_usage) -> RsrcAccessTypeRG
 							{
 								return variant_usage.GetRsrcAccessType();
 							}, providing_pass_usage);
 
 
-
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Read)
+					if (providing_access_type == RsrcAccessTypeRG::Read)
 					{
 						//先用之前的syn info做对比，如果img layout不同，那么就要当作写入看待。
 						if (previous_pass_syn_info.layout_inpass != providing_syn_info.layout_inpass)
 						{
-							optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+							optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 						}
 						else
 						{
 							pass_node.passes_depen_set.insert(providing_pass);
 							break;
 						}
-
-
 					}
-					if (providing_access_type == Anni::RsrcAccessTypeRG::Write)
+					if (providing_access_type == RsrcAccessTypeRG::Write)
 					{
-						optinoal_ptr_providing_outlet = ptr_providing_outlet->GetProvidingOutlet();
+						optinoal_ptr_providing_outlet = providing_outlet.GetProvidingOutlet();
 					}
 				}
-				else        //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
+				else //如果出现提供资源的pass不存在的情况，那么说明资源一开始是来自rendergraph之外的 或者 资源是在当前pass创建的。
 				{
-					if (outlet.GetUnderlyingRsrcItr()->rsrc_type == VRsrcType::Established)
+					const auto& vsrc = outlet.GetPassAttachedTo()->GetVRsrcFromRsrcHandle(
+						outlet.GetUnderlyingRsrcHandle());
+					if (VRsrcType::Established == vsrc.rsrc_type)
 					{
 						//在资源非导入的情况下，如果所有pass链上的pass都是写入，则至少需要等第一个pass创建好资源！
 						if (previous_pass != &pass_node)
@@ -903,8 +926,6 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyProducedFromTexOutlet(Graph
 }
 
 
-
-
 void Anni::RenderGraphV1::DependencyGraph::TopologicalDFSSort()
 {
 	//拓扑排序结合dfs算法，划分层次
@@ -913,7 +934,7 @@ void Anni::RenderGraphV1::DependencyGraph::TopologicalDFSSort()
 
 	for (auto gfx_node_itr = pass_nodes.begin(); gfx_node_itr < pass_nodes.end(); ++gfx_node_itr)
 	{
-		auto index = std::distance(pass_nodes.begin(), gfx_node_itr);
+		const auto index = std::distance(pass_nodes.begin(), gfx_node_itr);
 
 		VisitNode(index, gfx_node_itr->get(), visitedNodes, onStackNodes, topologically_sorted_nodes);
 
@@ -926,11 +947,13 @@ void Anni::RenderGraphV1::DependencyGraph::TopologicalDFSSort()
 }
 
 
-void Anni::RenderGraphV1::DependencyGraph::VisitNode(size_t cur_index, GraphicsPassNode* cur_node_pass, std::vector<bool>& visited, std::vector<bool>& on_stack, std::vector<GraphicsPassNode*>& topologically_sorted_nodes)
+void Anni::RenderGraphV1::DependencyGraph::VisitNode(size_t cur_index, GraphicsPassNode* cur_node_pass,
+	std::vector<bool>& visited, std::vector<bool>& on_stack,
+	std::vector<GraphicsPassNode*>& topologically_sorted_nodes)
 {
 	if (visited[cur_index] && on_stack[cur_index])
 	{
-		assert(!"found a circular dependency and must abort.");
+		ASSERT_WITH_MSG(false, "found a circular dependency and must abort.");
 	}
 	if (visited[cur_index])
 	{
@@ -942,7 +965,8 @@ void Anni::RenderGraphV1::DependencyGraph::VisitNode(size_t cur_index, GraphicsP
 
 	for (GraphicsPassNode* adj_list : cur_node_pass->passes_depen_on_cur_pass_set)
 	{
-		VisitNode(FindIndexInPassNodeArray(adj_list, pass_nodes), adj_list, visited, on_stack, topologically_sorted_nodes);
+		VisitNode(FindIndexInPassNodeArray(adj_list, pass_nodes), adj_list, visited, on_stack,
+			topologically_sorted_nodes);
 	}
 
 	topologically_sorted_nodes.push_back(cur_node_pass);
@@ -950,7 +974,10 @@ void Anni::RenderGraphV1::DependencyGraph::VisitNode(size_t cur_index, GraphicsP
 }
 
 
-size_t Anni::RenderGraphV1::DependencyGraph::FindIndexInPassNodeArray(GraphicsPassNode* node_pass, const std::vector<std::unique_ptr<GraphicsPassNode>>& all_nodes)
+size_t Anni::RenderGraphV1::DependencyGraph::FindIndexInPassNodeArray(
+	const GraphicsPassNode* const  node_pass,
+	const std::vector<std::unique_ptr<GraphicsPassNode>>& all_nodes
+)
 {
 	for (auto gfx_node_itr = all_nodes.begin(); gfx_node_itr < all_nodes.end(); ++gfx_node_itr)
 	{
@@ -1002,7 +1029,6 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyLevelsGeneration()
 
 void Anni::RenderGraphV1::DependencyGraph::GPUWorkDistribution()
 {
-
 	///************************************************************
 	//DISTRIBUTE WORK TO MULTIPLE QUEUES ONTO GPU:
 	///************************************************************
@@ -1012,15 +1038,14 @@ void Anni::RenderGraphV1::DependencyGraph::GPUWorkDistribution()
 	queue_manager.QueuesNumDisbatchedPassesToZero();
 
 	size_t monotonical_assigned_index = 1;
-	for (auto level = 0; level <= max_level; ++level)
+	for (size_t level = 0; level <= max_level; ++level)
 	{
 		for (auto& ptr_pass : topologically_sorted_nodes)
 		{
 			if (ptr_pass->cur_level == level)
 			{
-
 				auto& target_queue = GetSuitableQueue(*ptr_pass);
-				auto  ptr_queue = &target_queue;
+				auto ptr_queue = &target_queue;
 
 
 				if (queue_to_passes_on_it.contains(ptr_queue))
@@ -1032,7 +1057,9 @@ void Anni::RenderGraphV1::DependencyGraph::GPUWorkDistribution()
 					queue_to_passes_on_it.emplace(ptr_queue, std::vector<GraphicsPassNode*>{ptr_pass});
 				}
 
-				auto result_itr = pass_to_queue_info.emplace(ptr_pass, std::pair<Queue*, size_t>{ptr_queue, monotonical_assigned_index});
+				auto result_itr = pass_to_queue_info.emplace(ptr_pass, std::pair<Queue*, size_t>{
+					ptr_queue, monotonical_assigned_index
+				});
 
 				ASSERT_WITH_MSG(result_itr.second, "the pass has been distributed to queue!");
 				monotonical_assigned_index++;
@@ -1040,37 +1067,36 @@ void Anni::RenderGraphV1::DependencyGraph::GPUWorkDistribution()
 		}
 	}
 
-	std::vector<Queue*> all_queue_in_use;        //随意确定一个queue的顺序，方便之后用index索引
+	std::vector<Queue*> all_queue_in_use; //随意确定一个queue的顺序，方便之后用index索引
 	// Extract keys from the map and store them in the vector
 	std::ranges::transform(queue_to_passes_on_it, std::back_inserter(all_queue_in_use),
 		[](const std::pair<Queue*, std::vector<GraphicsPassNode*>>& pair)
 		{
-			return pair.first;        // Extract the key
+			return pair.first; // Extract the key
 		});
-
 }
 
 Anni::Queue& Anni::RenderGraphV1::DependencyGraph::GetSuitableQueue(GraphicsPassNode& pass)
 {
-	PassType  pass_type = pass.GetRenderpassType();
+	const PassType pass_type = pass.GetRenderpassType();
 	QueueCapability queue_cap_requirement;
 
-	if (pass_type & PassType::Graphics)
+	if (pass_type & Graphics)
 	{
 		queue_cap_requirement.graphics = true;
 	}
 
-	if (pass_type & PassType::Compute)
+	if (pass_type & Compute)
 	{
 		queue_cap_requirement.compute = true;
 	}
 
-	if (pass_type & PassType::Transfor)
+	if (pass_type & Transfor)
 	{
 		queue_cap_requirement.transfer = true;
 	}
 
-	if (pass_type & PassType::Present)
+	if (pass_type & Present)
 	{
 		queue_cap_requirement.present = true;
 	}
@@ -1125,7 +1151,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 	//首先对于所有的资源，所有使用到资源的pass按照layer排序以后，每一个layer层级内的pass都需要进行排序，否则这个执行顺序定不下来，根本写不了同步
 	for (auto& vrsrc : rg_buffers)
 	{
-		for (auto level = 0; level <= max_level; ++level)
+		for (size_t level = 0; level <= max_level; ++level)
 		{
 			vrsrc.level_to_passes_attached_to.emplace(level, std::vector<GraphicsPassNode*>{});
 			vrsrc.level_to_passes_attached_to_partitioned.emplace(level, std::vector<std::vector<GraphicsPassNode*>>{});
@@ -1133,7 +1159,8 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 
 		//同时，对于当前同一个layer的所有pass，我们要定一个执行顺序，
 		std::ranges::for_each(
-			vrsrc.passes_access_this_rsrc, [&vrsrc](const std::pair<GraphicsPassNode*, Anni::RsrcAccessTypeRG>& pass_assess_pair)
+			vrsrc.passes_access_this_rsrc,
+			[&vrsrc](const std::pair<GraphicsPassNode*, RsrcAccessTypeRG>& pass_assess_pair)
 			{
 				auto cur_pass = pass_assess_pair.first;
 				vrsrc.level_to_passes_attached_to.at(cur_pass->cur_level).push_back(cur_pass);
@@ -1152,35 +1179,36 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 			std::set<size_t> level_to_unique_queue_fam_index; //这里用set很关键。
 			for (auto& pass : passes_at_same_levels)
 			{
-				level_to_unique_queue_fam_index.insert(pass_to_queue_info.at(pass).first->GetQueueCap().queue_family_index);
+				level_to_unique_queue_fam_index.insert(
+					pass_to_queue_info.at(pass).first->GetQueueCap().queue_family_index);
 			}
 
 			std::vector<std::vector<GraphicsPassNode*>> partitions_by_queue_fam_then_by_queue;
 
 			std::vector<GraphicsPassNode*> partition_result;
-			for (auto unique_queue_fam : level_to_unique_queue_fam_index)        //unique queue为指针
+			for (auto unique_queue_fam : level_to_unique_queue_fam_index) //unique queue为指针
 			{
 				//先用queue family做partition
 				std::vector<GraphicsPassNode*> queue_fam_partition;
 				std::ranges::copy_if(passes_at_same_levels, std::back_inserter(queue_fam_partition),
 					[this, unique_queue_fam](GraphicsPassNode* const pass) -> bool
 					{
-						return (this->pass_to_queue_info.at(pass).first->GetQueueCap().queue_family_index == unique_queue_fam);
+						return (this->pass_to_queue_info.at(pass).first->GetQueueCap().
+							queue_family_index == unique_queue_fam);
 					});
 				//上面执行后，queue_fam_partition中所有的pass都是属于同一个queue family的
 
-				std::set<Queue*> unique_queues_on_the_same_queue_fam;      //还是要用std::set
+				std::set<Queue*> unique_queues_on_the_same_queue_fam; //还是要用std::set
 				std::ranges::for_each
 				(
 					queue_fam_partition,
 					[this, &unique_queues_on_the_same_queue_fam](GraphicsPassNode* pass)
 					{
 						unique_queues_on_the_same_queue_fam.insert(this->pass_to_queue_info.at(pass).first);
-
 					}
 				);
 				//继续用queue来做partition：
-				for (auto unique_queue : unique_queues_on_the_same_queue_fam)        //unique queue为指针
+				for (auto unique_queue : unique_queues_on_the_same_queue_fam) //unique queue为指针
 				{
 					std::set<GraphicsPassNode*> partition;
 					std::ranges::copy_if(queue_fam_partition, std::inserter(partition, partition.begin()),
@@ -1189,12 +1217,15 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 							return this->pass_to_queue_info.at(pass).first == unique_queue;
 						});
 					partition_result.insert(partition_result.end(), partition.begin(), partition.end());
-					partitions_by_queue_fam_then_by_queue.push_back(std::vector<GraphicsPassNode*>{ partition.begin(), partition.end() });
+					partitions_by_queue_fam_then_by_queue.push_back(std::vector<GraphicsPassNode*>{
+						partition.begin(), partition.end()
+					});
 				}
 			}
 			//pass0 Queue0 | pass1 Queue0 | pass2 Queue0 | pass3 Queue1 | pass4 Queue1 | pass5 Queue1 这里保证了不同queue不会混在一起
 			passes_at_same_levels = std::move(partition_result);
-			vrsrc.level_to_passes_attached_to_partitioned.insert_or_assign(level, std::move(partitions_by_queue_fam_then_by_queue));
+			vrsrc.level_to_passes_attached_to_partitioned.insert_or_assign(
+				level, std::move(partitions_by_queue_fam_then_by_queue));
 		}
 	}
 
@@ -1211,7 +1242,8 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 
 		//同时，对于当前同一个layer的所有pass，我们要定一个执行顺序，
 		std::ranges::for_each(
-			vrsrc.passes_access_this_rsrc, [&vrsrc](const std::pair<GraphicsPassNode*, Anni::RsrcAccessTypeRG>& pass_assess_pair)
+			vrsrc.passes_access_this_rsrc,
+			[&vrsrc](const std::pair<GraphicsPassNode*, RsrcAccessTypeRG>& pass_assess_pair)
 			{
 				auto cur_pass = pass_assess_pair.first;
 				vrsrc.level_to_passes_attached_to.at(cur_pass->cur_level).push_back(cur_pass);
@@ -1230,19 +1262,21 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 			std::set<size_t> level_to_unique_queue_fam_index;
 			for (auto& pass : passes_at_same_levels)
 			{
-				level_to_unique_queue_fam_index.insert(pass_to_queue_info.at(pass).first->GetQueueCap().queue_family_index);
+				level_to_unique_queue_fam_index.insert(
+					pass_to_queue_info.at(pass).first->GetQueueCap().queue_family_index);
 			}
 
 			std::vector<std::vector<GraphicsPassNode*>> partitions_by_queue_fam_then_by_queue;
 			std::vector<GraphicsPassNode*> partition_result;
-			for (auto unique_queue_fam : level_to_unique_queue_fam_index)        //unique queue为指针
+			for (auto unique_queue_fam : level_to_unique_queue_fam_index) //unique queue为指针
 			{
 				//先用queue family做partition
 				std::vector<GraphicsPassNode*> queue_fam_partition;
 				std::ranges::copy_if(passes_at_same_levels, std::back_inserter(queue_fam_partition),
 					[this, unique_queue_fam](GraphicsPassNode* const pass) -> bool
 					{
-						return (this->pass_to_queue_info.at(pass).first->GetQueueCap().queue_family_index == unique_queue_fam);
+						return (this->pass_to_queue_info.at(pass).first->GetQueueCap().
+							queue_family_index == unique_queue_fam);
 					});
 				//上面执行后，queue_fam_partition中所有的pass都是属于同一个queue family的
 
@@ -1253,13 +1287,11 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 					[this, &unique_queues_on_the_same_queue_fam](GraphicsPassNode* pass)
 					{
 						unique_queues_on_the_same_queue_fam.insert(this->pass_to_queue_info.at(pass).first);
-
 					}
 				);
 				//继续用queue来做partition：
-				for (auto unique_queue : unique_queues_on_the_same_queue_fam)        //unique queue为指针
+				for (auto unique_queue : unique_queues_on_the_same_queue_fam) //unique queue为指针
 				{
-
 					std::set<GraphicsPassNode*> partition;
 					std::ranges::copy_if(queue_fam_partition, std::inserter(partition, partition.begin()),
 
@@ -1269,15 +1301,17 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 						});
 
 					partition_result.insert(partition_result.end(), partition.begin(), partition.end());
-					partitions_by_queue_fam_then_by_queue.push_back(std::vector<GraphicsPassNode*>{ partition.begin(), partition.end() });
+					partitions_by_queue_fam_then_by_queue.push_back(std::vector<GraphicsPassNode*>{
+						partition.begin(), partition.end()
+					});
 				}
 			}
 			//pass0 Queue0 | pass1 Queue0 | pass2 Queue0 | pass3 Queue1 | pass4 Queue1 | pass5 Queue1 这里保证了不同queue不会混在一起
 			passes_at_same_levels = std::move(partition_result);
-			vrsrc.level_to_passes_attached_to_partitioned.insert_or_assign(level, std::move(partitions_by_queue_fam_then_by_queue));
+			vrsrc.level_to_passes_attached_to_partitioned.insert_or_assign(
+				level, std::move(partitions_by_queue_fam_then_by_queue));
 		}
 	}
-
 }
 
 void Anni::RenderGraphV1::DependencyGraph::SortPassesAccessingRsrc()
@@ -1288,7 +1322,8 @@ void Anni::RenderGraphV1::DependencyGraph::SortPassesAccessingRsrc()
 		// Sorting the unordered vector based on the order of the order vector(that is, topologically_sorted_nodes)
 		std::ranges::sort(
 			vrsc.passes_access_this_rsrc,
-			[&](const std::pair<GraphicsPassNode*, Anni::RsrcAccessTypeRG>& pair_left, const std::pair<GraphicsPassNode*, Anni::RsrcAccessTypeRG>& pair_right)
+			[&](const std::pair<GraphicsPassNode*, RsrcAccessTypeRG>& pair_left,
+				const std::pair<GraphicsPassNode*, RsrcAccessTypeRG>& pair_right)
 			{
 				return SortByTopologicallySortedPasses(pair_left.first, pair_right.first, topologically_sorted_nodes);
 			});
@@ -1300,7 +1335,8 @@ void Anni::RenderGraphV1::DependencyGraph::SortPassesAccessingRsrc()
 		std::ranges::sort
 		(
 			vrsc.passes_access_this_rsrc,
-			[&](const std::pair<GraphicsPassNode*, Anni::RsrcAccessTypeRG>& pair_left, const std::pair<GraphicsPassNode*, Anni::RsrcAccessTypeRG>& pair_right)
+			[&](const std::pair<GraphicsPassNode*, RsrcAccessTypeRG>& pair_left,
+				const std::pair<GraphicsPassNode*, RsrcAccessTypeRG>& pair_right)
 			{
 				return SortByTopologicallySortedPasses(pair_left.first, pair_right.first, topologically_sorted_nodes);
 			}
@@ -1308,10 +1344,11 @@ void Anni::RenderGraphV1::DependencyGraph::SortPassesAccessingRsrc()
 	}
 }
 
-bool Anni::RenderGraphV1::DependencyGraph::SortByTopologicallySortedPasses(const GraphicsPassNode* a, const GraphicsPassNode* b, const std::vector<GraphicsPassNode*>& order)
+bool Anni::RenderGraphV1::DependencyGraph::SortByTopologicallySortedPasses(
+	const GraphicsPassNode* a, const GraphicsPassNode* b, const std::vector<GraphicsPassNode*>& order)
 {
-	auto it_a = std::find(order.begin(), order.end(), a);
-	auto it_b = std::find(order.begin(), order.end(), b);
+	const auto it_a = std::ranges::find(order, a);
+	const auto it_b = std::ranges::find(order, b);
 
 	// If both elements are found in the order vector, compare their positions
 	if (it_a != order.end() && it_b != order.end())
@@ -1324,7 +1361,7 @@ bool Anni::RenderGraphV1::DependencyGraph::SortByTopologicallySortedPasses(const
 	{
 		return true;
 	}
-	else if (it_b != order.end())
+	if (it_b != order.end())
 	{
 		return false;
 	}
@@ -1340,9 +1377,9 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertion()
 	//SYNC PRIMITIVES INSERTION同步原语插入:
 	///************************************************************
 	//按照level层次来loop，
-	for (auto cur_level = 0; cur_level <= max_level; ++cur_level)
+	for (size_t cur_level = 0; cur_level <= max_level; ++cur_level)
 	{
-		for (const auto cur_pass : topologically_sorted_nodes)
+		for (GraphicsPassNode* cur_pass : topologically_sorted_nodes)
 		{
 			if (cur_pass->cur_level == cur_level)
 			{
@@ -1368,7 +1405,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 	auto cur_pass_level = cur_pass->cur_level;
 	for (auto& cur_let : cur_pass->ins_buf)
 	{
-		VirtualBuffer& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
+		VirtualBuffer& curlet_underlying_rsrc = cur_pass->GetVRsrcFromRsrcHandle(cur_let.GetUnderlyingRsrcHandle());
 		BufUsage& curlet_usage = cur_let.GetRsrcUsage();
 		const IRsrcUsage::RsrcOrigin curlet_origin = curlet_usage.GetRsrcOrigin();
 
@@ -1379,7 +1416,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 			cur_pass->InsertSyncInfoForInitalUsage(
 				source_sync,
 				curlet_usage.GetSynInfo(),
-				cur_let.GetUnderlyingRsrcItr()
+				cur_let.GetUnderlyingRsrcHandle()
 			);
 		}
 
@@ -1393,40 +1430,61 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 				cur_pass->InsertSyncInfoForInitalUsage(
 					source_sync,
 					curlet_usage.GetSynInfo(),
-					cur_let.GetUnderlyingRsrcItr()
+					cur_let.GetUnderlyingRsrcHandle()
 				);
 			}
 		}
 
 
 		//拿到所有使用该资源的pass，对于之前的每一个layer，进行同步原语插入。比如当前layer是5，我们首先需要找到layer=0,1,2,3,4
-		for (const auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.level_to_passes_attached_to_partitioned)
+		for (const auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.
+			level_to_passes_attached_to_partitioned)
 		{
 			//如果前面的layer i 出现了对某一资源同时access的情况，
 			//layer i 可能含有多个执行在不同queue上的passes，不过他们是按照分块排序的，这种情况下，我们只需要在最后一块中的所有pass和当前pass之间插入同步即可
 			if (level < cur_pass_level)
 			{
 				const auto& last_passes_group = passes_at_same_level_partitioned.back();
-				const auto  last_queue = pass_to_queue_info.at(last_passes_group.back());
-				const auto  queue_which_cur_pass_execute = pass_to_queue_info.at(cur_pass);
+				const auto last_queue = pass_to_queue_info.at(last_passes_group.back());
+				const auto queue_which_cur_pass_execute = pass_to_queue_info.at(cur_pass);
 
 				if (last_queue == queue_which_cur_pass_execute)
 				{
 					auto last_pass_executing_on_last_queue_group = last_passes_group.back();
 					auto& target_let = cur_let;
-					auto underlying_buf = target_let.GetUnderlyingRsrcItr();
 
 					auto sor_pass = last_pass_executing_on_last_queue_group;
 					auto tar_pass = cur_pass;
+					auto underlying_buf_handle = target_let.GetUnderlyingRsrcHandle();
 
-					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
-						[&curlet_underlying_rsrc](const auto& buf_usage)
+
+					auto founded_buf_outlet_usage = std::ranges::find_if(sor_pass->outs_buf,
+						[&underlying_buf_handle](
+							const RsrcOutlet<BufUsage>& outlet_buf)
 						{
-							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_buf_handle;
 						});
-					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
-					BufUsage& sor_buf_usage = founded_buf_usage->usage;
+					auto founded_buf_inlet_usage = std::ranges::find_if(sor_pass->ins_buf,
+						[&underlying_buf_handle](
+							const RsrcInlet<BufUsage>& inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+					BufUsage* p_sor_buf_usage = nullptr;
+					if (founded_buf_outlet_usage != sor_pass->outs_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_outlet_usage->usage);
+					}
+					if (founded_buf_inlet_usage != sor_pass->ins_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_inlet_usage->usage);
+					}
+
+
+					BufUsage& sor_buf_usage = *p_sor_buf_usage;
 					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
 
 					cur_pass->InsertSameQueueSyncInfo(
@@ -1435,7 +1493,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 						queue_which_cur_pass_execute.first,
 						sor_buf_usage.GetSynInfo(),
 						tar_buf_usage.GetSynInfo(),
-						underlying_buf
+						underlying_buf_handle
 					);
 				}
 				else
@@ -1447,27 +1505,43 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 
 					auto& target_let = cur_let;
-					const auto underlying_buf = target_let.GetUnderlyingRsrcItr();
+					const VirtualBuffer::Handle underlying_buf_handle = target_let.GetUnderlyingRsrcHandle();
 
-					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
-						[&curlet_underlying_rsrc](const auto& buf_usage)
+					auto founded_buf_outlet_usage = std::ranges::find_if(sor_pass->outs_buf,
+						[&underlying_buf_handle](const RsrcOutlet<BufUsage>& outlet_buf)
 						{
-							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle == underlying_buf_handle;
 						});
-					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
-					BufUsage& sor_buf_usage = founded_buf_usage->usage;
+					auto founded_buf_inlet_usage = std::ranges::find_if(sor_pass->ins_buf,
+						[&underlying_buf_handle](
+							const RsrcInlet<BufUsage>& inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+					BufUsage* p_sor_buf_usage = nullptr;
+					if (founded_buf_outlet_usage != sor_pass->outs_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_outlet_usage->usage);
+					}
+					if (founded_buf_inlet_usage != sor_pass->ins_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_inlet_usage->usage);
+					}
+
+					BufUsage& sor_buf_usage = *p_sor_buf_usage;
 					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
 
-					const Anni::SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
-					const Anni::WaitValue   tar_wait_val{ sync_sema->GetLastValue() + 1 };
+					const SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
+					const WaitValue tar_wait_val{ sync_sema->GetLastValue() + 1 };
 
-					Anni::SemInsertInfoSafe sor_insert_info(
+					SemInsertInfoSafe sor_insert_info(
 						sor_signal_val,
 						sor_buf_usage.sync_info.stage_mask
 					);
 
-					Anni::SemInsertInfoSafe tar_insert_info{
+					SemInsertInfoSafe tar_insert_info{
 						tar_wait_val,
 						tar_buf_usage.sync_info.stage_mask
 					};
@@ -1480,7 +1554,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 						tar_pass_queue_ptr,
 						sor_buf_usage.GetSynInfo(),
 						tar_buf_usage.GetSynInfo(),
-						target_let.GetUnderlyingRsrcItr(),
+						target_let.GetUnderlyingRsrcHandle(),
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -1493,7 +1567,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 						tar_pass_queue_ptr,
 						sor_buf_usage.GetSynInfo(),
 						tar_buf_usage.GetSynInfo(),
-						target_let.GetUnderlyingRsrcItr(),
+						target_let.GetUnderlyingRsrcHandle(),
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -1515,19 +1589,20 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 
 				std::vector<Queue*> unique_queues_ordered;
 				std::ranges::transform(passes_at_same_level_partitioned, std::back_inserter(unique_queues_ordered),
-					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)->Queue*
+					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)-> Queue*
 					{
-						return  pass_to_queue_info.at(inner_pass_group.front()).first;
+						return pass_to_queue_info.at(inner_pass_group.front()).first;
 					}
 				);
 
 
 				//auto  cur_pass_pos_in_cur_level = std::ranges::find(passes_at_same_levels.begin(), passes_at_same_levels.end(), cur_pass);
-				auto  cur_pass_pos_in_cur_level = std::ranges::find(passes_at_same_levels, cur_pass);
-				auto  cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
+				auto cur_pass_pos_in_cur_level = std::ranges::find(passes_at_same_levels, cur_pass);
+				auto cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
 
 				ASSERT_WITH_MSG(cur_queue_itr != unique_queues_ordered.end(), "Queue for current pass not found!");
-				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(), "Current pass is not found at the level!");
+				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(),
+					"Current pass is not found at the level!");
 
 				auto sor_pass = cur_pass;
 				auto tar_pass = cur_pass;
@@ -1543,18 +1618,40 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 
 					const auto sor_pass_queue_ptr = pass_to_queue_info.at(sor_pass).first;
 					const auto tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
-
-					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
-						[&curlet_underlying_rsrc](const auto& buf_usage)
-						{
-							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
-						});
-					assert(founded_buf_usage != sor_pass->buf_usages.end());
-
-
 					auto& target_let = cur_let;
-					BufUsage& sor_buf_usage = founded_buf_usage->usage;
+
+					const auto underlying_buf_handle = cur_let.GetUnderlyingRsrcHandle();
+
+
+					auto founded_buf_outlet_usage = std::ranges::find_if(sor_pass->outs_buf,
+						[&underlying_buf_handle](
+							const RsrcOutlet<BufUsage>& outlet_buf)
+						{
+							return outlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+
+					auto founded_buf_inlet_usage = std::ranges::find_if(sor_pass->ins_buf,
+						[&underlying_buf_handle](
+							const RsrcInlet<BufUsage>& inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+					BufUsage* p_sor_buf_usage = nullptr;
+					if (founded_buf_outlet_usage != sor_pass->outs_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_outlet_usage->usage);
+					}
+					if (founded_buf_inlet_usage != sor_pass->ins_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_inlet_usage->usage);
+					}
+
+
+					BufUsage& sor_buf_usage = *p_sor_buf_usage;
 					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
+
 
 					//Source pass     ------------------------->       Cur pass
 					//Sync primitive
@@ -1569,19 +1666,18 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 
-					const Anni::SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
-					const Anni::WaitValue   tar_wait_val{ sync_sema->GetLastValue() + 1 };
+					const SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
+					const WaitValue tar_wait_val{ sync_sema->GetLastValue() + 1 };
 
-					Anni::SemInsertInfoSafe sor_insert_info(
+					SemInsertInfoSafe sor_insert_info(
 						sor_signal_val,
 						sor_buf_usage.sync_info.stage_mask
 					);
 
-					Anni::SemInsertInfoSafe tar_insert_info{
+					SemInsertInfoSafe tar_insert_info{
 						tar_wait_val,
 						tar_buf_usage.sync_info.stage_mask
 					};
-
 
 
 					//CASE 1: previous pass and current pass in a same queue 
@@ -1594,7 +1690,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 							tar_pass_queue_ptr,
 							sor_buf_usage.GetSynInfo(),
 							tar_buf_usage.GetSynInfo(),
-							target_let.GetUnderlyingRsrcItr()
+							target_let.GetUnderlyingRsrcHandle()
 						);
 					}
 					//CASE 2: DIFF queue situation (need queue ownership transfer!)
@@ -1608,7 +1704,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 							tar_pass_queue_ptr,
 							sor_buf_usage.GetSynInfo(),
 							tar_buf_usage.GetSynInfo(),
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
@@ -1621,12 +1717,11 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 							tar_pass_queue_ptr,
 							sor_buf_usage.GetSynInfo(),
 							tar_buf_usage.GetSynInfo(),
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
 					}
-
 				}
 			}
 		}
@@ -1638,9 +1733,10 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 	auto cur_level = cur_pass->cur_level;
 	for (auto& cur_let : cur_pass->outs_buf)
 	{
-		VirtualBuffer& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
-		BufUsage& curlet_usage = cur_let.GetUsage();
+		VirtualBuffer& curlet_underlying_rsrc = cur_pass->GetVRsrcFromRsrcHandle(cur_let.GetUnderlyingRsrcHandle());
+		BufUsage& curlet_usage = cur_let.GetRsrcUsage();
 		const IRsrcUsage::RsrcOrigin curlet_origin = curlet_usage.GetRsrcOrigin();
+
 
 		//直接在当前pass建立的资源，同步原语插入：
 		if (IRsrcUsage::RsrcOrigin::EstablishedInSitu == curlet_origin)
@@ -1649,7 +1745,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 			cur_pass->InsertSyncInfoForInitalUsage(
 				source_sync,
 				curlet_usage.GetSynInfo(),
-				cur_let.GetUnderlyingRsrcItr()
+				cur_let.GetUnderlyingRsrcHandle()
 			);
 		}
 
@@ -1663,40 +1759,59 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 				cur_pass->InsertSyncInfoForInitalUsage(
 					source_sync,
 					curlet_usage.GetSynInfo(),
-					cur_let.GetUnderlyingRsrcItr());
+					cur_let.GetUnderlyingRsrcHandle());
 			}
-
 		}
 
 		//拿到所有使用该资源的pass，对于之前的每一个layer，进行同步原语插入。比如当前layer是5，我们首先需要找到layer=0,1,2,3,4
-		for (const auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.level_to_passes_attached_to_partitioned)
+		for (const auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.
+			level_to_passes_attached_to_partitioned)
 		{
 			//如果前面的layer i 出现了对某一资源同时access的情况，
 			//layer i 可能含有多个执行在不同queue上的passes，不过他们是按照分块排序的，这种情况下，我们只需要在最后一块中的所有pass和当前pass之间插入同步即可
 			if (level < cur_level)
 			{
 				const auto& last_passes_group = passes_at_same_level_partitioned.back();
-				const auto  last_queue = pass_to_queue_info.at(last_passes_group.back());
-				const auto  queue_which_cur_pass_execute = pass_to_queue_info.at(cur_pass);
+				const auto last_queue = pass_to_queue_info.at(last_passes_group.back());
+				const auto queue_which_cur_pass_execute = pass_to_queue_info.at(cur_pass);
 
 				if (last_queue == queue_which_cur_pass_execute)
 				{
 					auto last_pass_executing_on_last_queue_group = last_passes_group.back();
 					auto& target_let = cur_let;
-					auto underlying_buf = target_let.GetUnderlyingRsrcItr();
+					auto underlying_buf_handle = target_let.GetUnderlyingRsrcHandle();
 
 					auto sor_pass = last_pass_executing_on_last_queue_group;
 					auto tar_pass = cur_pass;
 
-					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
-						[&curlet_underlying_rsrc](const auto& buf_usage)
+					auto founded_buf_outlet_usage = std::ranges::find_if(sor_pass->outs_buf,
+						[&underlying_buf_handle](
+							const RsrcOutlet<BufUsage>& outlet_buf)
 						{
-							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_buf_handle;
 						});
-					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
-					BufUsage& sor_buf_usage = founded_buf_usage->usage;
-					BufUsage& tar_buf_usage = target_let.GetUsage();
+					auto founded_buf_inlet_usage = std::ranges::find_if(sor_pass->ins_buf,
+						[&underlying_buf_handle](
+							const RsrcInlet<BufUsage>& inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+					BufUsage* p_sor_buf_usage = nullptr;
+					if (founded_buf_outlet_usage != sor_pass->outs_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_outlet_usage->usage);
+					}
+					if (founded_buf_inlet_usage != sor_pass->ins_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_inlet_usage->usage);
+					}
+
+
+					BufUsage& sor_buf_usage = *p_sor_buf_usage;
+					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
 
 					cur_pass->InsertSameQueueSyncInfo(
 						sor_pass,
@@ -1704,9 +1819,8 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 						queue_which_cur_pass_execute.first,
 						sor_buf_usage.GetSynInfo(),
 						tar_buf_usage.GetSynInfo(),
-						underlying_buf
+						underlying_buf_handle
 					);
-
 				}
 				else
 				{
@@ -1716,28 +1830,47 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 					const auto tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 					auto& target_let = cur_let;
-					const auto underlying_buf = target_let.GetUnderlyingRsrcItr();
+					const auto underlying_buf_handle = target_let.GetUnderlyingRsrcHandle();
 
-					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
-						[&curlet_underlying_rsrc](const auto& buf_usage)
+
+					auto founded_buf_outlet_usage = std::ranges::find_if(sor_pass->outs_buf,
+						[&underlying_buf_handle](
+							const RsrcOutlet<BufUsage>& outlet_buf)
 						{
-							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_buf_handle;
 						});
-					assert(founded_buf_usage != sor_pass->buf_usages.end());
 
-					BufUsage& sor_buf_usage = founded_buf_usage->usage;
-					BufUsage& tar_buf_usage = target_let.GetUsage();
+					auto founded_buf_inlet_usage = std::ranges::find_if(sor_pass->ins_buf,
+						[&underlying_buf_handle](
+							const RsrcInlet<BufUsage>& inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+					BufUsage* p_sor_buf_usage = nullptr;
+					if (founded_buf_outlet_usage != sor_pass->outs_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_outlet_usage->usage);
+					}
+					if (founded_buf_inlet_usage != sor_pass->ins_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_inlet_usage->usage);
+					}
 
 
-					const Anni::SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
-					const Anni::WaitValue   tar_wait_val{ sync_sema->GetLastValue() + 1 };
+					BufUsage& sor_buf_usage = *p_sor_buf_usage;
+					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
 
-					Anni::SemInsertInfoSafe sor_insert_info(
+					const SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
+					const WaitValue tar_wait_val{ sync_sema->GetLastValue() + 1 };
+
+					SemInsertInfoSafe sor_insert_info(
 						sor_signal_val,
 						sor_buf_usage.sync_info.stage_mask
 					);
 
-					Anni::SemInsertInfoSafe tar_insert_info{
+					SemInsertInfoSafe tar_insert_info{
 						tar_wait_val,
 						tar_buf_usage.sync_info.stage_mask
 					};
@@ -1751,7 +1884,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 						tar_pass_queue_ptr,
 						sor_buf_usage.GetSynInfo(),
 						tar_buf_usage.GetSynInfo(),
-						target_let.GetUnderlyingRsrcItr(),
+						target_let.GetUnderlyingRsrcHandle(),
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -1764,7 +1897,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 						tar_pass_queue_ptr,
 						sor_buf_usage.GetSynInfo(),
 						tar_buf_usage.GetSynInfo(),
-						target_let.GetUnderlyingRsrcItr(),
+						target_let.GetUnderlyingRsrcHandle(),
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -1782,18 +1915,20 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 				auto& passes_at_same_levels = curlet_underlying_rsrc.level_to_passes_attached_to[level];
 
 				std::vector<Queue*> unique_queues_ordered;
-				std::transform(passes_at_same_level_partitioned.begin(), passes_at_same_level_partitioned.end(), std::back_inserter(unique_queues_ordered),
-					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)->Queue*
+				std::ranges::transform(passes_at_same_level_partitioned,
+					std::back_inserter(unique_queues_ordered),
+					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)-> Queue*
 					{
-						return  pass_to_queue_info.at(inner_pass_group.front()).first;
+						return pass_to_queue_info.at(inner_pass_group.front()).first;
 					}
 				);
 
-				auto  cur_pass_pos_in_cur_level = std::find(passes_at_same_levels.begin(), passes_at_same_levels.end(), cur_pass);
-				auto  cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
+				auto cur_pass_pos_in_cur_level = std::ranges::find(passes_at_same_levels, cur_pass);
+				auto cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
 
 				ASSERT_WITH_MSG(cur_queue_itr != unique_queues_ordered.end(), "Queue for current pass not found!");
-				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(), "Current pass is not found at the level!");
+				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(),
+					"Current pass is not found at the level!");
 
 				auto sor_pass = cur_pass;
 				auto tar_pass = cur_pass;
@@ -1814,35 +1949,54 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 					//uint64_t    sor_wait_value = index - 1;         //0
 					//uint64_t    sor_signal_value = index;           //1
 
-					Anni::Queue* sor_pass_queue_ptr = pass_to_queue_info.at(sor_pass).first;
-					Anni::Queue* tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
-
-					auto founded_buf_usage = std::ranges::find_if(sor_pass->buf_usages,
-						[&curlet_underlying_rsrc](const auto& buf_usage)
-						{
-							return (&(*buf_usage.v_rsrc) == &(curlet_underlying_rsrc));
-						});
-					assert(founded_buf_usage != sor_pass->buf_usages.end());
-
-
+					Queue* sor_pass_queue_ptr = pass_to_queue_info.at(sor_pass).first;
+					Queue* tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
 					auto& target_let = cur_let;
-					BufUsage& tar_buf_usage = target_let.GetUsage();
-					BufUsage& sor_buf_usage = founded_buf_usage->usage;
+					auto underlying_buf_handle = cur_let.GetUnderlyingRsrcHandle();
+
+					auto founded_buf_outlet_usage = std::ranges::find_if(sor_pass->outs_buf,
+						[&underlying_buf_handle](
+							const RsrcOutlet<BufUsage>& outlet_buf)
+						{
+							return outlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+
+					auto founded_buf_inlet_usage = std::ranges::find_if(sor_pass->ins_buf,
+						[&underlying_buf_handle](
+							const RsrcInlet<BufUsage>& inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_buf_handle;
+						});
+					BufUsage* p_sor_buf_usage = nullptr;
+					if (founded_buf_outlet_usage != sor_pass->outs_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_outlet_usage->usage);
+					}
+					if (founded_buf_inlet_usage != sor_pass->ins_buf.end())
+					{
+						p_sor_buf_usage = &(founded_buf_inlet_usage->usage);
+					}
+
+
+					BufUsage& sor_buf_usage = *p_sor_buf_usage;
+					BufUsage& tar_buf_usage = target_let.GetRsrcUsage();
 
 
 					//Source pass     ------------------------->       Cur pass
 					//Sync primitive
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 
-					const Anni::SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
-					const Anni::WaitValue   tar_wait_val{ sync_sema->GetLastValue() + 1 };
+					const SignalValue sor_signal_val{ sync_sema->GetLastValue() + 1 };
+					const WaitValue tar_wait_val{ sync_sema->GetLastValue() + 1 };
 
-					Anni::SemInsertInfoSafe sor_insert_info(
+					SemInsertInfoSafe sor_insert_info(
 						sor_signal_val,
 						sor_buf_usage.sync_info.stage_mask
 					);
 
-					Anni::SemInsertInfoSafe tar_insert_info{
+					SemInsertInfoSafe tar_insert_info{
 						tar_wait_val,
 						tar_buf_usage.sync_info.stage_mask
 					};
@@ -1857,7 +2011,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 							tar_pass_queue_ptr,
 							sor_buf_usage.GetSynInfo(),
 							tar_buf_usage.GetSynInfo(),
-							target_let.GetUnderlyingRsrcItr()
+							target_let.GetUnderlyingRsrcHandle()
 						);
 					}
 					//CASE 2: DIFF queue situation (need queue ownership transfer!)
@@ -1871,7 +2025,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 							tar_pass_queue_ptr,
 							sor_buf_usage.GetSynInfo(),
 							tar_buf_usage.GetSynInfo(),
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
@@ -1884,7 +2038,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 							tar_pass_queue_ptr,
 							sor_buf_usage.GetSynInfo(),
 							tar_buf_usage.GetSynInfo(),
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
@@ -1897,15 +2051,15 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 
 void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(GraphicsPassNode* const cur_pass)
 {
-
 	auto& swap_imgs_finshed_using_by_cur_pass = vec_swap_imgs_finshed_using.back().first;
 	auto cur_level = cur_pass->cur_level;
 	//处理inlet tex
 
 	for (auto& cur_let : cur_pass->ins_tex)
 	{
-		VirtualTexture& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
-		auto& curlet_usage = cur_let.GetRsrcUsage();
+		VirtualTexture& curlet_underlying_rsrc = cur_pass->GetVRsrcFromRsrcHandle(cur_let.GetUnderlyingRsrcHandle());
+		std::variant<TexUsage, AttachUsage>& curlet_usage = cur_let.GetRsrcUsage();
+
 		IRsrcUsage::RsrcOrigin curlet_origin =
 			std::visit([&](auto& variant_usage) -> IRsrcUsage::RsrcOrigin
 				{
@@ -1925,7 +2079,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 			cur_pass->InsertSyncInfoForInitalUsage(
 				source_sync,
 				curlet_sync_info,
-				cur_let.GetUnderlyingRsrcItr()
+				cur_let.GetUnderlyingRsrcHandle()
 			);
 		}
 
@@ -1941,16 +2095,17 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					const auto& tex_img = curlet_underlying_rsrc.p_rsrc->GetTextureImage();
 					auto& sem_wrapper = tex_img->GetSemUsedToTransfer();
 
-					if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
+					if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState()) //说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
 					{
 						auto source_sync = curlet_underlying_rsrc.p_rsrc->GetSynInfoOnLoad();
 
-						SemInsertInfoSafe sem_insert_info(Anni::WaitValue{ sem_wrapper->GetLastValue() }, curlet_sync_info.stage_mask);
+						SemInsertInfoSafe sem_insert_info(WaitValue{ sem_wrapper->GetLastValue() },
+							curlet_sync_info.stage_mask);
 
 						cur_pass->InsertSyncInfoForInitalLoad(
 							source_sync,
 							curlet_sync_info,
-							cur_let.GetUnderlyingRsrcItr(),
+							cur_let.GetUnderlyingRsrcHandle(),
 							sem_wrapper,
 							sem_insert_info
 						);
@@ -1959,30 +2114,43 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 						{
 							{
 								//maybe some previous frames is using the current image , so wait
-								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->swap_img_rdy_4_rendering_helper_sem;
-								const auto wait_value = Anni::WaitValue{ rdy_4_ren_helper_sem->GetLastValue() };   //
-								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(), Anni::SemInsertInfoSafe(wait_value, curlet_sync_info.stage_mask));
+								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->
+									swap_img_rdy_4_rendering_helper_sem;
+								const auto wait_value = WaitValue{ rdy_4_ren_helper_sem->GetLastValue() }; //
+								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(),
+									SemInsertInfoSafe(
+										wait_value, curlet_sync_info.stage_mask));
 								//sync_info.AddSemToWaitOn(rdy_4_ren_helper_sem, wait_value);
 							}
 							{
 								//present engine is shitting on the image, wait for it done using it.
-								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->present_finished_helper_sem;
-								const auto wait_value = Anni::WaitValue{ present_engine_finshed_presenting->GetLastValue() };   //
-								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(), Anni::SemInsertInfoSafe{ wait_value,curlet_sync_info.stage_mask });
+								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->
+									present_finished_helper_sem;
+								const auto wait_value = WaitValue{
+									present_engine_finshed_presenting->GetLastValue()
+								}; //
+								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(),
+									SemInsertInfoSafe{
+										wait_value, curlet_sync_info.stage_mask
+									});
 							}
 							{
-								if (PassType::Present != cur_pass->GetRenderpassType())
+								if (Present != cur_pass->GetRenderpassType())
 								{
-									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(std::make_shared<BinarySemWrapper>(device_manager));
-									constexpr auto signal_value = Anni::SignalValue{ 1 };   //
-									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(), Anni::SemInsertInfoSafe{ signal_value,curlet_sync_info.stage_mask });
+									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(
+										std::make_shared<BinarySemWrapper>(device_manager));
+									constexpr auto signal_value = SignalValue{ 1 }; //
+									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(),
+										SemInsertInfoSafe{
+											signal_value, curlet_sync_info.stage_mask
+										});
 								}
 							}
 						}
 					}
-					else          //已经加载过了，
+					else //已经加载过了，
 					{
-						auto source_sync = Anni::ImgSyncInfo{
+						auto source_sync = ImgSyncInfo{
 							.access_mask = vk::AccessFlagBits2::eNone,
 							.stage_mask = vk::PipelineStageFlagBits2::eTopOfPipe,
 							.layout_inpass = vk::ImageLayout::eUndefined,
@@ -1991,33 +2159,45 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 						cur_pass->InsertSyncInfoForInitalUsage(
 							source_sync,
 							curlet_sync_info,
-							cur_let.GetUnderlyingRsrcItr()
+							cur_let.GetUnderlyingRsrcHandle()
 						);
 
 						if (curlet_underlying_rsrc.p_rsrc->IsSwapTexture())
 						{
 							{
 								//maybe some previous frames is using the current image , so wait
-								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->swap_img_rdy_4_rendering_helper_sem;
-								const auto wait_value = Anni::WaitValue{ rdy_4_ren_helper_sem->GetLastValue() };   //
-								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(), Anni::SemInsertInfoSafe(wait_value, curlet_sync_info.stage_mask));
+								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->
+									swap_img_rdy_4_rendering_helper_sem;
+								const auto wait_value = WaitValue{ rdy_4_ren_helper_sem->GetLastValue() }; //
+								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(),
+									SemInsertInfoSafe(
+										wait_value, curlet_sync_info.stage_mask));
 								//sync_info.AddSemToWaitOn(rdy_4_ren_helper_sem, wait_value);
 							}
 							{
 								//present engine is shitting on the image, wait for it done using it.
-								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->present_finished_helper_sem;
-								const auto wait_value = Anni::WaitValue{ present_engine_finshed_presenting->GetLastValue() };   //
-								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(), Anni::SemInsertInfoSafe{ wait_value,curlet_sync_info.stage_mask });
+								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->
+									present_finished_helper_sem;
+								const auto wait_value = WaitValue{
+									present_engine_finshed_presenting->GetLastValue()
+								}; //
+								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(),
+									SemInsertInfoSafe{
+										wait_value, curlet_sync_info.stage_mask
+									});
 							}
 							{
-								if (PassType::Present != cur_pass->GetRenderpassType())
+								if (Present != cur_pass->GetRenderpassType())
 								{
-									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(std::make_shared<BinarySemWrapper>(device_manager));
-									constexpr auto signal_value = Anni::SignalValue{ 1 };   //
-									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(), Anni::SemInsertInfoSafe{ signal_value,curlet_sync_info.stage_mask });
+									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(
+										std::make_shared<BinarySemWrapper>(device_manager));
+									constexpr auto signal_value = SignalValue{ 1 }; //
+									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(),
+										SemInsertInfoSafe{
+											signal_value, curlet_sync_info.stage_mask
+										});
 								}
 							}
-
 						}
 					}
 				}
@@ -2027,11 +2207,12 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					{
 						const auto& tex_img = p_rsrc->GetTextureImage();
 						auto& sem_wrapper = tex_img->GetSemUsedToTransfer();
-						if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
+						if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())
+							//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
 						{
 							SemInsertInfoSafe sem_insert_info
 							{
-								Anni::WaitValue{ sem_wrapper->GetLastValue() },
+								WaitValue{sem_wrapper->GetLastValue()},
 								curlet_sync_info.stage_mask
 							};
 
@@ -2039,14 +2220,14 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 							cur_pass->InsertSyncInfoForInitalLoad(
 								source_sync,
 								curlet_sync_info,
-								cur_let.GetUnderlyingRsrcItr(),
+								cur_let.GetUnderlyingRsrcHandle(),
 								sem_wrapper,
 								sem_insert_info
 							);
 						}
 						else //已经加载过了，
 						{
-							auto source_sync = Anni::ImgSyncInfo{
+							auto source_sync = ImgSyncInfo{
 								.access_mask = vk::AccessFlagBits2::eNone,
 								.stage_mask = vk::PipelineStageFlagBits2::eTopOfPipe,
 								.layout_inpass = vk::ImageLayout::eUndefined,
@@ -2055,7 +2236,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 							cur_pass->InsertSyncInfoForInitalUsage(
 								source_sync,
 								curlet_sync_info,
-								cur_let.GetUnderlyingRsrcItr()
+								cur_let.GetUnderlyingRsrcHandle()
 							);
 						}
 					}
@@ -2064,7 +2245,8 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 		}
 
 		//拿到所有使用该资源的pass，对于之前的每一个layer，进行同步原语插入。比如当前layer是5，我们首先需要先处理layer=0,1,2,3,4
-		for (auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.level_to_passes_attached_to_partitioned)
+		for (auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.
+			level_to_passes_attached_to_partitioned)
 		{
 			//如果前面的layer i 出现了对某一资源同时access的情况，
 			//layer i 可能含有多个执行在不同queue上的passes，不过他们是按照分块排序的，这种情况下，我们只需要在最后一块中的所有pass和当前pass之间插入同步即可
@@ -2082,29 +2264,52 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					auto tar_pass = cur_pass;
 					auto sor_pass = last_pass_executing_on_last_queue_group;
 
-					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
-						[&curlet_underlying_rsrc](const auto& tex_usage)
+					auto underlying_tex_handle = cur_let.GetUnderlyingRsrcHandle();
+					auto founded_tex_outlet_usage = std::ranges::find_if(sor_pass->outs_tex,
+						[&underlying_tex_handle](
+							const RsrcOutlet<std::variant<
+							TexUsage, AttachUsage>>&outlet_buf)
 						{
-							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_tex_handle;
 						});
-					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
-					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
+					auto founded_tex_inlet_usage = std::ranges::find_if(sor_pass->ins_tex,
+						[&underlying_tex_handle](
+							const RsrcInlet<std::variant<
+							TexUsage, AttachUsage>>&inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_tex_handle;
+						});
+					std::variant<TexUsage, AttachUsage>* p_sor_buf_usage = nullptr;
+					if (founded_tex_outlet_usage != sor_pass->outs_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_outlet_usage->usage);
+					}
+					if (founded_tex_inlet_usage != sor_pass->ins_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_inlet_usage->usage);
+					}
+
+
+					std::variant<TexUsage, AttachUsage>& sor_tex_usage = *p_sor_buf_usage;
 					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
 
-					Anni::ImgSyncInfo sor_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+
+					ImgSyncInfo sor_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, sor_tex_usage);
 
-					Anni::ImgSyncInfo tar_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					ImgSyncInfo tar_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, tar_tex_usage);
 
-					auto underlying_tex = target_let.GetUnderlyingRsrcItr();
+					auto underlying_tex = target_let.GetUnderlyingRsrcHandle();
 
 					//几个pass执行的Queue相同，直接用same queue sync info
 					//because we use barrier, so only one barrier is needed.
@@ -2128,43 +2333,64 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 
 
 					auto& target_let = cur_let;
-					const auto underlying_tex = target_let.GetUnderlyingRsrcItr();
+					auto underlying_tex_handle = target_let.GetUnderlyingRsrcHandle();
 
-					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
-						[&curlet_underlying_rsrc](const auto& tex_usage)
+					auto founded_tex_outlet_usage = std::ranges::find_if(sor_pass->outs_tex,
+						[&underlying_tex_handle](
+							const RsrcOutlet<std::variant<
+							TexUsage, AttachUsage>>&outlet_buf)
 						{
-							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_tex_handle;
 						});
 
-					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
+					auto founded_tex_inlet_usage = std::ranges::find_if(sor_pass->ins_tex,
+						[&underlying_tex_handle](
+							const RsrcInlet<std::variant<
+							TexUsage, AttachUsage>>&inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_tex_handle;
+						});
+					std::variant<TexUsage, AttachUsage>* p_sor_buf_usage = nullptr;
+					if (founded_tex_outlet_usage != sor_pass->outs_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_outlet_usage->usage);
+					}
+					if (founded_tex_inlet_usage != sor_pass->ins_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_inlet_usage->usage);
+					}
+
+					std::variant<TexUsage, AttachUsage>& sor_tex_usage = *p_sor_buf_usage;
 					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
 
-					Anni::ImgSyncInfo sor_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+
+					ImgSyncInfo sor_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, sor_tex_usage);
 
-					Anni::ImgSyncInfo tar_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					ImgSyncInfo tar_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, tar_tex_usage);
 
 					//Source pass     ------------------------->       Cur pass
 					//Sync primitive
-					assert(founded_tex_usage != sor_pass->tex_usages.end());
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 					const uint64_t sor_signal_val = sync_sema->GetLastValue() + 1;
 					const uint64_t tar_wait_val = sync_sema->GetLastValue() + 1;
 
 
-					Anni::SemInsertInfoSafe sor_insert_info{
-						Anni::SignalValue(sync_sema->GetLastValue() + 1),
+					SemInsertInfoSafe sor_insert_info{
+						SignalValue{sync_sema->GetLastValue() + 1},
 						sor_tex_sync_ino.stage_mask
 					};
-					Anni::SemInsertInfoSafe tar_insert_info{
-						Anni::WaitValue(tar_wait_val),
+					SemInsertInfoSafe tar_insert_info{
+						WaitValue(tar_wait_val),
 						tar_tex_sync_ino.stage_mask
 					};
 
@@ -2176,7 +2402,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 						tar_pass_queue_ptr,
 						sor_tex_sync_ino,
 						tar_tex_sync_ino,
-						underlying_tex,
+						underlying_tex_handle,
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -2189,7 +2415,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 						tar_pass_queue_ptr,
 						sor_tex_sync_ino,
 						tar_tex_sync_ino,
-						underlying_tex,
+						underlying_tex_handle,
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -2208,19 +2434,21 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 
 
 				std::vector<Queue*> unique_queues_ordered;
-				std::transform(passes_at_same_level_partitioned.begin(), passes_at_same_level_partitioned.end(), std::back_inserter(unique_queues_ordered),
-					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)->Queue*
+				std::ranges::transform(passes_at_same_level_partitioned,
+					std::back_inserter(unique_queues_ordered),
+					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)-> Queue*
 					{
-						return  pass_to_queue_info.at(inner_pass_group.front()).first;
+						return pass_to_queue_info.at(inner_pass_group.front()).first;
 					}
 				);
 
-				auto  cur_pass_pos_in_cur_level = std::find(passes_at_same_levels.begin(), passes_at_same_levels.end(), cur_pass);
-				auto  cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
+				auto cur_pass_pos_in_cur_level = std::ranges::find(passes_at_same_levels, cur_pass);
+				auto cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
 
 
 				ASSERT_WITH_MSG(cur_queue_itr != unique_queues_ordered.end(), "Queue for current pass not found!");
-				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(), "Current pass is not found at the level!");
+				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(),
+					"Current pass is not found at the level!");
 
 				auto sor_pass = cur_pass;
 				auto tar_pass = cur_pass;
@@ -2244,25 +2472,46 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					auto sor_pass_queue_ptr = pass_to_queue_info.at(sor_pass).first;
 					auto tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
 					auto& target_let = cur_let;
+					auto underlying_tex_handle = cur_let.GetUnderlyingRsrcHandle();
 
-					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
-						[&curlet_underlying_rsrc](const auto& tex_usage)
+					auto founded_tex_outlet_usage = std::ranges::find_if(sor_pass->outs_tex,
+						[&underlying_tex_handle](
+							const RsrcOutlet<std::variant<
+							TexUsage, AttachUsage>>&outlet_buf)
 						{
-							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_tex_handle;
 						});
-					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
-					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
+					auto founded_tex_inlet_usage = std::ranges::find_if(sor_pass->ins_tex,
+						[&underlying_tex_handle](
+							const RsrcInlet<std::variant<
+							TexUsage, AttachUsage>>&inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_tex_handle;
+						});
+					std::variant<TexUsage, AttachUsage>* p_sor_buf_usage = nullptr;
+					if (founded_tex_outlet_usage != sor_pass->outs_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_outlet_usage->usage);
+					}
+					if (founded_tex_inlet_usage != sor_pass->ins_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_inlet_usage->usage);
+					}
+
+					std::variant<TexUsage, AttachUsage>& sor_tex_usage = *p_sor_buf_usage;
 					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
 
-					Anni::ImgSyncInfo sor_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					ImgSyncInfo sor_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, sor_tex_usage);
 
-					Anni::ImgSyncInfo tar_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					ImgSyncInfo tar_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, tar_tex_usage);
@@ -2271,13 +2520,13 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					//Sync primitive
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 
-					Anni::SemInsertInfoSafe sor_insert_info{
-						Anni::SignalValue(sync_sema->GetLastValue() + 1),
+					SemInsertInfoSafe sor_insert_info{
+						SignalValue(sync_sema->GetLastValue() + 1),
 						sor_tex_sync_ino.stage_mask
 					};
 
-					Anni::SemInsertInfoSafe tar_insert_info{
-						Anni::WaitValue(sync_sema->GetLastValue() + 1),
+					SemInsertInfoSafe tar_insert_info{
+						WaitValue(sync_sema->GetLastValue() + 1),
 						tar_tex_sync_ino.stage_mask
 					};
 
@@ -2292,7 +2541,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 							tar_pass_queue_ptr,
 							sor_tex_sync_ino,
 							tar_tex_sync_ino,
-							target_let.GetUnderlyingRsrcItr()
+							target_let.GetUnderlyingRsrcHandle()
 						);
 					}
 					//CASE 2: DIFF queue situation (need queue ownership transfer!)
@@ -2306,7 +2555,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 							tar_pass_queue_ptr,
 							sor_tex_sync_ino,
 							tar_tex_sync_ino,
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
@@ -2319,12 +2568,11 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 							tar_pass_queue_ptr,
 							sor_tex_sync_ino,
 							tar_tex_sync_ino,
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
 					}
-
 				}
 			}
 		}
@@ -2339,16 +2587,17 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 	//处理inlet tex
 	for (auto& cur_let : cur_pass->outs_tex)
 	{
-		VirtualTexture& curlet_underlying_rsrc = *cur_let.GetUnderlyingRsrcItr();
-		auto& curlet_usage = cur_let.GetUsage();
+		VirtualTexture& curlet_underlying_rsrc = cur_pass->GetVRsrcFromRsrcHandle(cur_let.GetUnderlyingRsrcHandle());
+		std::variant<TexUsage, AttachUsage>& curlet_usage = cur_let.GetRsrcUsage();
+
 		IRsrcUsage::RsrcOrigin curlet_origin =
 			std::visit([](auto& variant_usage) -> IRsrcUsage::RsrcOrigin
 				{
 					return variant_usage.origin;
 				}, curlet_usage);
 
-		Anni::ImgSyncInfo curlet_sync_info =
-			std::visit([](auto& variant_usage) -> Anni::ImgSyncInfo
+		ImgSyncInfo curlet_sync_info =
+			std::visit([](auto& variant_usage) -> ImgSyncInfo
 				{
 					return variant_usage.GetSynInfo();
 				}, curlet_usage);
@@ -2368,7 +2617,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 			cur_pass->InsertSyncInfoForInitalUsage(
 				source_sync,
 				curlet_sync_info,
-				cur_let.GetUnderlyingRsrcItr()
+				cur_let.GetUnderlyingRsrcHandle()
 			);
 		}
 
@@ -2382,19 +2631,19 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					const auto& tex_img = curlet_underlying_rsrc.p_rsrc->GetTextureImage();
 					auto& sem_wrapper = tex_img->GetSemUsedToTransfer();
 
-					if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
+					if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState()) //说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
 					{
 						auto source_sync = curlet_underlying_rsrc.p_rsrc->GetSynInfoOnLoad();
 						SemInsertInfoSafe sem_insert_info
 						{
-							Anni::WaitValue(sem_wrapper->GetLastValue()),
+							WaitValue(sem_wrapper->GetLastValue()),
 							curlet_sync_info.stage_mask
 						};
 
 						cur_pass->InsertSyncInfoForInitalLoad(
 							source_sync,
 							curlet_sync_info,
-							cur_let.GetUnderlyingRsrcItr(),
+							cur_let.GetUnderlyingRsrcHandle(),
 							sem_wrapper,
 							sem_insert_info
 						);
@@ -2404,31 +2653,43 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 						{
 							{
 								//maybe some previous frames is using the current image , so wait
-								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->swap_img_rdy_4_rendering_helper_sem;
-								const auto wait_value = Anni::WaitValue{ rdy_4_ren_helper_sem->GetLastValue() };   //
-								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(), Anni::SemInsertInfoSafe(wait_value, curlet_sync_info.stage_mask));
+								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->
+									swap_img_rdy_4_rendering_helper_sem;
+								const auto wait_value = WaitValue{ rdy_4_ren_helper_sem->GetLastValue() }; //
+								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(),
+									SemInsertInfoSafe(
+										wait_value, curlet_sync_info.stage_mask));
 								//sync_info.AddSemToWaitOn(rdy_4_ren_helper_sem, wait_value);
 							}
 							{
 								//present engine is shitting on the image, wait for it done using it.
-								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->present_finished_helper_sem;
-								const auto wait_value = Anni::WaitValue{ present_engine_finshed_presenting->GetLastValue() };   //
-								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(), Anni::SemInsertInfoSafe{ wait_value,curlet_sync_info.stage_mask });
+								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->
+									present_finished_helper_sem;
+								const auto wait_value = WaitValue{
+									present_engine_finshed_presenting->GetLastValue()
+								}; //
+								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(),
+									SemInsertInfoSafe{
+										wait_value, curlet_sync_info.stage_mask
+									});
 							}
 							{
-								if (PassType::Present != cur_pass->GetRenderpassType())
+								if (Present != cur_pass->GetRenderpassType())
 								{
-									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(std::make_shared<BinarySemWrapper>(device_manager));
-									constexpr auto signal_value = Anni::SignalValue{ 1 };   //
-									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(), Anni::SemInsertInfoSafe{ signal_value,curlet_sync_info.stage_mask });
+									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(
+										std::make_shared<BinarySemWrapper>(device_manager));
+									constexpr auto signal_value = SignalValue{ 1 }; //
+									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(),
+										SemInsertInfoSafe{
+											signal_value, curlet_sync_info.stage_mask
+										});
 								}
 							}
 						}
-
 					}
-					else          //已经加载过了，
+					else //已经加载过了，
 					{
-						auto source_sync = Anni::ImgSyncInfo{
+						auto source_sync = ImgSyncInfo{
 							.access_mask = vk::AccessFlagBits2::eNone,
 							.stage_mask = vk::PipelineStageFlagBits2::eTopOfPipe,
 							.layout_inpass = vk::ImageLayout::eUndefined,
@@ -2437,7 +2698,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 						cur_pass->InsertSyncInfoForInitalUsage(
 							source_sync,
 							curlet_sync_info,
-							cur_let.GetUnderlyingRsrcItr()
+							cur_let.GetUnderlyingRsrcHandle()
 						);
 
 
@@ -2445,27 +2706,39 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 						{
 							{
 								//maybe some previous frames is using the current image , so wait
-								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->swap_img_rdy_4_rendering_helper_sem;
-								const auto wait_value = Anni::WaitValue{ rdy_4_ren_helper_sem->GetLastValue() };   //
-								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(), Anni::SemInsertInfoSafe(wait_value, curlet_sync_info.stage_mask));
+								auto& rdy_4_ren_helper_sem = curlet_underlying_rsrc.p_rsrc->
+									swap_img_rdy_4_rendering_helper_sem;
+								const auto wait_value = WaitValue{ rdy_4_ren_helper_sem->GetLastValue() }; //
+								cur_pass->AddTimelineSyncSem(rdy_4_ren_helper_sem->GetRaw(),
+									SemInsertInfoSafe(
+										wait_value, curlet_sync_info.stage_mask));
 								//sync_info.AddSemToWaitOn(rdy_4_ren_helper_sem, wait_value);
 							}
 							{
 								//present engine is shitting on the image, wait for it done using it.
-								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->present_finished_helper_sem;
-								const auto wait_value = Anni::WaitValue{ present_engine_finshed_presenting->GetLastValue() };   //
-								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(), Anni::SemInsertInfoSafe{ wait_value,curlet_sync_info.stage_mask });
+								auto& present_engine_finshed_presenting = curlet_underlying_rsrc.p_rsrc->
+									present_finished_helper_sem;
+								const auto wait_value = WaitValue{
+									present_engine_finshed_presenting->GetLastValue()
+								}; //
+								cur_pass->AddBinarySemSync(present_engine_finshed_presenting->GetRaw(),
+									SemInsertInfoSafe{
+										wait_value, curlet_sync_info.stage_mask
+									});
 							}
 							{
-								if (PassType::Present != cur_pass->GetRenderpassType())
+								if (Present != cur_pass->GetRenderpassType())
 								{
-									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(std::make_shared<BinarySemWrapper>(device_manager));
-									constexpr auto signal_value = Anni::SignalValue{ 1 };   //
-									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(), Anni::SemInsertInfoSafe{ signal_value,curlet_sync_info.stage_mask });
+									auto& img_finished_sem = swap_imgs_finshed_using_by_cur_pass.emplace_back(
+										std::make_shared<BinarySemWrapper>(device_manager));
+									constexpr auto signal_value = SignalValue{ 1 }; //
+									cur_pass->AddBinarySemSync(img_finished_sem->GetRaw(),
+										SemInsertInfoSafe{
+											signal_value, curlet_sync_info.stage_mask
+										});
 								}
 							}
 						}
-
 					}
 				}
 				else
@@ -2474,11 +2747,12 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					{
 						const auto& tex_img = p_rsrc->GetTextureImage();
 						auto& sem_wrapper = tex_img->GetSemUsedToTransfer();
-						if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
+						if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())
+							//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
 						{
 							SemInsertInfoSafe sem_insert_info
 							{
-								Anni::WaitValue(sem_wrapper->GetLastValue()),
+								WaitValue(sem_wrapper->GetLastValue()),
 								curlet_sync_info.stage_mask
 							};
 
@@ -2486,14 +2760,14 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 							cur_pass->InsertSyncInfoForInitalLoad(
 								source_sync,
 								curlet_sync_info,
-								cur_let.GetUnderlyingRsrcItr(),
+								cur_let.GetUnderlyingRsrcHandle(),
 								sem_wrapper,
 								sem_insert_info
 							);
 						}
 						else //已经加载过了，
 						{
-							auto source_sync = Anni::ImgSyncInfo{
+							auto source_sync = ImgSyncInfo{
 								.access_mask = vk::AccessFlagBits2::eNone,
 								.stage_mask = vk::PipelineStageFlagBits2::eTopOfPipe,
 								.layout_inpass = vk::ImageLayout::eUndefined,
@@ -2502,7 +2776,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 							cur_pass->InsertSyncInfoForInitalUsage(
 								source_sync,
 								curlet_sync_info,
-								cur_let.GetUnderlyingRsrcItr()
+								cur_let.GetUnderlyingRsrcHandle()
 							);
 						}
 					}
@@ -2512,7 +2786,8 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 
 
 		//拿到所有使用该资源的pass，对于之前的每一个layer，进行同步原语插入。比如当前layer是5，我们首先需要先处理layer=0,1,2,3,4
-		for (auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.level_to_passes_attached_to_partitioned)
+		for (auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.
+			level_to_passes_attached_to_partitioned)
 		{
 			//如果前面的layer i 出现了对某一资源同时access的情况，
 			//layer i 可能含有多个执行在不同queue上的passes，不过他们是按照分块排序的，这种情况下，我们只需要在最后一块中的所有pass和当前pass之间插入同步即可
@@ -2530,29 +2805,52 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					auto tar_pass = cur_pass;
 					auto sor_pass = last_pass_executing_on_last_queue_group;
 
-					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
-						[&curlet_underlying_rsrc](const auto& tex_usage)
+
+					auto underlying_tex_handle = target_let.GetUnderlyingRsrcHandle();
+					auto founded_tex_outlet_usage = std::ranges::find_if(sor_pass->outs_tex,
+						[&underlying_tex_handle](
+							const RsrcOutlet<std::variant<
+							TexUsage, AttachUsage>>&outlet_buf)
 						{
-							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_tex_handle;
 						});
-					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
-					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
-					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetUsage();
+					auto founded_tex_inlet_usage = std::ranges::find_if(sor_pass->ins_tex,
+						[&underlying_tex_handle](
+							const RsrcInlet<std::variant<
+							TexUsage, AttachUsage>>&inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_tex_handle;
+						});
+					std::variant<TexUsage, AttachUsage>* p_sor_buf_usage = nullptr;
+					if (founded_tex_outlet_usage != sor_pass->outs_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_outlet_usage->usage);
+					}
+					if (founded_tex_inlet_usage != sor_pass->ins_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_inlet_usage->usage);
+					}
 
-					Anni::ImgSyncInfo sor_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+
+					std::variant<TexUsage, AttachUsage>& sor_tex_usage = *p_sor_buf_usage;
+					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
+
+					ImgSyncInfo sor_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, sor_tex_usage);
 
-					Anni::ImgSyncInfo tar_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					ImgSyncInfo tar_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, tar_tex_usage);
 
-					auto underlying_tex = target_let.GetUnderlyingRsrcItr();
+					auto underlying_tex = target_let.GetUnderlyingRsrcHandle();
 
 					//几个pass执行的Queue相同，直接用same queue sync info
 					//because we use barrier, so only one barrier is needed.
@@ -2574,42 +2872,62 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					const auto sor_pass_queue_ptr = pass_to_queue_info.at(sor_pass).first;
 					const auto tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
 
-
 					auto& target_let = cur_let;
-					const auto underlying_tex = target_let.GetUnderlyingRsrcItr();
 
-					auto founded_tex_usage = std::ranges::find_if(sor_pass->tex_usages,
-						[&curlet_underlying_rsrc](const auto& tex_usage)
+					auto underlying_tex_handle = target_let.GetUnderlyingRsrcHandle();
+					auto founded_tex_outlet_usage = std::ranges::find_if(sor_pass->outs_tex,
+						[&underlying_tex_handle](
+							const RsrcOutlet<std::variant<
+							TexUsage, AttachUsage>>&outlet_buf)
 						{
-							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_tex_handle;
 						});
 
-					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
-					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetUsage();
+					auto founded_tex_inlet_usage = std::ranges::find_if(sor_pass->ins_tex,
+						[&underlying_tex_handle](
+							const RsrcInlet<std::variant<
+							TexUsage, AttachUsage>>&inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_tex_handle;
+						});
+					std::variant<TexUsage, AttachUsage>* p_sor_buf_usage = nullptr;
+					if (founded_tex_outlet_usage != sor_pass->outs_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_outlet_usage->usage);
+					}
+					if (founded_tex_inlet_usage != sor_pass->ins_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_inlet_usage->usage);
+					}
 
-					Anni::ImgSyncInfo sor_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+
+					std::variant<TexUsage, AttachUsage>& sor_tex_usage = *p_sor_buf_usage;
+					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
+
+					ImgSyncInfo sor_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, sor_tex_usage);
 
-					Anni::ImgSyncInfo tar_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					ImgSyncInfo tar_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, tar_tex_usage);
 
 					//Source pass     ------------------------->       Cur pass
 					//Sync primitive
-					assert(founded_tex_usage != sor_pass->tex_usages.end());
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 
-					Anni::SemInsertInfoSafe sor_insert_info{
-						Anni::SignalValue(sync_sema->GetLastValue() + 1),
+					SemInsertInfoSafe sor_insert_info{
+						SignalValue(sync_sema->GetLastValue() + 1),
 						sor_tex_sync_ino.stage_mask
 					};
-					Anni::SemInsertInfoSafe tar_insert_info{
-						Anni::WaitValue(sync_sema->GetLastValue() + 1),
+					SemInsertInfoSafe tar_insert_info{
+						WaitValue(sync_sema->GetLastValue() + 1),
 						tar_tex_sync_ino.stage_mask
 					};
 
@@ -2621,7 +2939,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 						tar_pass_queue_ptr,
 						sor_tex_sync_ino,
 						tar_tex_sync_ino,
-						underlying_tex,
+						underlying_tex_handle,
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -2634,7 +2952,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 						tar_pass_queue_ptr,
 						sor_tex_sync_ino,
 						tar_tex_sync_ino,
-						underlying_tex,
+						underlying_tex_handle,
 						sor_insert_info,
 						tar_insert_info
 					);
@@ -2653,19 +2971,22 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 
 
 				std::vector<Queue*> unique_queues_ordered;
-				std::transform(passes_at_same_level_partitioned.begin(), passes_at_same_level_partitioned.end(), std::back_inserter(unique_queues_ordered),
-					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)->Queue*
+				std::transform(passes_at_same_level_partitioned.begin(), passes_at_same_level_partitioned.end(),
+					std::back_inserter(unique_queues_ordered),
+					[this](const std::vector<GraphicsPassNode*>& inner_pass_group)-> Queue*
 					{
-						return  pass_to_queue_info.at(inner_pass_group.front()).first;
+						return pass_to_queue_info.at(inner_pass_group.front()).first;
 					}
 				);
 
-				auto  cur_pass_pos_in_cur_level = std::find(passes_at_same_levels.begin(), passes_at_same_levels.end(), cur_pass);
-				auto  cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
+				auto cur_pass_pos_in_cur_level = std::find(passes_at_same_levels.begin(), passes_at_same_levels.end(),
+					cur_pass);
+				auto cur_queue_itr = std::ranges::find(unique_queues_ordered, pass_to_queue_info.at(cur_pass).first);
 
 
 				ASSERT_WITH_MSG(cur_queue_itr != unique_queues_ordered.end(), "Queue for current pass not found!");
-				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(), "Current pass is not found at the level!");
+				ASSERT_WITH_MSG(cur_pass_pos_in_cur_level != passes_at_same_levels.end(),
+					"Current pass is not found at the level!");
 
 				auto sor_pass = cur_pass;
 				auto tar_pass = cur_pass;
@@ -2690,25 +3011,45 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					auto tar_pass_queue_ptr = pass_to_queue_info.at(tar_pass).first;
 					auto& target_let = cur_let;
 
-					auto founded_tex_usage = std::ranges::find_if(
-						sor_pass->tex_usages,
-						[&curlet_underlying_rsrc](const auto& tex_usage)
+					auto underlying_tex_handle = target_let.GetUnderlyingRsrcHandle();
+					auto founded_tex_outlet_usage = std::ranges::find_if(sor_pass->outs_tex,
+						[&underlying_tex_handle](
+							const RsrcOutlet<std::variant<
+							TexUsage, AttachUsage>>&outlet_buf)
 						{
-							return (&(*tex_usage.v_rsrc) == &(curlet_underlying_rsrc));
+							return outlet_buf.rsrc_handle ==
+								underlying_tex_handle;
 						});
-					assert(founded_tex_usage != sor_pass->tex_usages.end());
 
-					std::variant<TexUsage, AttachUsage>& sor_tex_usage = founded_tex_usage->usage;
-					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetUsage();
+					auto founded_tex_inlet_usage = std::ranges::find_if(sor_pass->ins_tex,
+						[&underlying_tex_handle](
+							const RsrcInlet<std::variant<
+							TexUsage, AttachUsage>>&inlet_buf)
+						{
+							return inlet_buf.rsrc_handle ==
+								underlying_tex_handle;
+						});
+					std::variant<TexUsage, AttachUsage>* p_sor_buf_usage = nullptr;
+					if (founded_tex_outlet_usage != sor_pass->outs_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_outlet_usage->usage);
+					}
+					if (founded_tex_inlet_usage != sor_pass->ins_tex.end())
+					{
+						p_sor_buf_usage = &(founded_tex_inlet_usage->usage);
+					}
 
-					Anni::ImgSyncInfo sor_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					std::variant<TexUsage, AttachUsage>& sor_tex_usage = *p_sor_buf_usage;
+					std::variant<TexUsage, AttachUsage>& tar_tex_usage = target_let.GetRsrcUsage();
+
+					ImgSyncInfo sor_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, sor_tex_usage);
 
-					Anni::ImgSyncInfo tar_tex_sync_ino =
-						std::visit([&](auto& variant_usage) -> Anni::ImgSyncInfo
+					ImgSyncInfo tar_tex_sync_ino =
+						std::visit([&](auto& variant_usage) -> ImgSyncInfo
 							{
 								return variant_usage.GetSynInfo();
 							}, tar_tex_usage);
@@ -2717,12 +3058,14 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 					//Sync primitive
 					auto& sync_sema = diff_queue_sync_sema.at(PassNodePair{ sor_pass, tar_pass });
 
-					Anni::SemInsertInfoSafe sor_insert_info{
-						Anni::SignalValue(sync_sema->GetLastValue() + 1),
+					SemInsertInfoSafe sor_insert_info{
+						SignalValue(sync_sema->GetLastValue() + 1),
 						sor_tex_sync_ino.stage_mask
 					};
-					Anni::SemInsertInfoSafe tar_insert_info{
-						Anni::WaitValue(sync_sema->GetLastValue() + 1),
+					SemInsertInfoSafe tar_insert_info{
+						WaitValue{
+							sync_sema->GetLastValue() + 1
+						},
 						tar_tex_sync_ino.stage_mask
 					};
 
@@ -2736,7 +3079,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 							tar_pass_queue_ptr,
 							sor_tex_sync_ino,
 							tar_tex_sync_ino,
-							target_let.GetUnderlyingRsrcItr()
+							target_let.GetUnderlyingRsrcHandle()
 						);
 					}
 					//CASE 2: DIFF queue situation (need queue ownership transfer!)
@@ -2750,7 +3093,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 							tar_pass_queue_ptr,
 							sor_tex_sync_ino,
 							tar_tex_sync_ino,
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
@@ -2763,17 +3106,13 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 							tar_pass_queue_ptr,
 							sor_tex_sync_ino,
 							tar_tex_sync_ino,
-							target_let.GetUnderlyingRsrcItr(),
+							target_let.GetUnderlyingRsrcHandle(),
 							sor_insert_info,
 							tar_insert_info
 						);
 					}
-
 				}
 			}
 		}
 	}
 }
-
-
-

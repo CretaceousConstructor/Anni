@@ -21,7 +21,7 @@ namespace Anni
 		vk::DeviceAddress vertexBuffer;
 		static constexpr vk::ShaderStageFlags UseStages{ vk::ShaderStageFlagBits::eVertex };
 	};
-
+ 
 
 	//struct MaterialPipeline
 	//{

@@ -5,7 +5,10 @@ namespace Anni::Renderer
 	void
 	RealtimeRenderer::CreateGlobalModels()
 	{
-		const std::string sponza_path = "Asset/Models/Sponza/glTF/Sponza.gltf";
+		//const std::string sponza_path = "D:/CS/Anni/Assets/Models/Sponza/glTF/Sponza.gltf";
+		const std::string sponza_path = "./Assets/Models/Sponza/glTF/Sponza.gltf";
+
+
 		test_model_sponza = gltf_model_fac.LoadGLTF(sponza_path);
 
 		// const std::string scifi_helmet_path =
@@ -350,8 +353,8 @@ namespace Anni::Renderer
 			camera->ProcessKeyboard(FirstPersonCamera::Camera_Movement::ZoomOut, dt);
 		}
 
-		camera->ProcessMouseMovement(mouse->GetYawDiff(), mouse->GetPitchDiff());
-		camera->ProcessMouseScroll(mouse->GetMouseScroll());
+		//camera->ProcessMouseMovement(mouse->GetYawDiff(), mouse->GetPitchDiff());
+		//camera->ProcessMouseScroll(mouse->GetMouseScroll());
 	}
 
 	// RealtimeRenderer::RealtimeRenderer(GraphicsComponent& gfx_)
@@ -418,7 +421,7 @@ namespace Anni::Renderer
 	{
 		const auto swap_img_CI = CI::GetSwapchainImgCI();
 		const auto img_view_CI = CI::PopulateSwapchainImgViewCI(swapchain_manager);
-		for (const auto& [index, frame_data] : (frame_datas | std::views::enumerate))
+		for (const auto [index, frame_data] : (frame_datas | std::views::enumerate))
 		{
 			frame_data.swapchain_attachment = tex_fac.ProduceSwapTexture(swap_img_CI, std::nullopt, img_view_CI, index);
 			frame_datas[index].swapchain_attachment->swap_img_rdy_4_rendering_helper_sem =
@@ -472,7 +475,7 @@ namespace Anni::Renderer
 			             });
 		}
 
-		const auto& texures_vsrc_and_usage =
+		const auto inlet_textures =
 			pass_node.In(model.name + "Textures",
 			             model.images_array,
 			             Anni::RenderGraphV1::TexUsage(
@@ -496,16 +499,17 @@ namespace Anni::Renderer
 		             });
 
 
-		pass_node.model_to_multi_tex_usage.emplace(
-			&model, std::get<Anni::RenderGraphV1::TexUsage>(texures_vsrc_and_usage.usage));
+
+		pass_node.model_to_multi_tex_usage.emplace(&model, std::get<RenderGraphV1::TexUsage>(pass_node.ins_tex[inlet_textures.handle].usage));
+
+
 	}
 
 	void
 	RealtimeRenderer::RenderGraphRendering(uint32_t img_index, uint32_t cur_frame)
 	{
 		render_graph_v1.SetCurFrameAndImgIndex(cur_frame, img_index);
-		auto& DeferedGeoPass =
-			render_graph_v1.AddGfxPassNode<RenderGraphV1::DeferedGeometryPass>("DeferedGeometryPass");
+		auto& DeferedGeoPass = render_graph_v1.AddGfxPassNode<RenderGraphV1::DeferedGeometryPass>("DeferedGeometryPass");
 		ImportModelRsrcToRenderGraph(*test_model_sponza, DeferedGeoPass);
 
 		DeferedGeoPass.In(
@@ -530,7 +534,7 @@ namespace Anni::Renderer
 				},
 				Anni::RsrcAccessTypeRG::Read));
 
-		auto& gbuf_pos_outlet =
+		const auto gbuf_pos_outlet =
 			DeferedGeoPass.Out(
 				std::string("GBufPos"),
 				VkTexture::Descriptor{
@@ -566,7 +570,7 @@ namespace Anni::Renderer
 					},
 					Anni::RsrcAccessTypeRG::Write));
 
-		auto& gbuf_normal_outlet =
+		const auto gbuf_normal_outlet =
 			DeferedGeoPass.Out(
 				std::string("GBufNormal"),
 				VkTexture::Descriptor{
@@ -599,7 +603,7 @@ namespace Anni::Renderer
 					},
 					Anni::RsrcAccessTypeRG::Write));
 
-		auto& gbuf_albedo_outlet =
+		const auto gbuf_albedo_outlet =
 			DeferedGeoPass.Out(
 				std::string("GBufAlbedo"),
 				VkTexture::Descriptor{
@@ -634,7 +638,7 @@ namespace Anni::Renderer
 					},
 					Anni::RsrcAccessTypeRG::Write));
 
-		auto& gbuf_posZGradient_outlet =
+		const auto gbuf_posZGradient_outlet =
 			DeferedGeoPass.Out(
 				"GBufPosZGradient",
 				VkTexture::Descriptor{
@@ -670,7 +674,7 @@ namespace Anni::Renderer
 
 					Anni::RsrcAccessTypeRG::Write));
 
-		auto& gbuf_depth_outlet =
+		const auto gbuf_depth_outlet =
 			DeferedGeoPass.Out(
 				"GBufDepth",
 				VkTexture::Descriptor{
@@ -704,7 +708,7 @@ namespace Anni::Renderer
 
 		auto& DeferedComPass =
 			render_graph_v1.AddGfxPassNode<RenderGraphV1::DeferedGeometryPass>(
-				"DeferedGeometryPass");
+				"DeferedComPass");
 
 		DeferedComPass.In(
 			"SceneData",
@@ -829,7 +833,7 @@ namespace Anni::Renderer
 				},
 				Anni::RsrcAccessTypeRG::Read));
 
-		auto& MSColorAttach = DeferedComPass.Out(
+		const auto MSColorAttach = DeferedComPass.Out(
 			"MSColorAttach",
 			VkTexture::Descriptor{
 				.tex_img_CI =
@@ -865,7 +869,7 @@ namespace Anni::Renderer
 				},
 				Anni::RsrcAccessTypeRG::Write));
 
-		auto& MSDepthStencilAttach = DeferedComPass.Out(
+		const auto MSDepthStencilAttach = DeferedComPass.Out(
 			"MSDepthStencilAttach",
 			VkTexture::Descriptor{
 				.tex_img_CI =
@@ -899,7 +903,7 @@ namespace Anni::Renderer
 				},
 				Anni::RsrcAccessTypeRG::Write));
 
-		auto& MSColorResolveTar = DeferedComPass.Out(
+		auto ColorResolveTar = DeferedComPass.Out(
 			"SwapImage",
 			frame_datas[img_index].swapchain_attachment,
 			Anni::RenderGraphV1::AttachUsage(
@@ -919,7 +923,7 @@ namespace Anni::Renderer
 
 				Anni::RsrcAccessTypeRG::Write));
 
-		auto& MSDepthStencilResolveTar = DeferedComPass.Out(
+		auto DepthStencilResolveTar = DeferedComPass.Out(
 			"DepthImage",
 			VkTexture::Descriptor{
 				.tex_img_CI = CI::GetDepthImgCI(swapchain_manager),
@@ -947,12 +951,13 @@ namespace Anni::Renderer
 
 				Anni::RsrcAccessTypeRG::Write));
 
-		MSColorAttach.GetRsrcAndUsage().PreBindResolveTarget(MSColorResolveTar.GetRsrcAndUsage());
-		MSDepthStencilAttach.GetRsrcAndUsage().PreBindResolveTarget(MSDepthStencilResolveTar.GetRsrcAndUsage());
+
+		PreBindResolveTarget(MSColorAttach,ColorResolveTar);
+		PreBindResolveTarget(MSDepthStencilAttach,DepthStencilResolveTar);
 
 		auto& PresentPass = render_graph_v1.AddGfxPassNode<RenderGraphV1::PresentPass>("PresentPass");
-		PresentPass.Out(
-			MSColorResolveTar,
+		PresentPass.In(
+			ColorResolveTar,
 			Anni::RenderGraphV1::AttachUsage(
 				DeferedRendering::C_color_attch_format,
 				Anni::AttachmentInfo{},
@@ -962,14 +967,18 @@ namespace Anni::Renderer
 					.stage_mask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
 					.layout_inpass = vk::ImageLayout::ePresentSrcKHR
 				},
-				Anni::RsrcAccessTypeRG::Write
+				Anni::RsrcAccessTypeRG::Read
 			));
 
 		// RenderGraph±àÒë
 		render_graph_v1.Compile();
 		// RenderGraphÖ´ÐÐ
-		render_graph_v1.CmdBufRecordingAndExecuting(img_index, cur_frame,
-		                                            frame_num_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP]->GetRaw());
+		render_graph_v1.CmdBufRecordingAndExecuting(img_index, cur_frame, frame_num_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP]->GetRaw());
+
+
+
+
+
 	}
 
 	void RealtimeRenderer::Render(float time_diff)

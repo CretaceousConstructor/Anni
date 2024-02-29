@@ -9,7 +9,7 @@ namespace Anni
 
 		for (auto& queue : queues)
 		{
-			auto cur_queue_cap = queue.GetQueueCap();
+			const auto cur_queue_cap = queue.GetQueueCap();
 			if (required_queue_cap.graphics && !cur_queue_cap.graphics)
 			{
 				continue;
@@ -87,35 +87,39 @@ namespace Anni
 	{
 
 		const auto& queue_families_props = device_man.GetQueueFamilyProps();
-		for (size_t i = 0; i < queue_families_props.size(); ++i)
+
+		for (const auto [i, queue_families_prop] : std::ranges::views::enumerate(queue_families_props))
 		{
+
 			QueueCapability capability;
 			//FILL UP QUEUE CAPABILITY
 			capability.queue_family_index = i;
 			capability.present = device_man.GetPhysicalDevice().getSurfaceSupportKHR(i, window.GetSurface());
 
-			if (queue_families_props[i].queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
+			if (queue_families_prop.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
 			{
 				capability.graphics = true;
 			}
-			if (queue_families_props[i].queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
+			if (queue_families_prop.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
 			{
 				capability.compute = true;
 			}
-			if (queue_families_props[i].queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
+			if (queue_families_prop.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
 			{
 				capability.transfer = true;
 			}
 
 			//每种队列家族创建了尽可能多个queue
-			for (int j = 0; j < queue_families_props[i].queueFamilyProperties.queueCount; ++j)
+			for (int j = 0; j < queue_families_prop.queueFamilyProperties.queueCount; ++j)
 			{
 				vk::Queue temp_queue;
 				capability.queue_index = j;
 				temp_queue = device_man.GetLogicalDevice().getQueue(i, j);
 				queues.emplace_back(temp_queue, capability, device_man);
 			}
+
 		}
+
 	}
 
 	Queue::Queue(vk::Queue queue_, QueueCapability queue_cap_, DeviceManager& device_man_) :
@@ -126,12 +130,12 @@ namespace Anni
 	{
 		const vk::Device logical_device = device_man.GetLogicalDevice();
 		//*****************************************************************
-		vk::SemaphoreTypeCreateInfo timelineCreateInfo(vk::SemaphoreType::eTimeline, 0, VK_NULL_HANDLE);
-		vk::SemaphoreCreateInfo createInfo(vk::SemaphoreCreateFlags(VK_ZERO_FLAG), &timelineCreateInfo);
+		constexpr vk::SemaphoreTypeCreateInfo timelineCreateInfo(vk::SemaphoreType::eTimeline, 0, VK_NULL_HANDLE);
+		const vk::SemaphoreCreateInfo createInfo(vk::SemaphoreCreateFlags(VK_ZERO_FLAG), &timelineCreateInfo);
 		timeline_semaphore = logical_device.createSemaphoreUnique(createInfo);
 
 		//*****************************************************************
-		vk::CommandPoolCreateInfo command_pool_CI(
+		const vk::CommandPoolCreateInfo command_pool_CI(
 			vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 			queue_cap.queue_family_index,
 			VK_NULL_HANDLE
@@ -240,5 +244,78 @@ namespace Anni
 		return *timeline_semaphore;
 	}
 
+	vk::CommandBuffer Queue::GetOneBuf()
+	{
+		//get BUFFER
+		vk::CommandBufferAllocateInfo cmd_buf_alloc_info{};
 
+		cmd_buf_alloc_info.level = vk::CommandBufferLevel::ePrimary;
+		cmd_buf_alloc_info.commandPool = cmd_pool.get();
+		cmd_buf_alloc_info.commandBufferCount = 1;
+		std::vector<vk::CommandBuffer> temp_buf = device_man.GetLogicalDevice().allocateCommandBuffers(cmd_buf_alloc_info);
+
+		cmd_bufs.insert(temp_buf.front());
+
+		return temp_buf.front();
+	}
+
+	std::pair<vk::CommandBuffer, Queue* const> Queue::BeginSingleTimeCommands()
+	{
+		/*typedef struct VkCommandBufferAllocateInfo {
+				VkStructureType         sType;
+				const void* pNext;      gotta be nullptr
+				VkCommandPool           commandPool;
+				VkCommandBufferLevel    level;
+				uint32_t                commandBufferCount;
+			} VkCommandBufferAllocateInfo;*/
+
+
+		vk::CommandBufferAllocateInfo cmd_buf_alloc_info{};
+
+		cmd_buf_alloc_info.level = vk::CommandBufferLevel::ePrimary;
+		cmd_buf_alloc_info.commandPool = cmd_pool.get();
+		cmd_buf_alloc_info.commandBufferCount = 1;
+
+		std::vector<vk::CommandBuffer> temp_buf = device_man.GetLogicalDevice().allocateCommandBuffers(cmd_buf_alloc_info);
+
+		vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+
+		temp_buf.front().begin(begin_info);
+
+		return { temp_buf.front(), this };
+	}
+
+	void Queue::EndSingleTimeCopyCommands(std::pair<vk::CommandBuffer, Queue* const> cmd_buf_and_q,
+		std::shared_ptr<TimelineSemWrapper> sem)
+	{
+		//ASSERT_WITH_MSG(cmd_buf_and_q.second == this);
+		//cmd_buf_and_q.first.end();
+
+		//vk::SemaphoreSubmitInfo sig_smt_inf{};
+		//sig_smt_inf.semaphore = sem->GetRaw(),
+		//sig_smt_inf.value = sem->GetLastValue() + 1;
+		//sig_smt_inf.stageMask = vk::PipelineStageFlagBits2::eCopy;
+
+		//vk::CommandBufferSubmitInfo buf_smt_inf(cmd_buf_and_q.first);
+
+		//vk::SubmitInfo2 smt_inf{};
+		//smt_inf.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+		//smt_inf.pNext = VK_NULL_HANDLE;
+		//smt_inf.flags = Vk::NoneFlag;
+		//smt_inf.waitSemaphoreInfoCount = 0;
+		//smt_inf.pWaitSemaphoreInfos = VK_NULL_HANDLE;
+
+
+
+		//smt_inf.commandBufferInfoCount = 1;
+		//smt_inf.pCommandBufferInfos = &buf_smt_inf;
+
+		//smt_inf.signalSemaphoreInfoCount = 1;
+		//smt_inf.pSignalSemaphoreInfos = &sig_smt_inf;
+
+		//VK_CHECK_RESULT(vkQueueSubmit2(queue, 1, &smt_inf, nullptr));
+
+		//TODO: command buffer回收
+		//vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
+	}
 }        // namespace Anni

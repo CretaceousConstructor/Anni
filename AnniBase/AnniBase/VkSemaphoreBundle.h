@@ -1,7 +1,6 @@
 #pragma once
 #include "Vk.h"
 #include "DeviceManager.h"
-#include "VkSynObjectBundleBase.h"
 
 
 namespace Anni
@@ -9,16 +8,9 @@ namespace Anni
 	class BinarySemWrapper
 	{
 	public:
-		BinarySemWrapper(DeviceManager& device_manager_) :device_manager(device_manager_)
-		{
-			vk::SemaphoreCreateInfo semaphore_CI{};
-			semaphore = device_manager.GetLogicalDevice().createSemaphoreUnique(semaphore_CI);
-		}
+		BinarySemWrapper(DeviceManager& device_manager_);
 
-		vk::Semaphore& GetRaw()
-		{
-			return semaphore.get();
-		}
+		vk::Semaphore& GetRaw();
 
 	private:
 		DeviceManager& device_manager;

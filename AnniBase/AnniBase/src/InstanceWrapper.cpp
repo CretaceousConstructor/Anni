@@ -5,12 +5,12 @@ namespace Anni
 	const std::string InstanceWrapper::app_name{ "DivineRapier" };
 	const std::string InstanceWrapper::engine_name{ "Annihilation" };
 
-	InstanceWrapper::InstanceWrapper(vk::raii::Context& context_) :
-		context(context_)
+	InstanceWrapper::InstanceWrapper()
+		//context()
 	{
 		InitWindowBackendSystem();
 		CreateVulkanInstance();
-		ValidationUtility::SetupDebugMessenger(*instance_refac,debug_messenger);
+		ValidationUtility::SetupDebugMessenger(*instance_refac, debug_messenger);
 	}
 
 	InstanceWrapper::~InstanceWrapper()
@@ -41,7 +41,7 @@ namespace Anni
 		ASSERT_WITH_MSG(ValidationUtility::CheckIfRequiredInstanceLayersSupported(), "some instance layers required, but not available!");
 
 		// initialize the vk::ApplicationInfo structure
-		vk::ApplicationInfo applicationInfo(app_name.c_str(), 2, engine_name.c_str(), 1, ANNI_VK_API_VERSION);
+		const vk::ApplicationInfo applicationInfo(app_name.c_str(), 2, engine_name.c_str(), 1, ANNI_VK_API_VERSION);
 
 		// initialize the vk::InstanceCreateInfo填写实例创建信息
 		vk::InstanceCreateInfo instance_create_info({}, &applicationInfo);
@@ -53,24 +53,14 @@ namespace Anni
 
 		//获得 实例instance 会用到的 全局扩展(instance extensions。这里没有检查设备扩展(device extension)，之后才会检查)
 		const auto extensions = ExtensionUtility::GetNeededGlobalInstanceExtensions(ValidationUtility::VALIDATION_LAYERS_ENABLED);
-
-		instance_create_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-		instance_create_info.ppEnabledExtensionNames = extensions.data();
+		instance_create_info.setPEnabledExtensionNames(extensions);
 		//*********************************************************************
 
-
 		vk::ValidationFeaturesEXT validation_feature_ext;
-
-		validation_feature_ext.enabledValidationFeatureCount = static_cast<uint32_t>(ValidationUtility::enabled_validation_features.size());
-		validation_feature_ext.pEnabledValidationFeatures = ValidationUtility::enabled_validation_features.data();
-
-		validation_feature_ext.disabledValidationFeatureCount = static_cast<uint32_t>(ValidationUtility::disabled_validation_features.size());
-		validation_feature_ext.pDisabledValidationFeatures = ValidationUtility::disabled_validation_features.data();
-
-
+		validation_feature_ext.setEnabledValidationFeatures(ValidationUtility::enabled_validation_features);
+		validation_feature_ext.setDisabledValidationFeatures(ValidationUtility::disabled_validation_features);
 
 		vk::DebugUtilsMessengerCreateInfoEXT debug_create_info{};
-
 		std::vector<const char*> RequiredInstanceLayer;
 		//验证层需要的instance layer
 		if (ValidationUtility::VALIDATION_LAYERS_ENABLED)
@@ -83,12 +73,9 @@ namespace Anni
 			validation_feature_ext.pNext = &debug_create_info;                      //这样赋值pNext就可以输出CreateDebugUtilsMessengerEXT和DestroyDebugUtilsMessengerEXT输出的validation信息
 			instance_create_info.pNext = &validation_feature_ext;
 		}
-
-
-		instance_create_info.enabledLayerCount = static_cast<uint32_t>(RequiredInstanceLayer.size());
-		instance_create_info.ppEnabledLayerNames = RequiredInstanceLayer.data();
-
+		instance_create_info.setPEnabledLayerNames(RequiredInstanceLayer);
 		instance_refac = vk::createInstanceUnique(instance_create_info);
+		VULKAN_HPP_DEFAULT_DISPATCHER.init(instance_refac.get());
 	}
 
 	void InstanceWrapper::GlfwErrorCallback(int error, const char* description)

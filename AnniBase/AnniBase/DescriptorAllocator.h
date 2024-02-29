@@ -27,8 +27,8 @@ namespace Anni
 		vk::DescriptorSet Allocate(vk::DescriptorSetLayout layout);
 
 	private:
-		vk::UniqueDescriptorPool get_pool();
-		vk::UniqueDescriptorPool create_pool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
+		vk::UniqueDescriptorPool GetPool();
+		vk::UniqueDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
 
 		std::vector<PoolSizeRatio> ratios;
 		std::vector<vk::UniqueDescriptorPool> full_pools;

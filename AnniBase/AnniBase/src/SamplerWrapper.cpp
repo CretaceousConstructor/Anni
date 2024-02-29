@@ -1,7 +1,7 @@
 #include "SamplerWrapper.h"
 namespace Anni
 {
-	constexpr vk::SamplerCreateInfo CI::PopulateTexSamplerCI()
+	vk::SamplerCreateInfo CI::PopulateTexSamplerCI()
 	{
 		//typedef struct VkSamplerCreateInfo {
 		//    VkStructureType         sType;
@@ -56,7 +56,7 @@ namespace Anni
 		return sampler_CI;
 	}
 
-	constexpr vk::SamplerCreateInfo CI::PopulateCubeTexSamplerCI()
+	vk::SamplerCreateInfo CI::PopulateCubeTexSamplerCI()
 	{
 		//typedef struct VkSamplerCreateInfo {
 		//    VkStructureType         sType;

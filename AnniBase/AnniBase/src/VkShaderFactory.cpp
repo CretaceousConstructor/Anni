@@ -29,7 +29,6 @@ std::shared_ptr<VkShaderWrapper> VkShaderFactory::GetShader(const std::string &p
 {
 	std::vector<char> hlsl_str = Util::ReadFile(path_);
 
-	HRESULT         hres;
 	const DxcBuffer src_buffer{
 	    .Ptr      = hlsl_str.data(),
 	    .Size     = static_cast<uint32_t>(hlsl_str.size()),
@@ -89,7 +88,9 @@ std::shared_ptr<VkShaderWrapper> VkShaderFactory::GetShader(const std::string &p
 
 	ComPtr<IDxcResult> compile_result;
 
-	hres = dxc_compiler->Compile(&src_buffer, arguments.data(), (uint32_t) arguments.size(), nullptr, IID_PPV_ARGS(&compile_result));
+	const HRESULT hres = dxc_compiler->Compile(&src_buffer, arguments.data(), (uint32_t) arguments.size(), nullptr, IID_PPV_ARGS(&compile_result));
+
+
 
 	if (FAILED(hres))
 	{

@@ -14,6 +14,11 @@ namespace Anni
 		return *time_line_sem;
 	}
 
+	std::uint64_t& TimelineSemWrapper::GetLastValue()
+	{
+		return last_value;
+	}
+
 
 	TimelineSemWrapper::TimelineSemWrapper(DeviceManager& device_manager_, uint64_t inital_val) :
 		device_manager(device_manager_)

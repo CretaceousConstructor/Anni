@@ -83,7 +83,7 @@ namespace Anni
 		//*************************************
 		result.vma_allocation_CI.usage = VMA_MEMORY_USAGE_AUTO;
 		result.vma_allocation_CI.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-		result.aspect_flags = vk::ImageAspectFlagBits::eDepth;
+		result.aspect_flags = vk::ImageAspectFlagBits::eColor;
 
 		result.image_path = std::move(image_path_);
 		return result;

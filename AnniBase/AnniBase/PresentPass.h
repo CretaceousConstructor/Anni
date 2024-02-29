@@ -15,16 +15,17 @@ namespace Anni::RenderGraphV1
 			DescriptorLayoutManager& descriptor_set_layout_manager_,
 			VkShaderFactory& shader_fac_,
 			DescriptorSetAllocatorGrowable& descriptor_allocator_,
-			std::list<VirtualBuffer>& rg_buffers_,
-			std::list<VirtualTexture>& rg_textures_);
+			VkPipelineBuilder& vk_pipeline_builder_,
+			std::vector<VirtualBuffer>& rg_buffers_,
+			std::vector<VirtualTexture>& rg_textures_);
 
-		void UpdateDescriptorSets() override;
 		void CreateDescriptorSetLayout() override;
+		void AllocateDescriptorSets() override;
+		void UpdateDescriptorSets() override;
 		void GetShaders() override;
 		void BeginRenderPass(vk::CommandBuffer cmd_buf) override;
 		void EndRenderPass(vk::CommandBuffer cmd_buf) override;
 		void RecordCommandBuffer(vk::CommandBuffer command_buffer) override;
-		void AllocateDescriptorSets() override;
 	};
 
 

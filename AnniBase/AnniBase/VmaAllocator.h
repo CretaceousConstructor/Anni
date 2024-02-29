@@ -9,34 +9,15 @@ namespace Anni
 	class VmaAllocatorWrapper
 	{
 	public:
-		VmaAllocatorWrapper(InstanceWrapper& instance_wrapper_, DeviceManager& device_manager_) :
-			instance_wrapper(instance_wrapper_),
-			device_manager(device_manager_)
-		{
-
-			VmaAllocatorCreateInfo allocatorInfo = {};
-
-			allocatorInfo.vulkanApiVersion = ANNI_VK_API_VERSION;
-			allocatorInfo.physicalDevice = device_manager.GetPhysicalDevice();
-			allocatorInfo.device = device_manager.GetLogicalDevice();
-			allocatorInfo.instance = instance_wrapper.GetInstanceReFac();
-
-			vmaCreateAllocator(&allocatorInfo, &allocator);
-		}
+		VmaAllocatorWrapper(InstanceWrapper& instance_wrapper_, DeviceManager& device_manager_);
 
 		VmaAllocatorWrapper(const VmaAllocatorWrapper&) = delete;
 		VmaAllocatorWrapper(VmaAllocatorWrapper&&) = delete;
 		VmaAllocatorWrapper& operator=(const VmaAllocatorWrapper&) = delete;
 		VmaAllocatorWrapper& operator=(VmaAllocatorWrapper&&) = delete;
-		~VmaAllocatorWrapper()
-		{
-			vmaDestroyAllocator(allocator);
-		}
+		~VmaAllocatorWrapper();
 
-		VmaAllocator& GetRaw()
-		{
-			return allocator;
-		}
+		VmaAllocator& GetRaw();
 
 	private:
 		InstanceWrapper& instance_wrapper;

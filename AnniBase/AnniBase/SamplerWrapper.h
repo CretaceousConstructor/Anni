@@ -6,10 +6,10 @@ namespace Anni
 {
 	namespace CI
 	{
-		[[nodiscard]] constexpr vk::SamplerCreateInfo PopulateTexSamplerCI();
-		[[nodiscard]] constexpr vk::SamplerCreateInfo PopulateCubeTexSamplerCI();
-
+		[[nodiscard]] vk::SamplerCreateInfo PopulateTexSamplerCI();
+		[[nodiscard]] vk::SamplerCreateInfo PopulateCubeTexSamplerCI();
 	}        // namespace CI
+
 
 	class SamplerWrapper
 	{
@@ -18,7 +18,7 @@ namespace Anni
 		SamplerWrapper() = delete;
 
 		vk::Sampler GetRawSampler();
-		~SamplerWrapper() ;
+		~SamplerWrapper();
 
 		SamplerWrapper(const SamplerWrapper&) = delete;
 		SamplerWrapper& operator=(const SamplerWrapper&) = delete;

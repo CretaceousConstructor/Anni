@@ -91,7 +91,7 @@ namespace Anni
 
 	}
 
-	VkPipelineShaderStageCreateInfo VkShaderWrapper::GetShaderStageCI() const
+	vk::PipelineShaderStageCreateInfo VkShaderWrapper::GetShaderStageCI() const
 	{
 		VkPipelineShaderStageCreateInfo shader_stage_create_info{};
 		shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -100,7 +100,7 @@ namespace Anni
 		shader_stage_create_info.module = shader_module;
 		shader_stage_create_info.pName = entry_point.c_str();
 
-		return shader_stage_create_info;
+		return vk::PipelineShaderStageCreateInfo{shader_stage_create_info};
 	}
 
 }

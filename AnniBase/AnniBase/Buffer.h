@@ -53,7 +53,7 @@ namespace Anni
 		void          CopyFromHost(void const* outside_data_to_be_mapped, size_t outside_data_size, vk::DeviceSize mapped_region_starting_offset = 0);
 		void          CopyFromStagingBuf(Buffer& providing_buf, Buf2BufCopyInfo copy_info);
 
-		BufSyncInfo GetSynInfoOnLoad();
+		BufSyncInfo& GetSynInfoOnLoad();
 
 	public:
 		[[nodiscard]] VkDeviceSize BufSize() const;

@@ -71,7 +71,7 @@ namespace Anni
 
 	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(RenderGraphV1::BufUsage& usage, vk::DescriptorSet set)
 	{
-		Vk::BufferSubRange buf_subrange =
+		const Vk::BufferSubRange buf_subrange =
 			usage.GetSynInfo().buf_subrange.value_or(
 				Vk::BufferSubRange{
 					.offset = 0 ,
@@ -219,7 +219,7 @@ namespace Anni
 
 		std::vector<vk::SemaphoreSubmitInfo> sem_wait_infos;
 		//如果出现这种情况，就必须要等上一queue family的所有transfer，以及当前buffer的queue family的所有transfer操作完成。
-		if (providing_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
+		if (providing_buf_queue_fam != VK_QUEUE_FAMILY_IGNORED && providing_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
 		{
 			//必须等待source buffer使用完毕
 			std::ranges::for_each(providing_buf.copy_infos,
@@ -236,10 +236,10 @@ namespace Anni
 						));
 					}
 				});
-		};
+		}
 
 
-		if (receiving_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
+		if (providing_buf_queue_fam != VK_QUEUE_FAMILY_IGNORED && receiving_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
 		{
 			//等待target buffer使用完毕
 			std::ranges::for_each(receiving_buf.copy_infos,
@@ -283,7 +283,7 @@ namespace Anni
 
 		std::vector<vk::BufferMemoryBarrier2> accumulated_bars_4_providing_buf;
 		std::ranges::for_each(providing_buf.copy_infos,
-			[&](Buf2BufCopyInfo& history_cpy_inf)
+			[&](const Buf2BufCopyInfo& history_cpy_inf)
 			{
 				vk::BufferMemoryBarrier2 temp_bar{};
 
@@ -350,8 +350,9 @@ namespace Anni
 					temp_bar.offset = src_cp_info.srcOffset;
 					temp_bar.size = src_cp_info.size;
 					break;
+				case Buf2BufCopyInfo::TransferType::Unknown:
 				default:
-					assert(!"Not a transfer type.");
+					ASSERT_WITH_MSG(false, "Not a transfer type.");
 				}
 				accumulated_bars_4_providing_buf.push_back(temp_bar);
 			}
@@ -359,7 +360,7 @@ namespace Anni
 
 		std::vector<vk::BufferMemoryBarrier2> accumulated_bars_4_receiving_buf;
 		std::ranges::for_each(receiving_buf.copy_infos,
-			[&](Buf2BufCopyInfo& history_cpy_inf)
+			[&](const Buf2BufCopyInfo& history_cpy_inf)
 			{
 				vk::BufferMemoryBarrier2 temp_bar{};
 
@@ -426,8 +427,9 @@ namespace Anni
 					temp_bar.offset = src_cp_info.srcOffset;
 					temp_bar.size = src_cp_info.size;
 					break;
+				case Buf2BufCopyInfo::TransferType::Unknown:
 				default:
-					assert(!"Not a transfer type.");
+					ASSERT_WITH_MSG(false, "Not a transfer type.");
 				}
 				accumulated_bars_4_receiving_buf.push_back(temp_bar);
 			}
@@ -466,7 +468,7 @@ namespace Anni
 
 		vk::SemaphoreSubmitInfo sig_smt_inf{};
 		sig_smt_inf.semaphore = sem_used_to_transfer->GetRaw();
-		sig_smt_inf.value = (sem_used_to_transfer->GetLastValue() + 1);
+		sig_smt_inf.value = sem_used_to_transfer->GetLastValue() + 1;
 		sig_smt_inf.stageMask = vk::PipelineStageFlagBits2::eCopy;
 
 		vk::CommandBufferSubmitInfo buf_smt_inf(cmd_and_queue.first);
@@ -485,7 +487,7 @@ namespace Anni
 
 	}
 
-	BufSyncInfo Buffer::GetSynInfoOnLoad()
+	BufSyncInfo& Buffer::GetSynInfoOnLoad()
 	{
 		return sync_info_onload;
 	}

@@ -7,12 +7,7 @@ namespace Anni
 	class PipelineLayoutManager
 	{
 	public:
-		PipelineLayoutManager(DeviceManager& device_manager_)
-			:device_manager(device_manager_)
-		{
-
-
-		}
+		PipelineLayoutManager(DeviceManager& device_manager_);
 
 		PipelineLayoutManager(const PipelineLayoutManager&) = delete;
 		PipelineLayoutManager& operator=(const PipelineLayoutManager&) = delete;

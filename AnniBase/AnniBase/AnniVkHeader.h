@@ -14,6 +14,11 @@
 #define VK_ZERO_FLAG 0
 #endif
 
+#ifndef VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+#endif
+
+
 // #ifndef VULKAN_HPP_NO_EXCEPTIONS
 // #	define VULKAN_HPP_NO_EXCEPTIONS
 // #endif
@@ -60,4 +65,6 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_shared.hpp>
 #include <vulkan/vulkan_static_assertions.hpp>
+#include <vulkan/vulkan_hpp_macros.hpp>
+
 

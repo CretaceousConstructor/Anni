@@ -42,7 +42,7 @@
 //	void LayoutTransitionEndOfRendering(VkCommandBuffer cmd_buffer, ::std::optional<size_t> image_index) override final;
 //
 //  private:
-//	::std::unique_ptr<VkPipelinePP> pipeline_PP;
+//	std::unique_ptr<VkPipelinePP> pipeline_PP;
 //
 //  private:
 //	//Shaders

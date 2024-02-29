@@ -82,7 +82,7 @@ namespace Anni
 		return temp_write_descriptor_set;
 	}
 
-	inline ImgSyncInfo VkTexture::GetSynInfoOnLoad()
+	ImgSyncInfo VkTexture::GetSynInfoOnLoad()
 	{
 		return  sync_info_onload;
 	}

@@ -33,14 +33,16 @@ void Anni::RenderGraphV1::PresentPass::AllocateDescriptorSets()
 }
 
 Anni::RenderGraphV1::PresentPass::PresentPass(
-			std::string name_,
-			DeviceManager& device_manager_,
-			SwapchainManager& swapchain_manager_,
-			DescriptorLayoutManager& descriptor_set_layout_manager_,
-			VkShaderFactory& shader_fac_,
-			DescriptorSetAllocatorGrowable& descriptor_allocator_,
-			std::list<VirtualBuffer>& rg_buffers_,
-			std::list<VirtualTexture>& rg_textures_)
+	const std::string name_,
+	DeviceManager& device_manager_,
+	SwapchainManager& swapchain_manager_,
+	DescriptorLayoutManager& descriptor_set_layout_manager_,
+	VkShaderFactory& shader_fac_,
+	DescriptorSetAllocatorGrowable& descriptor_allocator_,
+	VkPipelineBuilder& vk_pipeline_builder_,
+
+	std::vector<VirtualBuffer>& rg_buffers_,
+	std::vector<VirtualTexture>& rg_textures_)
 	: GraphicsPassNode(
 		name_,
 		device_manager_,
@@ -48,6 +50,7 @@ Anni::RenderGraphV1::PresentPass::PresentPass(
 		descriptor_set_layout_manager_,
 		shader_fac_,
 		descriptor_allocator_,
+		vk_pipeline_builder_,
 		rg_buffers_,
 		rg_textures_)
 

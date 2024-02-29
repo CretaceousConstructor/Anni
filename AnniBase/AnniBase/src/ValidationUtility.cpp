@@ -7,7 +7,7 @@ namespace Anni::ValidationUtility
 		//之前的版本有device（某个gpu） layer和instance（整个程序）layer的区别，不过已经不再这么区分，全部都用instance layer
 		//遍历所有可用的LAYER
 		//*************************************************************
-		std::vector<vk::LayerProperties> available_layers = vk::enumerateInstanceLayerProperties();
+		const std::vector<vk::LayerProperties> available_layers = vk::enumerateInstanceLayerProperties();
 
 		/*  获取所有可以用的layer
 			VK_LAYER_NV_optimus

@@ -116,7 +116,6 @@ namespace Anni
 
 		buffer_copy_regions.push_back(buffer_copy_region);
 
-		texture_image = img_factory.ProduceImage(tex_img_CI);
 		texture_image->CopyBufferToImageOnTransferUpload(staging_buffer->GetGPUBuffer(), buffer_copy_regions);
 		return texture_image;
 	}

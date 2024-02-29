@@ -4,8 +4,10 @@
 #include "ValidationUtility.h"
 
 //TODO:用单例模式优化
+
 namespace Anni
 {
+
 	class InstanceWrapper
 	{
 	private:
@@ -22,13 +24,13 @@ namespace Anni
 
 	private:
 		//C++ bindings
-		vk::raii::Context& context;
+		//vk::raii::Context context;
 		vk::UniqueInstance instance_refac;
 		vk::UniqueDebugUtilsMessengerEXT debug_messenger;
 
 	public:
 		vk::Instance GetInstanceReFac();
-		InstanceWrapper(vk::raii::Context& context);
+		explicit InstanceWrapper();
 		~InstanceWrapper();
 
 

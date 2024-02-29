@@ -1,11 +1,11 @@
 #include "DeviceManager.h"
+
 namespace Anni
 {
 	DeviceManager::DeviceManager(InstanceWrapper& instance_wrapper_, WindowsSys& window_) :
 		instance_wrapper(instance_wrapper_),
 		window(window_)
 	{
-
 		PickOnePhysicalDevice();
 		CreateLogicalDevice();
 	}
@@ -21,12 +21,12 @@ namespace Anni
 
 	void DeviceManager::PickOnePhysicalDevice()
 	{
-		vk::Instance instance = instance_wrapper.GetInstanceReFac();
-		std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
+		const vk::Instance instance = instance_wrapper.GetInstanceReFac();
+		const std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
 
 		for (const auto& d : devices)
 		{
-			if (DeviceManager::IsDeviceSuitable(d, window.GetSurface()))
+			if (IsDeviceSuitable(d, window.GetSurface()))
 			{
 				physical_device = d;
 				break;
@@ -50,10 +50,10 @@ namespace Anni
 
 	int DeviceManager::RateDeviceSuitability(const VkPhysicalDevice& device_)
 	{
-		VkPhysicalDeviceProperties deviceProperties;        //物理器件的名字类型支持的vulkan版本
+		VkPhysicalDeviceProperties deviceProperties; //物理器件的名字类型支持的vulkan版本
 		vkGetPhysicalDeviceProperties(device_, &deviceProperties);
 
-		VkPhysicalDeviceFeatures deviceFeatures;        //纹理压缩，64位float，多视口
+		VkPhysicalDeviceFeatures deviceFeatures; //纹理压缩，64位float，多视口
 		vkGetPhysicalDeviceFeatures(device_, &deviceFeatures);
 
 		int score = 0;
@@ -81,10 +81,11 @@ namespace Anni
 		return graphics_family.has_value() && present_family.has_value() && transfer_family.has_value();
 	}
 
-	DeviceManager::QueueFamilyIndices DeviceManager::FindQueueFamilies(vk::PhysicalDevice device, const vk::SurfaceKHR surface)
+	DeviceManager::QueueFamilyIndices DeviceManager::FindQueueFamilies(vk::PhysicalDevice device,
+	                                                                   const vk::SurfaceKHR surface)
 	{
 		QueueFamilyIndices indices;
-		std::vector<vk::QueueFamilyProperties> queue_family_properties = device.getQueueFamilyProperties();
+		const std::vector<vk::QueueFamilyProperties> queue_family_properties = device.getQueueFamilyProperties();
 
 		//typedef struct VkQueueFamilyProperties {
 		//	VkQueueFlags    queueFlags;
@@ -112,7 +113,8 @@ namespace Anni
 			const VkBool32 present_support = device.getSurfaceSupportKHR(i, surface);
 
 			if (qf.queueFlags & vk::QueueFlagBits::eGraphics)
-			{        //这个队列家族至少要支持图形操作
+			{
+				//这个队列家族至少要支持图形操作
 				if (!indices.graphics_family.has_value())
 				{
 					indices.graphics_family = i;
@@ -148,18 +150,17 @@ namespace Anni
 
 	bool DeviceManager::IsDeviceSuitable(const vk::PhysicalDevice phy_device, const vk::SurfaceKHR surface)
 	{
-
-		QueueFamilyIndices indices = FindQueueFamilies(phy_device, surface);        //
+		QueueFamilyIndices indices = FindQueueFamilies(phy_device, surface); //
 
 		//检测物理设备的设备扩展支持情况
-		bool extensions_supported = CheckIfDeviceExtensionSupported(phy_device);        //主要看看能不能用swapchain
+		bool extensions_supported = CheckIfDeviceExtensionSupported(phy_device); //主要看看能不能用swapchain
 
 		//TODO:检测物理设备的features的支持情况
-		bool                     swap_chain_adequate = false;
-		vk::PhysicalDeviceFeatures supported_features = phy_device.getFeatures();
+		bool swap_chain_adequate = false;
+		const vk::PhysicalDeviceFeatures supported_features = phy_device.getFeatures();
 
 		ASSERT_WITH_MSG(extensions_supported, "some of extensions are not supported.");
-		SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(phy_device, surface);        //询问的是物理device
+		const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(phy_device, surface); //询问的是物理device
 		swap_chain_adequate = !swapChainSupport.formats.empty() && !swapChainSupport.present_modes.empty();
 
 		const bool enough_depth_formats_to_use = CheckIfRequiredDepthFomatAndFeaturesSupported(phy_device);
@@ -187,13 +188,14 @@ namespace Anni
 		} VkSurfaceCapabilitiesKHR;*/
 		//记得各向异性采样的功能
 
-		return indices.IsComplete() && extensions_supported && swap_chain_adequate && supported_features.samplerAnisotropy && enough_depth_formats_to_use;
+		return indices.IsComplete() && extensions_supported && swap_chain_adequate && supported_features.
+			samplerAnisotropy && enough_depth_formats_to_use;
 	}
 
 	bool DeviceManager::CheckIfDeviceExtensionSupported(vk::PhysicalDevice device)
 	{
 		//请求 设备扩展功能
-		std::vector<vk::ExtensionProperties> available_extensions = device.enumerateDeviceExtensionProperties();
+		const std::vector<vk::ExtensionProperties> available_extensions = device.enumerateDeviceExtensionProperties();
 		const auto& device_required_extensions = ExtensionUtility::GetRequiredExtensionsForAGoodDevice();
 
 		std::set<std::string> required_extensions(device_required_extensions.begin(), device_required_extensions.end());
@@ -202,7 +204,7 @@ namespace Anni
 			required_extensions.erase(extension.extensionName);
 		}
 
-		return required_extensions.empty();        //如果是空的，则代表需要的设备扩展功能都有
+		return required_extensions.empty(); //如果是空的，则代表需要的设备扩展功能都有
 	}
 
 	bool DeviceManager::CheckIfRequiredDepthFomatAndFeaturesSupported(vk::PhysicalDevice phy_device)
@@ -220,7 +222,9 @@ namespace Anni
 			vk::Format::eD24UnormS8Uint
 		};
 
-		constexpr vk::FormatFeatureFlags required_depth_format_feature{ vk::FormatFeatureFlagBits::eDepthStencilAttachment };
+		constexpr vk::FormatFeatureFlags required_depth_format_feature{
+			vk::FormatFeatureFlagBits::eDepthStencilAttachment
+		};
 
 		bool result = true;
 		for (const vk::Format format : required_depth_formats)
@@ -229,7 +233,8 @@ namespace Anni
 
 			//if ((props.linearTilingFeatures & Vk::required_depth_format_feature) == Vk::required_depth_format_feature &&
 			//    ((props.optimalTilingFeatures & Vk::required_depth_format_feature) == Vk::required_depth_format_feature))
-			if ((props.formatProperties.optimalTilingFeatures & required_depth_format_feature) == required_depth_format_feature)
+			if ((props.formatProperties.optimalTilingFeatures & required_depth_format_feature) ==
+				required_depth_format_feature)
 			{
 			}
 			else
@@ -242,10 +247,12 @@ namespace Anni
 	}
 
 	//这个函数在swapchainmanager也需要，但是为了防止circular depen，只能重复一份
-	DeviceManager::SwapChainSupportDetails DeviceManager::QuerySwapChainSupport(vk::PhysicalDevice phy_device, vk::SurfaceKHR surface)
+	DeviceManager::SwapChainSupportDetails DeviceManager::QuerySwapChainSupport(
+		vk::PhysicalDevice phy_device, vk::SurfaceKHR surface)
 	{
 		SwapChainSupportDetails details;
-		details.capabilities = phy_device.getSurfaceCapabilities2KHR(surface);
+		details.capabilities = phy_device.getSurfaceCapabilitiesKHR(surface);
+
 		//支持的backbuffer格式
 		//colorSpace
 		//VK_COLOR_SPACE_SRGB_NONLINEAR_KHR = 0,
@@ -254,25 +261,27 @@ namespace Anni
 		//VK_FORMAT_B8G8R8A8_UNORM = 44,
 		//VK_FORMAT_B8G8R8A8_SRGB = 50,
 		//VK_FORMAT_A2B10G10R10_UNORM_PACK32 = 64
-		details.formats = phy_device.getSurfaceFormats2KHR(surface);
+		details.formats = phy_device.getSurfaceFormatsKHR(surface);
 		//可能的展示的模式
 		//VK_PRESENT_MODE_FIFO_KHR = 2,
 		//VK_PRESENT_MODE_FIFO_RELAXED_KHR = 3,
 		//VK_PRESENT_MODE_MAILBOX_KHR = 1,
 		//VK_PRESENT_MODE_IMMEDIATE_KHR = 0,
-		details.present_modes = phy_device.getSurfacePresentModes2EXT(surface);
+		details.present_modes = phy_device.getSurfacePresentModesKHR(surface);
 
 		return details;
 	}
 
-	uint32_t DeviceManager::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, const vk::PhysicalDevice para_physical_device)
+	uint32_t DeviceManager::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties,
+	                                       const vk::PhysicalDevice para_physical_device)
 	{
-		vk::PhysicalDeviceMemoryProperties2 memProperties2 = para_physical_device.getMemoryProperties2();
+		const vk::PhysicalDeviceMemoryProperties2 memProperties2 = para_physical_device.getMemoryProperties2();
 		const auto& memProperties = memProperties2.memoryProperties;
 
 		for (uint32_t mem_type_index = 0; mem_type_index < memProperties.memoryTypeCount; mem_type_index++)
 		{
-			if ((typeFilter & (1 << mem_type_index)) && ((memProperties.memoryTypes[mem_type_index].propertyFlags & properties) == properties))
+			if ((typeFilter & (1 << mem_type_index)) && ((memProperties.memoryTypes[mem_type_index].propertyFlags &
+				properties) == properties))
 			{
 				return mem_type_index;
 			}
@@ -282,40 +291,20 @@ namespace Anni
 	}
 
 
-
 	vk::Bool32 DeviceManager::FormatIsFilterable(vk::Format format, vk::ImageTiling tiling) const
 	{
-		vk::FormatProperties2 formatProps = physical_device.getFormatProperties2(format);
+		const vk::FormatProperties2 formatProps = physical_device.getFormatProperties2(format);
 
 		if (tiling == vk::ImageTiling::eOptimal)
-			return static_cast<vk::Bool32>(formatProps.formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
+			return static_cast<vk::Bool32>(formatProps.formatProperties.optimalTilingFeatures &
+				vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
 
 		if (tiling == vk::ImageTiling::eLinear)
-			return static_cast<vk::Bool32>(formatProps.formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
+			return static_cast<vk::Bool32>(formatProps.formatProperties.linearTilingFeatures &
+				vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
 
 		return false;
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 	//VkCommandPool DeviceManager::CreateCommandPool(CommandPoolType type)
@@ -435,26 +424,31 @@ namespace Anni
 		//创建策略：创建尽可能多的queue
 		//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		queue_families_props = physical_device.getQueueFamilyProperties2();
-
-		constexpr float queue_priority = 1.0f;
-		for (const auto& [index, queue_families_prop] : std::ranges::views::enumerate(queue_families_props))
+		for (const auto [index, queue_families_prop] : std::ranges::views::enumerate(queue_families_props))
 		{
+			auto& queue_priorities = queues_within_a_fam_priorities.emplace_back(
+				queue_families_prop.queueFamilyProperties.queueCount, static_cast<float>(1.0));
 			//每种队列家族创建尽可能多的queue，之后扔给Queue Manager去管理
 			vk::DeviceQueueCreateInfo queue_create_info(
 				vk::DeviceQueueCreateFlags(VK_ZERO_FLAG),
-				index,
+				static_cast<uint32_t>(index),
 				queue_families_prop.queueFamilyProperties.queueCount,
-				&queue_priority
+				queue_priorities.data()
 			);
 			queue_create_infos.push_back(queue_create_info);
 		}
 		//*********************************************************************
-		vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features> enabled_gpu_features_chain{};
+		vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+		                   vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features>
+			enabled_gpu_features_chain{};
 
-		vk::PhysicalDeviceFeatures          enabled_gpu_features  {};        // vulkan 1.0
-		vk::PhysicalDeviceVulkan11Features& enabled11_gpu_features = enabled_gpu_features_chain.get<vk::PhysicalDeviceVulkan11Features>();        // vulkan 1.1
-		vk::PhysicalDeviceVulkan12Features& enabled12_gpu_features = enabled_gpu_features_chain.get<vk::PhysicalDeviceVulkan12Features>();        // vulkan 1.2
-		vk::PhysicalDeviceVulkan13Features& enabled13_gpu_features = enabled_gpu_features_chain.get<vk::PhysicalDeviceVulkan13Features>();        // vulkan 1.3
+		vk::PhysicalDeviceFeatures enabled_gpu_features{}; // vulkan 1.0
+		vk::PhysicalDeviceVulkan11Features& enabled11_gpu_features = enabled_gpu_features_chain.get<
+			vk::PhysicalDeviceVulkan11Features>(); // vulkan 1.1
+		vk::PhysicalDeviceVulkan12Features& enabled12_gpu_features = enabled_gpu_features_chain.get<
+			vk::PhysicalDeviceVulkan12Features>(); // vulkan 1.2
+		vk::PhysicalDeviceVulkan13Features& enabled13_gpu_features = enabled_gpu_features_chain.get<
+			vk::PhysicalDeviceVulkan13Features>(); // vulkan 1.3
 
 		//这里直接硬编码是否开启一些特征，也可以通过函数质询 某些feature是否被device支持。
 		//TODO:质询 某些feature是否被device支持。
@@ -501,7 +495,8 @@ namespace Anni
 
 		//*********************************************************************
 		//*********************************************************************
-		vk::PhysicalDeviceFeatures2& physicalDeviceFeatures2 = enabled_gpu_features_chain.get<vk::PhysicalDeviceFeatures2>();
+		vk::PhysicalDeviceFeatures2& physicalDeviceFeatures2 = enabled_gpu_features_chain.get<
+			vk::PhysicalDeviceFeatures2>();
 		physicalDeviceFeatures2.setFeatures(enabled_gpu_features);
 
 		vk::DeviceCreateInfo device_create_info{};
@@ -513,7 +508,6 @@ namespace Anni
 		//VkDeviceCreateInfo.ppEnabledLayerNames is deprecatedand ignored.
 
 		device = physical_device.createDeviceUnique(device_create_info);
-
 	}
 
 	vk::Device DeviceManager::GetLogicalDevice()
@@ -532,7 +526,8 @@ namespace Anni
 		return queue_families_props;
 	}
 
-	vk::Format DeviceManager::FindSupportedFormat(const std::vector<vk::Format> candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features) const
+	vk::Format DeviceManager::FindSupportedFormat(const std::vector<vk::Format> candidates, vk::ImageTiling tiling,
+	                                              vk::FormatFeatureFlags features) const
 	{
 		//// Provided by VK_VERSION_1_0
 		//typedef struct VkFormatProperties {
@@ -545,11 +540,13 @@ namespace Anni
 		{
 			vk::FormatProperties2 props = physical_device.getFormatProperties2(format);
 
-			if (tiling == vk::ImageTiling::eLinear && (props.formatProperties.linearTilingFeatures & features) == features)
+			if (tiling == vk::ImageTiling::eLinear && (props.formatProperties.linearTilingFeatures & features) ==
+				features)
 			{
 				return format;
 			}
-			else if (tiling == vk::ImageTiling::eOptimal && (props.formatProperties.optimalTilingFeatures & features) == features)
+			if (tiling == vk::ImageTiling::eOptimal && (props.formatProperties.optimalTilingFeatures & features) ==
+				features)
 			{
 				return format;
 			}
@@ -647,7 +644,4 @@ namespace Anni
 	//}
 	//
 	//
-
-
-
-}        // namespace Anni
+} // namespace Anni
