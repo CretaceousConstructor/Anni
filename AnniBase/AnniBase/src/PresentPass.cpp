@@ -37,12 +37,17 @@ Anni::RenderGraphV1::PresentPass::PresentPass(
 	DeviceManager& device_manager_,
 	SwapchainManager& swapchain_manager_,
 	DescriptorLayoutManager& descriptor_set_layout_manager_,
-	VkShaderFactory& shader_fac_,
+	ShaderFactory& shader_fac_,
 	DescriptorSetAllocatorGrowable& descriptor_allocator_,
-	VkPipelineBuilder& vk_pipeline_builder_,
+	PipelineBuilder& vk_pipeline_builder_,
 
 	std::vector<VirtualBuffer>& rg_buffers_,
-	std::vector<VirtualTexture>& rg_textures_)
+	std::vector<VirtualTexture>& rg_textures_,
+
+	std::unordered_map<std::string, VirtualBuffer::Handle>& rg_name_2_vbuf_handle_,
+	std::unordered_map<std::string, VirtualTexture::Handle>& rg_name_2_vtex_handle_
+
+)
 	: GraphicsPassNode(
 		name_,
 		device_manager_,
@@ -52,9 +57,17 @@ Anni::RenderGraphV1::PresentPass::PresentPass(
 		descriptor_allocator_,
 		vk_pipeline_builder_,
 		rg_buffers_,
-		rg_textures_)
+		rg_textures_,
+		rg_name_2_vbuf_handle_,
+		rg_name_2_vtex_handle_
+	)
 
 {
+}
+
+Anni::RenderGraphV1::PassType Anni::RenderGraphV1::PresentPass::GetRenderpassType()
+{
+	return  PassType::Present;
 }
 
 

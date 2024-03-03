@@ -4,7 +4,7 @@
 //#include "VkRenderpassBase.h"
 //#include "VkRenderpassManager.h"
 //#include "VkRsrcUsageInfo.h"
-//#include "VkShaderWrapper.h"
+//#include "ShaderWrapper.h"
 //
 //class DeferedGeometryPass final : public VkRenderpassBase
 //{
@@ -46,8 +46,8 @@
 //
 //  private:
 //	//Shaders
-//	::std::shared_ptr<VkShaderWrapper> defefered_geometry_vert_shader;
-//	::std::shared_ptr<VkShaderWrapper> defefered_geometry_frag_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_geometry_vert_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_geometry_frag_shader;
 //
 //  private:
 //	//Attachments

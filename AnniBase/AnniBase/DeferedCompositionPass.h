@@ -14,24 +14,29 @@ namespace Anni::RenderGraphV1
 			DeviceManager& device_manager_,
 			SwapchainManager& swapchain_manager_,
 			DescriptorLayoutManager& descriptor_set_layout_manager_,
-			VkShaderFactory& shader_fac_,
+			ShaderFactory& shader_fac_,
 			DescriptorSetAllocatorGrowable& descriptor_allocator_,
-			VkPipelineBuilder& pipeline_builder_,
+			PipelineBuilder& pipeline_builder_,
 			std::vector<VirtualBuffer>& rg_buffers_,
 			std::vector<VirtualTexture>& rg_textures_,
-			GFXPipelineCIBuilder& gfx_pipelineCI_builder_);
+			std::unordered_map<std::string, VirtualBuffer::Handle>& rg_name_2_vbuf_handle_,       
+			std::unordered_map<std::string, VirtualTexture::Handle>& rg_name_2_vtex_handle_,
+			GFXPipelineCIBuilder& gfx_pipelineCI_builder_
+		
+		
+		);
 
 	public:
 		//Shaders
-		std::shared_ptr<VkShaderWrapper> defefered_composition_stencilwrite_vert_shader;
-		std::shared_ptr<VkShaderWrapper> defefered_composition_stencilwrite_frag_shader;
+		std::shared_ptr<ShaderWrapper> defefered_composition_stencilwrite_vert_shader;
+		std::shared_ptr<ShaderWrapper> defefered_composition_stencilwrite_frag_shader;
 		//
-		std::shared_ptr<VkShaderWrapper> defefered_composition_per_frag_vert_shader;
-		std::shared_ptr<VkShaderWrapper> defefered_composition_per_frag_frag_shader;
+		std::shared_ptr<ShaderWrapper> defefered_composition_per_frag_vert_shader;
+		std::shared_ptr<ShaderWrapper> defefered_composition_per_frag_frag_shader;
 
 		//
-		std::shared_ptr<VkShaderWrapper> defefered_composition_per_sample_vert_shader;
-		std::shared_ptr<VkShaderWrapper> defefered_composition_per_sample_frag_shader;
+		std::shared_ptr<ShaderWrapper> defefered_composition_per_sample_vert_shader;
+		std::shared_ptr<ShaderWrapper> defefered_composition_per_sample_frag_shader;
 
 
 	public:
@@ -39,6 +44,7 @@ namespace Anni::RenderGraphV1
 	public:
 		GFXPipelineCIBuilder& gfx_pipelineCI_builder;
 
+		PassType GetRenderpassType() override;
 		void GetShaders() override;
 		void RecordCommandBuffer(vk::CommandBuffer command_buffer) override;
 

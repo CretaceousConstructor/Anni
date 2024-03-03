@@ -51,9 +51,15 @@ namespace Anni
 	public:
 		[[nodiscard]] vk::Buffer GetGPUBuffer() const;
 		void          CopyFromHost(void const* outside_data_to_be_mapped, size_t outside_data_size, vk::DeviceSize mapped_region_starting_offset = 0);
-		void          CopyFromStagingBuf(Buffer& providing_buf, Buf2BufCopyInfo copy_info);
+		void          CopyFromBuf(Buffer& providing_buf, const Buf2BufCopyInfo& copy_info);
 
 		BufSyncInfo& GetSynInfoOnLoad();
+
+		const std::vector<Buf2BufCopyInfo>& GetB2BCpyInfo()
+		{
+			return copy_infos;
+		}
+
 
 	public:
 		[[nodiscard]] VkDeviceSize BufSize() const;

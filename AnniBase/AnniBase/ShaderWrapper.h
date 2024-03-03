@@ -3,10 +3,10 @@
 
 namespace Anni
 {
-	class VkShaderWrapper
+	class ShaderWrapper
 	{
 	public:
-		using Ptr = std::shared_ptr<VkShaderWrapper>;
+		using Ptr = std::shared_ptr<ShaderWrapper>;
 
 	public:
 		class ShaderCI
@@ -22,20 +22,20 @@ namespace Anni
 			std::string           entry_point{ "main" };
 		};
 
-		VkShaderWrapper(const ShaderCI& para_pack, GraphicsComponent& gfx_);
+		ShaderWrapper(const ShaderCI& para_pack, GraphicsComponent& gfx_);
 
-		VkShaderWrapper(VkShaderStageFlagBits binding_stage, std::string shader_path_, GraphicsComponent& gfx_);
-		VkShaderWrapper(VkShaderStageFlagBits binding_stage_, const std::string& shader_path_, VkShaderModule shader_module_, GraphicsComponent& gfx_);
+		ShaderWrapper(VkShaderStageFlagBits binding_stage, std::string shader_path_, GraphicsComponent& gfx_);
+		ShaderWrapper(VkShaderStageFlagBits binding_stage_, const std::string& shader_path_, VkShaderModule shader_module_, GraphicsComponent& gfx_);
 
-		~VkShaderWrapper();
+		~ShaderWrapper();
 
-		VkShaderWrapper() = delete;
+		ShaderWrapper() = delete;
 
-		VkShaderWrapper(const VkShaderWrapper&) = delete;
-		VkShaderWrapper& operator=(const VkShaderWrapper&) = delete;
+		ShaderWrapper(const ShaderWrapper&) = delete;
+		ShaderWrapper& operator=(const ShaderWrapper&) = delete;
 
-		VkShaderWrapper(VkShaderWrapper&&) = delete;
-		VkShaderWrapper& operator=(VkShaderWrapper&&) = delete;
+		ShaderWrapper(ShaderWrapper&&) = delete;
+		ShaderWrapper& operator=(ShaderWrapper&&) = delete;
 
 		[[nodiscard]] vk::PipelineShaderStageCreateInfo GetShaderStageCI() const;
 

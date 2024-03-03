@@ -537,7 +537,7 @@ namespace Anni::Renderer
 		const auto gbuf_pos_outlet =
 			DeferedGeoPass.Out(
 				std::string("GBufPos"),
-				VkTexture::Descriptor{
+				Texture::Descriptor{
 					.tex_img_CI =
 					CI::GetTextureImgCI(DeferedRendering::G_position_format,
 					                    swapchain_manager.GetSwapChainImageExtent()),
@@ -546,7 +546,7 @@ namespace Anni::Renderer
 					.sampler_CI = std::nullopt,
 				},
 
-				[](VkTexture::Descriptor& desco)
+				[](Texture::Descriptor& desco)
 				{
 					// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
 					desco.tex_img_CI.vk_image_CI.usage =
@@ -573,7 +573,7 @@ namespace Anni::Renderer
 		const auto gbuf_normal_outlet =
 			DeferedGeoPass.Out(
 				std::string("GBufNormal"),
-				VkTexture::Descriptor{
+				Texture::Descriptor{
 					.tex_img_CI =
 					CI::GetTextureImgCI(DeferedRendering::G_normal_format,
 					                    swapchain_manager.GetSwapChainImageExtent()),
@@ -581,7 +581,7 @@ namespace Anni::Renderer
 					CI::PopulateTextureImgViewCI(DeferedRendering::G_normal_format),
 					.sampler_CI = std::nullopt,
 				},
-				[](VkTexture::Descriptor& desco)
+				[](Texture::Descriptor& desco)
 				{
 					desco.tex_img_CI.vk_image_CI.usage =
 						vk::ImageUsageFlagBits::eColorAttachment |
@@ -606,7 +606,7 @@ namespace Anni::Renderer
 		const auto gbuf_albedo_outlet =
 			DeferedGeoPass.Out(
 				std::string("GBufAlbedo"),
-				VkTexture::Descriptor{
+				Texture::Descriptor{
 					.tex_img_CI =
 					CI::GetTextureImgCI(DeferedRendering::G_albedo_format,
 					                    swapchain_manager.GetSwapChainImageExtent()),
@@ -614,7 +614,7 @@ namespace Anni::Renderer
 					CI::PopulateTextureImgViewCI(DeferedRendering::G_albedo_format),
 					.sampler_CI = std::nullopt,
 				},
-				[](VkTexture::Descriptor& desco)
+				[](Texture::Descriptor& desco)
 				{
 					// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
 					desco.tex_img_CI.vk_image_CI.usage =
@@ -641,7 +641,7 @@ namespace Anni::Renderer
 		const auto gbuf_posZGradient_outlet =
 			DeferedGeoPass.Out(
 				"GBufPosZGradient",
-				VkTexture::Descriptor{
+				Texture::Descriptor{
 					.tex_img_CI = CI::GetTextureImgCI(
 						DeferedRendering::G_posZgrad_format,
 						swapchain_manager.GetSwapChainImageExtent()),
@@ -649,7 +649,7 @@ namespace Anni::Renderer
 						DeferedRendering::G_posZgrad_format),
 					.sampler_CI = std::nullopt
 				},
-				[](VkTexture::Descriptor& desco)
+				[](Texture::Descriptor& desco)
 				{
 					// descriptor就是创建参数，虚拟资源只有在execute执行的时候才会创建真正的资源
 					desco.tex_img_CI.vk_image_CI.usage =
@@ -677,15 +677,15 @@ namespace Anni::Renderer
 		const auto gbuf_depth_outlet =
 			DeferedGeoPass.Out(
 				"GBufDepth",
-				VkTexture::Descriptor{
+				Texture::Descriptor{
 					.tex_img_CI =
 					CI::GetTextureImgCI(DeferedRendering::G_depth_format,
 					                    swapchain_manager.GetSwapChainImageExtent()),
 					.img_view_CI =
-					CI::PopulateTextureImgViewCI(DeferedRendering::G_depth_format),
+					CI::PopulateDepthImgViewCI(DeferedRendering::G_depth_format),
 					.sampler_CI = std::nullopt,
 				},
-				[](VkTexture::Descriptor& desco)
+				[](Texture::Descriptor& desco)
 				{
 					desco.tex_img_CI.vk_image_CI.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment |
 						vk::ImageUsageFlagBits::eSampled;
@@ -707,8 +707,8 @@ namespace Anni::Renderer
 					Anni::RsrcAccessTypeRG::Write));
 
 		auto& DeferedComPass =
-			render_graph_v1.AddGfxPassNode<RenderGraphV1::DeferedGeometryPass>(
-				"DeferedComPass");
+			render_graph_v1.AddGfxPassNode<RenderGraphV1::DeferedCompositionPass>(
+				"DeferedCompositionPass");
 
 		DeferedComPass.In(
 			"SceneData",
@@ -835,7 +835,7 @@ namespace Anni::Renderer
 
 		const auto MSColorAttach = DeferedComPass.Out(
 			"MSColorAttach",
-			VkTexture::Descriptor{
+			Texture::Descriptor{
 				.tex_img_CI =
 				CI::GetTextureImgCI(swapchain_manager.GetSwapChainImageFormat(),
 				                    swapchain_manager.GetSwapChainImageExtent()),
@@ -843,7 +843,7 @@ namespace Anni::Renderer
 				CI::PopulateTextureImgViewCI(DeferedRendering::C_color_attch_format),
 				.sampler_CI = std::nullopt,
 			},
-			[](VkTexture::Descriptor& desco)
+			[](Texture::Descriptor& desco)
 			{
 				desco.tex_img_CI.vk_image_CI.usage =
 					vk::ImageUsageFlagBits::eColorAttachment;
@@ -871,7 +871,7 @@ namespace Anni::Renderer
 
 		const auto MSDepthStencilAttach = DeferedComPass.Out(
 			"MSDepthStencilAttach",
-			VkTexture::Descriptor{
+			Texture::Descriptor{
 				.tex_img_CI =
 				CI::GetTextureImgCI(DeferedRendering::C_depth_stencil_format,
 				                    swapchain_manager.GetSwapChainImageExtent()),
@@ -879,7 +879,7 @@ namespace Anni::Renderer
 				CI::PopulateDepthImgViewCI(DeferedRendering::C_depth_stencil_format),
 				.sampler_CI = std::nullopt,
 			},
-			[](VkTexture::Descriptor& desco)
+			[](Texture::Descriptor& desco)
 			{
 				desco.tex_img_CI.vk_image_CI.usage =
 					vk::ImageUsageFlagBits::eDepthStencilAttachment;
@@ -925,16 +925,17 @@ namespace Anni::Renderer
 
 		auto DepthStencilResolveTar = DeferedComPass.Out(
 			"DepthImage",
-			VkTexture::Descriptor{
+			Texture::Descriptor{
 				.tex_img_CI = CI::GetDepthImgCI(swapchain_manager),
 				.img_view_CI = CI::PopulateDepthImgViewCI(swapchain_manager),
 				.sampler_CI = std::nullopt,
 			},
-			[](VkTexture::Descriptor& desco)
+			[](Texture::Descriptor& desco)
 			{
 			},
 			Anni::RenderGraphV1::AttachUsage(
-				DeferedRendering::C_depth_stencil_format,
+				//DeferedRendering::C_depth_stencil_format,
+				swapchain_manager.FindDepthFormat(),
 
 				Anni::AttachmentInfo{
 					.attachment_index = Vk::AttachmentIndex<1>,
@@ -973,26 +974,21 @@ namespace Anni::Renderer
 		// RenderGraph编译
 		render_graph_v1.Compile();
 		// RenderGraph执行
-		render_graph_v1.CmdBufRecordingAndExecuting(img_index, cur_frame, frame_num_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP]->GetRaw());
-
-
-
-
+		render_graph_v1.CmdBufRecordingAndExecuting(frame_num_semaphores[cur_frame % Vk::MAX_FRAMES_OVERLAP]->GetRaw());
 
 	}
 
 	void RealtimeRenderer::Render(float time_diff)
 	{
 		static uint64_t cur_frame = 0;
-
 		uint32_t img_index = 0;
-		const vk::AcquireNextImageInfoKHR acquire_next_img_info(
-			swapchain_manager.GetSwapChain(),
-			UINT64_MAX,
-			present_finished_semaphores[cur_frame]->GetRaw(),
-			VK_NULL_HANDLE);
+
 		const vk::ResultValue<uint32_t> result = 
-			device_manager.GetLogicalDevice().acquireNextImage2KHR(acquire_next_img_info);
+			device_manager.GetLogicalDevice().acquireNextImageKHR(
+				swapchain_manager.GetSwapChain(),
+				UINT64_MAX,
+				present_finished_semaphores[cur_frame]->GetRaw()
+			);
 
 		switch (result.result)
 		{

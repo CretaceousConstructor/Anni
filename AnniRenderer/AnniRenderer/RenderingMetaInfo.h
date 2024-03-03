@@ -191,19 +191,19 @@ namespace Global
 	//	Anni::Buffer::BufferPtrBundle matrix_buffer_gpu_MSAA;
 
 	//	//ATTACHMENT TEXTURES
-	//	Anni::VkTexture::TexturePtrBundle swapchain_attachments;
-	//	Anni::VkTexture::TexturePtrBundle depth_attachments;
+	//	Anni::Texture::TexturePtrBundle swapchain_attachments;
+	//	Anni::Texture::TexturePtrBundle depth_attachments;
 
-	//	Anni::VkTexture::TexturePtrBundle G_buffer_position;
-	//	Anni::VkTexture::TexturePtrBundle G_buffer_normal;
-	//	Anni::VkTexture::TexturePtrBundle G_buffer_albedo;
-	//	Anni::VkTexture::TexturePtrBundle G_buffer_depth;
-	//	Anni::VkTexture::TexturePtrBundle G_buffer_posZGradient;
-	//	Anni::VkTexture::TexturePtrBundle G_buffer_specular;
+	//	Anni::Texture::TexturePtrBundle G_buffer_position;
+	//	Anni::Texture::TexturePtrBundle G_buffer_normal;
+	//	Anni::Texture::TexturePtrBundle G_buffer_albedo;
+	//	Anni::Texture::TexturePtrBundle G_buffer_depth;
+	//	Anni::Texture::TexturePtrBundle G_buffer_posZGradient;
+	//	Anni::Texture::TexturePtrBundle G_buffer_specular;
 
-	//	Anni::VkTexture::TexturePtr irradiance_map;
-	//	Anni::VkTexture::TexturePtr prefiltered_map;
-	//	Anni::VkTexture::TexturePtr LUT_map;
+	//	Anni::Texture::TexturePtr irradiance_map;
+	//	Anni::Texture::TexturePtr prefiltered_map;
+	//	Anni::Texture::TexturePtr LUT_map;
 
 
 	//	//MODELS

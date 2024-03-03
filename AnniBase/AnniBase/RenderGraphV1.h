@@ -3,7 +3,7 @@
 #include "Lets.h"
 #include "SyncInfo.h"
 #include "QueueManager.h"
-#include "VkShaderFactory.h"
+#include "ShaderFactory.h"
 #include "VirtualBuffer.h"
 #include "VirtualTexture.h"
 #include "DesSetLayoutManager.h"
@@ -46,10 +46,10 @@ namespace Anni::RenderGraphV1
 			DescriptorSetAllocatorGrowable& descriptor_allocator_,
 			VkTimelineSemPoolUnsafe& semaphore_pool_,
 			BufferFactory& buf_fac_,
-			VkTextureFactory& tex_fac_,
-			VkShaderFactory& shader_fac_,
+			TextureFactory& tex_fac_,
+			ShaderFactory& shader_fac_,
 			GFXPipelineCIBuilder& gfx_pipelineCI_builder_,
-			VkPipelineBuilder& pipeline_builder
+			PipelineBuilder& pipeline_builder
 		);
 
 	public:
@@ -61,8 +61,6 @@ namespace Anni::RenderGraphV1
 
 		void Compile();
 		void CmdBufRecordingAndExecuting(
-			uint32_t img_index,
-			uint32_t cur_frame,
 			vk::Semaphore frame_number_semaphore);
 
 
@@ -81,7 +79,7 @@ namespace Anni::RenderGraphV1
 
 		void CmdBufExecuteOnQueue(
 			GraphicsPassNode* p_pass,
-			uint32_t cur_frame,
+			uint64_t cur_frame,
 			vk::CommandBuffer cmd_buf,
 			Queue* execution_queue,
 			VkSemaphore frame_num_sem,
@@ -120,10 +118,25 @@ namespace Anni::RenderGraphV1
 		void SyncPrimitivesInsertionInletTexture(GraphicsPassNode* const cur_pass);
 		void SyncPrimitivesInsertionOutletTexture(GraphicsPassNode* const cur_pass);
 
+
+		void SyncPrimitivesInsertionPerPass(GraphicsPassNode* const cur_pass)
+		{
+			SyncPrimitivesInsertionInletBuffer(cur_pass);
+			SyncPrimitivesInsertionOutletBuffer(cur_pass);
+
+			SyncPrimitivesInsertionInletTexture(cur_pass);
+			SyncPrimitivesInsertionOutletTexture(cur_pass);
+		}
+
+
 	private:
+
 		//全知全能的虚拟资源管理者
 		std::vector<VirtualBuffer>  rg_buffers;
 		std::vector<VirtualTexture> rg_textures;
+		//虚拟名字资源查表
+		std::unordered_map<std::string, VirtualBuffer::Handle>  rg_name_2_vbuf_handle;
+		std::unordered_map<std::string, VirtualTexture::Handle> rg_name_2_vtex_handle;
 		//当前帧所有的pass
 		std::vector<std::unique_ptr<GraphicsPassNode>> pass_nodes;
 		//拓扑排序以后的所有passnode	
@@ -163,11 +176,11 @@ namespace Anni::RenderGraphV1
 		VkTimelineSemPoolUnsafe semaphore_pool;
 
 		BufferFactory& buf_fac;
-		VkTextureFactory& tex_fac;
-		VkShaderFactory& shader_fac;
+		TextureFactory& tex_fac;
+		ShaderFactory& shader_fac;
 
 		GFXPipelineCIBuilder& gfx_pipelineCI_builder;
-		VkPipelineBuilder& pipeline_builder;
+		PipelineBuilder& pipeline_builder;
 
 	};
 
@@ -187,6 +200,8 @@ namespace Anni::RenderGraphV1
 				pipeline_builder,
 				this->rg_buffers,
 				this->rg_textures,
+				this->rg_name_2_vbuf_handle,
+				this->rg_name_2_vtex_handle,
 				gfx_pipelineCI_builder
 			);
 		pass_nodes.push_back(std::move(gfx_node));
@@ -210,7 +225,9 @@ namespace Anni::RenderGraphV1
 				descriptor_allocator,
 				pipeline_builder,
 				this->rg_buffers,
-				this->rg_textures
+				this->rg_textures,
+				this->rg_name_2_vbuf_handle,
+				this->rg_name_2_vtex_handle
 			);
 		pass_nodes.push_back(std::move(gfx_node));
 		auto& result = *pass_nodes.back();
@@ -233,6 +250,8 @@ namespace Anni::RenderGraphV1
 				pipeline_builder,
 				this->rg_buffers,
 				this->rg_textures,
+				this->rg_name_2_vbuf_handle,
+				this->rg_name_2_vtex_handle,
 				gfx_pipelineCI_builder
 			);
 		pass_nodes.push_back(std::move(gfx_node));

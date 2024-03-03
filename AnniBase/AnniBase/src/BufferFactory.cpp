@@ -22,7 +22,7 @@ namespace Anni
 
 		VkBuffer      temp_buffer{};
 		VmaAllocation vma_allocation{};
-		VkBufferCreateInfo vk_buffer_CI = buf_CI.vk_buffer_CI;
+		const VkBufferCreateInfo vk_buffer_CI = buf_CI.vk_buffer_CI;
 
 		VK_CHECK_RESULT(
 			vmaCreateBuffer(
@@ -43,8 +43,8 @@ namespace Anni
 		{
 			if (transient_buffers.size() > 100u) //也可以维护一个transient staging buffer total size in use，但是为了方便，现在这么写。回收频率比较慢，
 			{
-				auto& candidate_recycle_buf = transient_buffers.front();
-				bool all_signaled = std::ranges::all_of
+				const auto& candidate_recycle_buf = transient_buffers.front();
+				const bool all_signaled = std::ranges::all_of
 				(candidate_recycle_buf->copy_infos,
 					[](const Buf2BufCopyInfo& buf_cp_inf)
 					{

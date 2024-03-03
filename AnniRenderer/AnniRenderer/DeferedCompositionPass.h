@@ -4,7 +4,7 @@
 //#include "Vk.h"
 //#include "VkRenderpassBase.h"
 //#include "VkRenderpassManager.h"
-//#include "VkShaderWrapper.h"
+//#include "ShaderWrapper.h"
 //
 //class DeferedCompositionPass final : public VkRenderpassBase
 //{
@@ -60,15 +60,15 @@
 //
 //  private:
 //	//Shaders
-//	::std::shared_ptr<VkShaderWrapper> defefered_composition_stencilwrite_vert_shader;
-//	::std::shared_ptr<VkShaderWrapper> defefered_composition_stencilwrite_frag_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_composition_stencilwrite_vert_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_composition_stencilwrite_frag_shader;
 //	//
-//	::std::shared_ptr<VkShaderWrapper> defefered_composition_per_frag_vert_shader;
-//	::std::shared_ptr<VkShaderWrapper> defefered_composition_per_frag_frag_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_composition_per_frag_vert_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_composition_per_frag_frag_shader;
 //
 //	//
-//	::std::shared_ptr<VkShaderWrapper> defefered_composition_per_sample_vert_shader;
-//	::std::shared_ptr<VkShaderWrapper> defefered_composition_per_sample_frag_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_composition_per_sample_vert_shader;
+//	::std::shared_ptr<ShaderWrapper> defefered_composition_per_sample_frag_shader;
 //
 //  private:
 //	//Attachments Infos
@@ -76,8 +76,8 @@
 //	VkAttachmentInfo::Bundle MS_color_attachments_infos{};
 //	VkAttachmentInfo::Bundle MS_depth_stencil_attachments_infos{};
 //	//Attachments
-//	VkTexture::TexturePtrBundle multisampled_color_attachment;
-//	VkTexture::TexturePtrBundle multisampled_depth_stencil_attachment;
+//	Texture::TexturePtrBundle multisampled_color_attachment;
+//	Texture::TexturePtrBundle multisampled_depth_stencil_attachment;
 //
 //  private:
 //	//Descriptor related

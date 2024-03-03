@@ -1,7 +1,7 @@
 #include "GLTFMetallicRoughness.h"
 
 Anni::GLTFMetallicRoughnessProducer::GLTFMetallicRoughnessProducer(DeviceManager& device_manager_,
-	DescriptorLayoutManager& descriptor_layout_manager_, VkPipelineBuilder& pipeline_builder_):
+	DescriptorLayoutManager& descriptor_layout_manager_, PipelineBuilder& pipeline_builder_):
 	device_manager(device_manager_),
 	descriptor_layout_manager(descriptor_layout_manager_),
 	pipeline_builder(pipeline_builder_)

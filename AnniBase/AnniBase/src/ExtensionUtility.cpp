@@ -54,6 +54,7 @@ const std::vector<const char *> & GetRequiredExtensionsForAGoodDevice()
 	    VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
 	    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 		VK_EXT_SHADER_OBJECT_EXTENSION_NAME,
+		VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
 	    "VK_EXT_shader_demote_to_helper_invocation"
 	};
 

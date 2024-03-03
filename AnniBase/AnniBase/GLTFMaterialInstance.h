@@ -3,7 +3,7 @@
 
 #include "Mate.h"
 #include "Buffer.h"
-#include "VkTexture.h"
+#include "Texture.h"
 
 
 namespace Anni
@@ -15,11 +15,11 @@ namespace Anni
 		{
 			std::shared_ptr<Buffer> dataBuffer;
 
-			std::shared_ptr<VkTexture> albedoImage;
-			std::shared_ptr<VkTexture> metalRoughImage;
-			std::shared_ptr<VkTexture> normalImage;
-			std::shared_ptr<VkTexture> emissiveImage;
-			std::shared_ptr<VkTexture> occlusionImage;
+			std::shared_ptr<Texture> albedoImage;
+			std::shared_ptr<Texture> metalRoughImage;
+			std::shared_ptr<Texture> normalImage;
+			std::shared_ptr<Texture> emissiveImage;
+			std::shared_ptr<Texture> occlusionImage;
 
 			uint32_t dataBufferOffset{};
 		};

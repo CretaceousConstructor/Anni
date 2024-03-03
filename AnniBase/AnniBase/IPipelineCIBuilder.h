@@ -1,7 +1,7 @@
 #pragma once
 
 #include "GraphicsComponent.h"
-#include "VkPipelinePP.h"
+#include "GFXPipelineCI.h"
 
 
 

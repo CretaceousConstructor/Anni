@@ -1,8 +1,8 @@
-#include "VkPipelineBuilder.h"
+#include "PipelineBuilder.h"
 namespace Anni
 {
 
-	VkPipelineBuilder::VkPipelineBuilder(DeviceManager& device_manager_, VkShaderFactory& shader_factory_) :
+	PipelineBuilder::PipelineBuilder(DeviceManager& device_manager_, ShaderFactory& shader_factory_) :
 		device_manager(device_manager_)
 	{
 	}
@@ -12,7 +12,7 @@ namespace Anni
 	/// </summary>
 	/// <param name="local_pip_CI"></param>
 	/// <returns></returns>
-	std::pair<vk::UniquePipeline, vk::UniquePipelineLayout> VkPipelineBuilder::BuildPipeline(GFXPipelineCI local_pip_CI) const
+	std::pair<vk::UniquePipeline, vk::UniquePipelineLayout> PipelineBuilder::BuildPipeline(GFXPipelineCI local_pip_CI) const
 	{
 		//******************error detecting******************
 
@@ -132,7 +132,7 @@ namespace Anni
 
 
 
-	vk::UniquePipelineLayout VkPipelineBuilder::BuildPipelineLayout(const GFXPipelineCI& local_pip_CI) const
+	vk::UniquePipelineLayout PipelineBuilder::BuildPipelineLayout(const GFXPipelineCI& local_pip_CI) const
 	{
 		vk::PipelineLayoutCreateInfo pipe_layout_CI{};
 		pipe_layout_CI.setSetLayouts(local_pip_CI.set_layouts);

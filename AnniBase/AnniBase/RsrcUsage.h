@@ -4,7 +4,7 @@
 #include "SamplerWrapper.h"
 #include "AttachmentInfo.h"
 #include "TimelineSemWrapper.h"
-#include "VkSemaphoreBundle.h"
+#include "BinarySemWrapper.h"
 #include "Resource.h"
 #include "SyncInfo.h"
 

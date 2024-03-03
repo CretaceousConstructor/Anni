@@ -61,7 +61,6 @@ namespace Anni
 	ImageCIEnhanced CI::GetTextureImgCI(const vk::Format format_, const vk::Extent3D& image_extend_, vk::ImageCreateFlags flags, std::optional<std::string> image_path_)
 	{
 		ImageCIEnhanced result{};
-
 		//*************************************
 		result.vk_image_CI.format = format_;
 		result.vk_image_CI.extent = image_extend_;

@@ -9,17 +9,17 @@ Anni::RenderGraphV1::VirtualTexture::Handle::Handle(uint64_t handle_): handle(ha
 }
 
 Anni::RenderGraphV1::VirtualTexture::VirtualTexture(std::string name_,
-	std::vector<std::shared_ptr<VkTexture>>* const p_rsrcs_):
+	std::vector<std::shared_ptr<Texture>>* const p_rsrcs_):
 	IVirtualResource(name_, VRsrcType::Imported), descriptor(std::nullopt), p_rsrcs(p_rsrcs_)
 {
 }
 
-Anni::RenderGraphV1::VirtualTexture::VirtualTexture(std::string name_, VkTexture::Descriptor descriptor_):
+Anni::RenderGraphV1::VirtualTexture::VirtualTexture(std::string name_, Texture::Descriptor descriptor_):
 	IVirtualResource(name_, VRsrcType::Established), descriptor(descriptor_)
 {
 }
 
-Anni::RenderGraphV1::VirtualTexture::VirtualTexture(std::string name_, std::shared_ptr<VkTexture> ptr_rsrc_):
+Anni::RenderGraphV1::VirtualTexture::VirtualTexture(std::string name_, std::shared_ptr<Texture> ptr_rsrc_):
 	IVirtualResource(name_, VRsrcType::Imported), p_rsrc(ptr_rsrc_), descriptor(std::nullopt)
 {
 }

@@ -1,6 +1,6 @@
 #pragma once
 #include "IVirtualResource.h"
-#include "VkTexture.h"
+#include "Texture.h"
 
 
 namespace Anni::RenderGraphV1
@@ -11,7 +11,7 @@ namespace Anni::RenderGraphV1
 
 	class VirtualTexture : public IVirtualResource
 	{
-		friend class VkTextureFactory;
+		friend class TextureFactory;
 	public:
 
 		struct Handle
@@ -24,11 +24,11 @@ namespace Anni::RenderGraphV1
 		  uint64_t handle{~uint64_t(0x0)};
 		};
 
-		VirtualTexture(std::string name_, std::vector<std::shared_ptr<VkTexture>>* const p_rsrcs_);
+		VirtualTexture(std::string name_, std::vector<std::shared_ptr<Texture>>* const p_rsrcs_);
 
-		VirtualTexture(std::string name_, VkTexture::Descriptor descriptor_);
+		VirtualTexture(std::string name_, Texture::Descriptor descriptor_);
 
-		VirtualTexture(std::string name_, std::shared_ptr<VkTexture> ptr_rsrc_);
+		VirtualTexture(std::string name_, std::shared_ptr<Texture> ptr_rsrc_);
 
 		VirtualTexture() = delete;
 
@@ -42,9 +42,9 @@ namespace Anni::RenderGraphV1
 
 		vk::ImageMemoryBarrier2 GetTexBarrier(const Anni::ImgSyncInfo& source_syn, const Anni::ImgSyncInfo& target_sync)const;
 
-		std::shared_ptr<VkTexture>                    p_rsrc;
-		std::optional<VkTexture::Descriptor>          descriptor;
-		std::optional<std::vector<std::shared_ptr<VkTexture>>* const> p_rsrcs;
+		std::shared_ptr<Texture>                    p_rsrc;
+		std::optional<Texture::Descriptor>          descriptor;
+		std::optional<std::vector<std::shared_ptr<Texture>>* const> p_rsrcs;
 
 	};
 

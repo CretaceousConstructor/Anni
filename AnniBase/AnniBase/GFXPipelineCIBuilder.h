@@ -1,7 +1,7 @@
 #pragma once
 #include "IPipelineCIBuilder.h"
 
-#include "VkPipelinePP.h"
+#include "GFXPipelineCI.h"
 
 namespace Anni
 {

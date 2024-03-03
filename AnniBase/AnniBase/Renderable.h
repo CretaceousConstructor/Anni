@@ -57,10 +57,10 @@ namespace Anni
 		// storage for all the data on a given gltf file
 		std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
 		std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
-		std::unordered_map<std::string, std::shared_ptr<VkTexture>> images;
+		std::unordered_map<std::string, std::shared_ptr<Texture>> images;
 		std::unordered_map<std::string, std::shared_ptr<GLTFMaterialInstance>> materials;
 
-		std::vector<std::shared_ptr<VkTexture>> images_array;
+		std::vector<std::shared_ptr<Texture>> images_array;
 		// nodes that dont have a parent, for iterating through the file in tree order
 		std::vector<std::shared_ptr<Node>> topNodes;
 		std::vector<std::shared_ptr<SamplerWrapper>> samplers;

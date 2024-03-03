@@ -4,7 +4,7 @@
 
 namespace Anni
 {
-	VkTextureFactory::VkTextureFactory(
+	TextureFactory::TextureFactory(
 		GraphicsComponent& gfx_,
 		ImageFactory& img_factory_,
 		BufferFactory& buffer_factory_
@@ -15,7 +15,7 @@ namespace Anni
 	}
 
 	//Checked
-	std::shared_ptr<VkTexture> VkTextureFactory::ProduceTextureFromImgPath(const std::string& image_path, vk::Format format_of_image_, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, const vk::ImageAspectFlags aspect_flag)
+	std::shared_ptr<Texture> TextureFactory::ProduceTextureFromImgPath(const std::string& image_path, vk::Format format_of_image_, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, const vk::ImageAspectFlags aspect_flag)
 	{
 		std::shared_ptr<GeneralPurposeImageReFac> tex_img;
 		const auto                                file_extension = Util::GetFileExtensionName(image_path);
@@ -58,7 +58,7 @@ namespace Anni
 			.layout_inpass = vk::ImageLayout::eTransferDstOptimal
 		};
 
-		auto result = std::make_shared<VkTexture>(gfx, image_path, tex_img, syc_info_onload);
+		auto result = std::make_shared<Texture>(gfx, image_path, tex_img, syc_info_onload);
 
 		ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *result, *tex_img);
 
@@ -66,7 +66,7 @@ namespace Anni
 	}
 
 	//Checked
-	std::shared_ptr<VkTexture> VkTextureFactory::ProduceTextureFromBufferReFac(ImageCIEnhanced texture_img_CI, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, const void* const data) const
+	std::shared_ptr<Texture> TextureFactory::ProduceTextureFromBufferReFac(ImageCIEnhanced texture_img_CI, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, const void* const data) const
 	{
 		std::shared_ptr<GeneralPurposeImageReFac> tex_img = Init1Mip1LayerImgFromHostBufferReFac<uint8_t>(texture_img_CI, data);
 
@@ -75,7 +75,7 @@ namespace Anni
 			.stage_mask = vk::PipelineStageFlagBits2::eCopy,
 			.layout_inpass = vk::ImageLayout::eTransferDstOptimal };
 
-		auto result = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
+		auto result = std::make_shared<Texture>(gfx, std::nullopt, tex_img, syc_info_onload);
 		ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *result, *tex_img);
 
 		return result;
@@ -83,7 +83,7 @@ namespace Anni
 
 	//Checked
 
-	std::shared_ptr<VkTexture> VkTextureFactory::ProduceUnfilledTextureReFac(ImageCIEnhanced texture_img_PP, std::optional<vk::SamplerCreateInfo> sampler_CI, std::optional<vk::ImageViewCreateInfo> img_view_CI) const
+	std::shared_ptr<Texture> TextureFactory::ProduceUnfilledTextureReFac(ImageCIEnhanced texture_img_PP, std::optional<vk::SamplerCreateInfo> sampler_CI, std::optional<vk::ImageViewCreateInfo> img_view_CI) const
 	{
 		auto tex_img = img_factory.ProduceImage(texture_img_PP);
 
@@ -93,16 +93,16 @@ namespace Anni
 			.layout_inpass = vk::ImageLayout::eUndefined
 		};
 
-		auto result = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
+		auto result = std::make_shared<Texture>(gfx, std::nullopt, tex_img, syc_info_onload);
 
 		ProcessViewAndSamplerReFac(sampler_CI, img_view_CI, *result, *tex_img);
 		return result;
 	}
 
 	//Checked
-	std::vector<std::shared_ptr<VkTexture>> VkTextureFactory::ProduceUnfilledTextureArrayReFac(ImageCIEnhanced texture_img_PP, std::optional<vk::SamplerCreateInfo> sampler_CI, std::optional<vk::ImageViewCreateInfo> img_view_CI, size_t bundle_size) const
+	std::vector<std::shared_ptr<Texture>> TextureFactory::ProduceUnfilledTextureArrayReFac(ImageCIEnhanced texture_img_PP, std::optional<vk::SamplerCreateInfo> sampler_CI, std::optional<vk::ImageViewCreateInfo> img_view_CI, size_t bundle_size) const
 	{
-		std::vector<std::shared_ptr<VkTexture>> result;
+		std::vector<std::shared_ptr<Texture>> result;
 
 		for (uint32_t i = 0; i < bundle_size; i++)
 		{
@@ -112,7 +112,7 @@ namespace Anni
 		return result;
 	}
 
-	void VkTextureFactory::ProcessViewAndSamplerReFac(std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, VkTexture& result_tex, ImageBaseReFac& img) const
+	void TextureFactory::ProcessViewAndSamplerReFac(std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, Texture& result_tex, ImageBaseReFac& img) const
 	{
 		if (img_view_CI_)
 		{
@@ -130,9 +130,9 @@ namespace Anni
 
 
 	//Checked
-	std::vector<std::shared_ptr<VkTexture>> VkTextureFactory::ProduceSwapTextureArrayReFac(ImageCIEnhanced texture_img_CI, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_) const
+	std::vector<std::shared_ptr<Texture>> TextureFactory::ProduceSwapTextureArrayReFac(ImageCIEnhanced texture_img_CI, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_) const
 	{
-		std::vector<std::shared_ptr<VkTexture>> result;
+		std::vector<std::shared_ptr<Texture>> result;
 		const std::vector<vk::Image>& swap_images = swapchain_manager.GetSwapChainImages();
 
 		for (uint32_t i = 0; i < swap_images.size(); i++)
@@ -147,7 +147,7 @@ namespace Anni
 			};
 
 			auto       tex_img = std::make_shared<SwapchainImageReFac>(gfx, swap_images[i], texture_img_CI);
-			const auto tex = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
+			const auto tex = std::make_shared<Texture>(gfx, std::nullopt, tex_img, syc_info_onload);
 			ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *tex, *tex_img);
 
 			tex->swap_image_index = i;
@@ -159,9 +159,9 @@ namespace Anni
 	}
 
 
-	std::shared_ptr<VkTexture> VkTextureFactory::ProduceSwapTexture(ImageCIEnhanced texture_img_CI, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, size_t index) const
+	std::shared_ptr<Texture> TextureFactory::ProduceSwapTexture(ImageCIEnhanced texture_img_CI, std::optional<vk::SamplerCreateInfo> sampler_CI_, std::optional<vk::ImageViewCreateInfo> img_view_CI_, size_t index) const
 	{
-		std::shared_ptr<VkTexture> result_tex;
+		std::shared_ptr<Texture> result_tex;
 		const std::vector<vk::Image>& swap_images = swapchain_manager.GetSwapChainImages();
 
 		texture_img_CI.vk_image_CI.format = swapchain_manager.GetSwapChainImageFormat();
@@ -176,7 +176,7 @@ namespace Anni
 		};
 
 		auto       tex_img = std::make_shared<SwapchainImageReFac>(gfx, swap_images[index], texture_img_CI);
-		result_tex = std::make_shared<VkTexture>(gfx, std::nullopt, tex_img, syc_info_onload);
+		result_tex = std::make_shared<Texture>(gfx, std::nullopt, tex_img, syc_info_onload);
 		ProcessViewAndSamplerReFac(sampler_CI_, img_view_CI_, *result_tex, *tex_img);
 
 		return result_tex;
@@ -184,14 +184,14 @@ namespace Anni
 
 
 
-	void VkTextureFactory::ResetTexSampler(vk::SamplerCreateInfo sampler_CI_, VkTexture& result_tex) const
+	void TextureFactory::ResetTexSampler(vk::SamplerCreateInfo sampler_CI_, Texture& result_tex) const
 	{
 		result_tex.tex_sampler = std::make_shared<SamplerWrapper>(device_manager, sampler_CI_);
 		result_tex.SetSamplerCI(sampler_CI_);
 		return;
 	}
 
-	void VkTextureFactory::ResetTexSampler(vk::SamplerCreateInfo sampler_CI_, VkTexture::TexturePtrBundle& tex_ptr_bundle) const
+	void TextureFactory::ResetTexSampler(vk::SamplerCreateInfo sampler_CI_, Texture::TexturePtrBundle& tex_ptr_bundle) const
 	{
 		for (auto& tex : tex_ptr_bundle)
 		{
@@ -199,7 +199,7 @@ namespace Anni
 		}
 	}
 
-	void VkTextureFactory::ResetTexImgView(vk::ImageViewCreateInfo img_view_CI_, VkTexture& result_tex) const
+	void TextureFactory::ResetTexImgView(vk::ImageViewCreateInfo img_view_CI_, Texture& result_tex) const
 	{
 		img_view_CI_.image = result_tex.GetTextureRawImage();
 		result_tex.tex_image_view = std::make_shared<ImgViewWrapper>(device_manager, img_view_CI_);
@@ -210,12 +210,12 @@ namespace Anni
 
 
 	//TODO:
-	inline void VkTextureFactory::GenerateMipMaps()
+	inline void TextureFactory::GenerateMipMaps()
 	{
 		ASSERT_WITH_MSG(false, "Not implemented!");
 	}
 
-	void VkTextureFactory::ActualizeVirtualResource(RenderGraphV1::VirtualTexture& vtex)
+	void TextureFactory::ActualizeVirtualResource(RenderGraphV1::VirtualTexture& vtex)
 	{
 		ASSERT_WITH_MSG(vtex.descriptor.has_value(), "No discriptor of the given resource is provided.");
 
@@ -230,7 +230,7 @@ namespace Anni
 		}
 	}
 
-	std::shared_ptr<GeneralPurposeImageReFac> VkTextureFactory::InitLdrImgFromFile(const std::string& image_path, const vk::Format format_of_image_, const vk::ImageAspectFlags aspect_flags) const
+	std::shared_ptr<GeneralPurposeImageReFac> TextureFactory::InitLdrImgFromFile(const std::string& image_path, const vk::Format format_of_image_, const vk::ImageAspectFlags aspect_flags) const
 	{
 		//TODO: mipmap info(cubemap) and layee info(msaa)
 
@@ -280,7 +280,7 @@ namespace Anni
 		return image;
 	}
 
-	std::shared_ptr<GeneralPurposeImageReFac> VkTextureFactory::InitHdrImgFromFile(const std::string& image_path, const vk::Format format_of_image_, const vk::ImageAspectFlags aspect_flags) const
+	std::shared_ptr<GeneralPurposeImageReFac> TextureFactory::InitHdrImgFromFile(const std::string& image_path, const vk::Format format_of_image_, const vk::ImageAspectFlags aspect_flags) const
 	{
 		//stbi_set_flip_vertically_on_load(true);
 		int width, height, nrComponents;
@@ -329,7 +329,7 @@ namespace Anni
 	}
 
 	//This function should be move to other class
-	std::shared_ptr<GeneralPurposeImageReFac> VkTextureFactory::InitKtxImgFromFileLdrHdr(const std::string& image_path, const vk::Format format_of_image, vk::ImageAspectFlags aspect_flag)
+	std::shared_ptr<GeneralPurposeImageReFac> TextureFactory::InitKtxImgFromFileLdrHdr(const std::string& image_path, const vk::Format format_of_image, vk::ImageAspectFlags aspect_flag)
 	{
 		std::shared_ptr<GeneralPurposeImageReFac> texture_image;
 		//const auto                                tex_name = image_path.substr(image_path.find_last_of("\\/") + 1, image_path.length());

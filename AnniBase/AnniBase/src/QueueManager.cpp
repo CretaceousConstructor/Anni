@@ -30,7 +30,7 @@ namespace Anni
 		}
 
 
-		std::ranges::sort(suitable_queue, [](const auto& rhs, const auto& lhs)
+		std::ranges::stable_sort(suitable_queue, [](const auto& rhs, const auto& lhs)
 			{
 				return rhs->GetNumDisbatchedPasses() < lhs->GetNumDisbatchedPasses();
 			});
@@ -278,7 +278,7 @@ namespace Anni
 
 		std::vector<vk::CommandBuffer> temp_buf = device_man.GetLogicalDevice().allocateCommandBuffers(cmd_buf_alloc_info);
 
-		vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+		const vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
 		temp_buf.front().begin(begin_info);
 

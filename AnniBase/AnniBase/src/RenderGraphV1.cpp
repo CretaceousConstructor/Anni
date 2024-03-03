@@ -7,9 +7,9 @@ Anni::RenderGraphV1::DependencyGraph::DependencyGraph(DeviceManager& device_mana
 	DescriptorLayoutManager& descriptor_set_layout_manager_,
 	DescriptorSetAllocatorGrowable& descriptor_allocator_,
 	VkTimelineSemPoolUnsafe& semaphore_pool_, BufferFactory& buf_fac_,
-	VkTextureFactory& tex_fac_, VkShaderFactory& shader_fac_,
+	TextureFactory& tex_fac_, ShaderFactory& shader_fac_,
 	GFXPipelineCIBuilder& gfx_pipelineCI_builder_,
-	VkPipelineBuilder& pipeline_builder_
+	PipelineBuilder& pipeline_builder_
 )
 	:
 	cur_frame(0),
@@ -47,16 +47,15 @@ void Anni::RenderGraphV1::DependencyGraph::Compile()
 	DependencyLevelsGeneration();
 	GPUWorkDistribution();
 	SyncPrimitivesAquisition();
-	MarkLayersMultiAccessSameRsrc();
 	PartitionPassesAtTheSameLevel();
+	MarkLayersMultiAccessSameRsrc();
 	SortPassesAccessingRsrc();
 	SyncPrimitivesInsertion();
 	//************************************
 	//<-Render graph compilation finished.
 }
 
-void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t img_index, uint32_t cur_frame,
-	vk::Semaphore frame_number_semaphore)
+void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(vk::Semaphore frame_number_semaphore)
 {
 	//TODO: PARALLEL RECORDING MULTI CMD BUF. Should be done in a per-queue basis? You can't fill command buffers created by the same pool from multi threads, now we just seqentially record.
 	for (size_t level = 0; level <= max_level; ++level)
@@ -69,7 +68,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 				{
 					level_to_all_passes_attached[level].push_back(ptr_pass);
 				}
-				level_to_all_passes_attached.emplace(level, std::vector<GraphicsPassNode*>{});
+				level_to_all_passes_attached.emplace(level, std::vector<GraphicsPassNode*>{ptr_pass});
 			}
 		}
 	}
@@ -160,7 +159,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 	//	}
 	//}
 
-	for (auto level = 0; level <= max_level; ++level)
+	for (size_t level = 0; level <= max_level; ++level)
 	{
 		//先观测这个level上的pass需不需要排序，如果需要，那么先要决定此level的执行顺序，这个执行顺序首先根据queue fam划分，再根据queue地址划分，最后根据pass地址划分
 
@@ -169,7 +168,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 		{
 			for (auto p_pass : level_to_all_passes_attached[level])
 			{
-				//PRESENT PASS SPECIAL TEATMENT
+				//PRESENT PASS SPECIAL HANDLING
 				if (Present == p_pass->GetRenderpassType())
 				{
 					p_pass->ResourcesAcquisition(tex_fac, buf_fac);
@@ -252,11 +251,11 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 						{
 							// Find the first element satisfying the condition
 							auto it = std::ranges::find_if(vec_swap_imgs_finshed_using,
-								[&cur_frame](
+								[this](
 									std::pair<std::vector<std::shared_ptr<BinarySemWrapper>>,
 									uint64_t>& sems_and_frame_num)
 								{
-									return sems_and_frame_num.second == (cur_frame -
+									return sems_and_frame_num.second == (this->cur_frame -
 										Vk::MAX_FRAMES_OVERLAP);
 								}
 							);
@@ -317,6 +316,9 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 				else
 				{
 					p_pass->ResourcesAcquisition(tex_fac, buf_fac);
+					//IN PROGRESS: sync info on inital use
+					SyncPrimitivesInsertionPerPass(p_pass);
+
 					std::vector<vk::SemaphoreSubmitInfo> wait_sem_submit_info;
 					std::vector<vk::SemaphoreSubmitInfo> signal_sem_submit_info;
 
@@ -361,21 +363,29 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 			//	}
 			//}
 		}
+
+
+	}
+
+	//value up for timeline sync sema
+	for (const auto& p_sem : diff_queue_sync_sema | std::views::values)
+	{
+		++p_sem->GetLastValue();
 	}
 
 	//Harvests all Timeline Semaphores across all queues
 	std::vector<vk::Semaphore> all_waiting_queue_sems;
 
-	for (auto& [p_queue, _] : queue_to_passes_on_it)
+	for (const auto& p_queue : queue_to_passes_on_it | std::views::keys)
 	{
-		for (auto& [_, sem] : p_queue->buf_to_sem)
+		for (auto& sem : p_queue->buf_to_sem | std::views::values)
 		{
 			all_waiting_queue_sems.push_back(sem);
 		}
 	}
 
 	Queue* p_queue_used_to_finalize = nullptr;
-	for (auto& [p_queue, _] : queue_to_passes_on_it)
+	for (auto& p_queue : queue_to_passes_on_it | std::views::keys)
 	{
 		//TODO:这里找到queue cap最强的queue，然后用来finalize。暂时先随便选一个queue
 		if (!p_queue_used_to_finalize)
@@ -387,7 +397,7 @@ void Anni::RenderGraphV1::DependencyGraph::CmdBufRecordingAndExecuting(uint32_t 
 	p_queue_used_to_finalize->FinalizeGeneralRendering(all_waiting_queue_sems, cur_frame, frame_number_semaphore);
 }
 
-void Anni::RenderGraphV1::DependencyGraph::CmdBufExecuteOnQueue(GraphicsPassNode* p_pass, uint32_t cur_frame,
+void Anni::RenderGraphV1::DependencyGraph::CmdBufExecuteOnQueue(GraphicsPassNode* p_pass, uint64_t cur_frame,
 	vk::CommandBuffer cmd_buf, Queue* execution_queue,
 	VkSemaphore frame_num_sem,
 	std::vector<vk::SemaphoreSubmitInfo>&
@@ -975,7 +985,7 @@ void Anni::RenderGraphV1::DependencyGraph::VisitNode(size_t cur_index, GraphicsP
 
 
 size_t Anni::RenderGraphV1::DependencyGraph::FindIndexInPassNodeArray(
-	const GraphicsPassNode* const  node_pass,
+	const GraphicsPassNode* const node_pass,
 	const std::vector<std::unique_ptr<GraphicsPassNode>>& all_nodes
 )
 {
@@ -998,9 +1008,9 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyLevelsGeneration()
 	std::vector<size_t> cur_level(topologically_sorted_nodes.size(), 0);
 	for (auto pas_itr = topologically_sorted_nodes.begin(); pas_itr < topologically_sorted_nodes.end(); ++pas_itr)
 	{
-		GraphicsPassNode* p_cur_pass = *pas_itr;
+		const GraphicsPassNode* const p_cur_pass = *pas_itr;
+		const size_t cur_index = std::distance(topologically_sorted_nodes.begin(), pas_itr);
 
-		size_t cur_index = std::distance(topologically_sorted_nodes.begin(), pas_itr);
 		for (auto adjacent_pass : p_cur_pass->passes_depen_on_cur_pass_set)
 		{
 			// Use std::find_if with a lambda function
@@ -1009,9 +1019,9 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyLevelsGeneration()
 				{
 					return node_itr == adjacent_pass;
 				});
-			assert(it_adj_pass != topologically_sorted_nodes.end());
+			ASSERT_WITH_MSG(it_adj_pass != topologically_sorted_nodes.end(), "Didn't find adjacent passes.");
 
-			size_t adj_index = std::distance(topologically_sorted_nodes.begin(), it_adj_pass);
+			const size_t adj_index = std::distance(topologically_sorted_nodes.begin(), it_adj_pass);
 			if (cur_level[adj_index] < cur_level[cur_index] + 1)
 			{
 				cur_level[adj_index] = cur_level[cur_index] + 1;
@@ -1019,10 +1029,11 @@ void Anni::RenderGraphV1::DependencyGraph::DependencyLevelsGeneration()
 		}
 	}
 
-	for (int i = 0; i < topologically_sorted_nodes.size(); ++i)
+	for (size_t i = 0; i < topologically_sorted_nodes.size(); ++i)
 	{
 		topologically_sorted_nodes[i]->cur_level = cur_level[i];
 	}
+
 	const auto max_level_itr = std::ranges::max_element(cur_level);
 	max_level = *max_level_itr;
 }
@@ -1057,7 +1068,7 @@ void Anni::RenderGraphV1::DependencyGraph::GPUWorkDistribution()
 					queue_to_passes_on_it.emplace(ptr_queue, std::vector<GraphicsPassNode*>{ptr_pass});
 				}
 
-				auto result_itr = pass_to_queue_info.emplace(ptr_pass, std::pair<Queue*, size_t>{
+				const auto result_itr = pass_to_queue_info.emplace(ptr_pass, std::pair<Queue*, size_t>{
 					ptr_queue, monotonical_assigned_index
 				});
 
@@ -1067,13 +1078,13 @@ void Anni::RenderGraphV1::DependencyGraph::GPUWorkDistribution()
 		}
 	}
 
-	std::vector<Queue*> all_queue_in_use; //随意确定一个queue的顺序，方便之后用index索引
-	// Extract keys from the map and store them in the vector
-	std::ranges::transform(queue_to_passes_on_it, std::back_inserter(all_queue_in_use),
-		[](const std::pair<Queue*, std::vector<GraphicsPassNode*>>& pair)
-		{
-			return pair.first; // Extract the key
-		});
+	//std::vector<Queue*> all_queue_in_use; //随意确定一个queue的顺序，方便之后用index索引
+	//// Extract keys from the map and store them in the vector
+	//std::ranges::transform(queue_to_passes_on_it, std::back_inserter(all_queue_in_use),
+	//	[](const std::pair<Queue*, std::vector<GraphicsPassNode*>>& pair)
+	//	{
+	//		return pair.first; // Extract the key
+	//	});
 }
 
 Anni::Queue& Anni::RenderGraphV1::DependencyGraph::GetSuitableQueue(GraphicsPassNode& pass)
@@ -1106,9 +1117,15 @@ Anni::Queue& Anni::RenderGraphV1::DependencyGraph::GetSuitableQueue(GraphicsPass
 
 void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesAquisition()
 {
-	for (auto itr = topologically_sorted_nodes.begin(); std::next(itr) != topologically_sorted_nodes.end(); ++itr)
+	for (auto fir_element_itr = topologically_sorted_nodes.begin(); fir_element_itr != topologically_sorted_nodes.end();
+		++fir_element_itr)
 	{
-		diff_queue_sync_sema.emplace(PassNodePair{ *itr, *std::next(itr) }, semaphore_pool.AcquireTimelineSem());
+		for (auto sec_element_itr = std::next(fir_element_itr); sec_element_itr != topologically_sorted_nodes.end(); ++
+			sec_element_itr)
+		{
+			diff_queue_sync_sema.emplace(PassNodePair{ *fir_element_itr, *sec_element_itr },
+				semaphore_pool.AcquireTimelineSem());
+		}
 	}
 }
 
@@ -1162,7 +1179,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 			vrsrc.passes_access_this_rsrc,
 			[&vrsrc](const std::pair<GraphicsPassNode*, RsrcAccessTypeRG>& pass_assess_pair)
 			{
-				auto cur_pass = pass_assess_pair.first;
+				const auto cur_pass = pass_assess_pair.first;
 				vrsrc.level_to_passes_attached_to.at(cur_pass->cur_level).push_back(cur_pass);
 			});
 
@@ -1202,7 +1219,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 				std::ranges::for_each
 				(
 					queue_fam_partition,
-					[this, &unique_queues_on_the_same_queue_fam](GraphicsPassNode* pass)
+					[this, &unique_queues_on_the_same_queue_fam](GraphicsPassNode* const pass)
 					{
 						unique_queues_on_the_same_queue_fam.insert(this->pass_to_queue_info.at(pass).first);
 					}
@@ -1212,7 +1229,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 				{
 					std::set<GraphicsPassNode*> partition;
 					std::ranges::copy_if(queue_fam_partition, std::inserter(partition, partition.begin()),
-						[this, unique_queue](GraphicsPassNode* pass) -> bool
+						[this, unique_queue](GraphicsPassNode* const pass) -> bool
 						{
 							return this->pass_to_queue_info.at(pass).first == unique_queue;
 						});
@@ -1233,7 +1250,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 	//首先对于所有的资源，所有使用到资源的pass按照layer排序以后，每一个layer层级内的pass都需要进行排序，否则这个执行顺序定不下来，根本写不了同步
 	for (auto& vrsrc : rg_textures)
 	{
-		for (auto level = 0; level <= max_level; ++level)
+		for (size_t level = 0; level <= max_level; ++level)
 		{
 			vrsrc.level_to_passes_attached_to.emplace(level, std::vector<GraphicsPassNode*>{});
 			vrsrc.level_to_passes_attached_to_partitioned.emplace(level, std::vector<std::vector<GraphicsPassNode*>>{});
@@ -1284,7 +1301,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 				std::ranges::for_each
 				(
 					queue_fam_partition,
-					[this, &unique_queues_on_the_same_queue_fam](GraphicsPassNode* pass)
+					[this, &unique_queues_on_the_same_queue_fam](GraphicsPassNode* const pass)
 					{
 						unique_queues_on_the_same_queue_fam.insert(this->pass_to_queue_info.at(pass).first);
 					}
@@ -1295,7 +1312,7 @@ void Anni::RenderGraphV1::DependencyGraph::PartitionPassesAtTheSameLevel()
 					std::set<GraphicsPassNode*> partition;
 					std::ranges::copy_if(queue_fam_partition, std::inserter(partition, partition.begin()),
 
-						[this, unique_queue](GraphicsPassNode* pass) -> bool
+						[this, unique_queue](GraphicsPassNode* const pass) -> bool
 						{
 							return this->pass_to_queue_info.at(pass).first == unique_queue;
 						});
@@ -1376,33 +1393,35 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertion()
 	///************************************************************
 	//SYNC PRIMITIVES INSERTION同步原语插入:
 	///************************************************************
-	//按照level层次来loop，
-	for (size_t cur_level = 0; cur_level <= max_level; ++cur_level)
-	{
-		for (GraphicsPassNode* cur_pass : topologically_sorted_nodes)
-		{
-			if (cur_pass->cur_level == cur_level)
-			{
-				SyncPrimitivesInsertionInletBuffer(cur_pass);
-				SyncPrimitivesInsertionOutletBuffer(cur_pass);
+	////按照level层次来loop，
+	//for (size_t cur_level = 0; cur_level <= max_level; ++cur_level)
+	//{
+	//	for (GraphicsPassNode* cur_pass : topologically_sorted_nodes)
+	//	{
+	//		if (cur_pass->cur_level == cur_level)
+	//		{
+	//			SyncPrimitivesInsertionInletBuffer(cur_pass);
+	//			SyncPrimitivesInsertionOutletBuffer(cur_pass);
 
-				SyncPrimitivesInsertionInletTexture(cur_pass);
-				SyncPrimitivesInsertionOutletTexture(cur_pass);
-			}
-		}
-	}
+	//			SyncPrimitivesInsertionInletTexture(cur_pass);
+	//			SyncPrimitivesInsertionOutletTexture(cur_pass);
+	//		}
+	//	}
+	//}
 
-
-	//value up for timeline sync sema
-	for (const auto& [_, p_sem] : diff_queue_sync_sema)
-	{
-		++p_sem->GetLastValue();
-	}
+	////value up for timeline sync sema
+	//for (const auto& p_sem : diff_queue_sync_sema | std::views::values)
+	//{
+	//	++p_sem->GetLastValue();
+	//}
 }
+
+
+
 
 void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(GraphicsPassNode* const cur_pass)
 {
-	auto cur_pass_level = cur_pass->cur_level;
+	const auto cur_pass_level = cur_pass->cur_level;
 	for (auto& cur_let : cur_pass->ins_buf)
 	{
 		VirtualBuffer& curlet_underlying_rsrc = cur_pass->GetVRsrcFromRsrcHandle(cur_let.GetUnderlyingRsrcHandle());
@@ -1412,12 +1431,21 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 		//直接在当前pass建立的资源，同步原语插入：
 		if (IRsrcUsage::RsrcOrigin::EstablishedInSitu == curlet_origin)
 		{
+
+
 			auto source_sync = curlet_underlying_rsrc.p_rsrc->GetSynInfoOnLoad();
 			cur_pass->InsertSyncInfoForInitalUsage(
 				source_sync,
 				curlet_usage.GetSynInfo(),
 				cur_let.GetUnderlyingRsrcHandle()
 			);
+
+			//cur_pass->InsertSyncInfoInitialUse(
+			//	curlet_usage.GetSynInfo(),
+			//	cur_let.GetUnderlyingRsrcHandle(),
+			//	curlet_origin
+			//);
+
 		}
 
 		if (IRsrcUsage::RsrcOrigin::FromOutSide == curlet_origin)
@@ -1508,9 +1536,11 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletBuffer(Gr
 					const VirtualBuffer::Handle underlying_buf_handle = target_let.GetUnderlyingRsrcHandle();
 
 					auto founded_buf_outlet_usage = std::ranges::find_if(sor_pass->outs_buf,
-						[&underlying_buf_handle](const RsrcOutlet<BufUsage>& outlet_buf)
+						[&underlying_buf_handle](
+							const RsrcOutlet<BufUsage>& outlet_buf)
 						{
-							return outlet_buf.rsrc_handle == underlying_buf_handle;
+							return outlet_buf.rsrc_handle ==
+								underlying_buf_handle;
 						});
 
 					auto founded_buf_inlet_usage = std::ranges::find_if(sor_pass->ins_buf,
@@ -1747,6 +1777,13 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletBuffer(G
 				curlet_usage.GetSynInfo(),
 				cur_let.GetUnderlyingRsrcHandle()
 			);
+
+			//cur_pass->InsertSyncInfoInitialUse(
+			//	curlet_usage.GetSynInfo(),
+			//	cur_let.GetUnderlyingRsrcHandle(),
+			//	curlet_origin
+			//);
+
 		}
 
 		if (IRsrcUsage::RsrcOrigin::FromOutSide == curlet_origin)
@@ -2072,6 +2109,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					return variant_usage.GetSynInfo();
 				}, curlet_usage);
 
+
 		//直接在当前pass建立的资源，同步原语插入：
 		if (IRsrcUsage::RsrcOrigin::EstablishedInSitu == curlet_origin)
 		{
@@ -2081,8 +2119,13 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 				curlet_sync_info,
 				cur_let.GetUnderlyingRsrcHandle()
 			);
-		}
 
+			//cur_pass->InsertSyncInfoInitialUse(
+			//	curlet_sync_info,
+			//	cur_let.GetUnderlyingRsrcHandle(),
+			//	curlet_origin
+			//);
+		}
 
 		//来自rendergraph外部的
 		if (IRsrcUsage::RsrcOrigin::FromOutSide == curlet_origin)
@@ -2095,7 +2138,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 					const auto& tex_img = curlet_underlying_rsrc.p_rsrc->GetTextureImage();
 					auto& sem_wrapper = tex_img->GetSemUsedToTransfer();
 
-					if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState()) //说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
+					if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState()) //TODO: 说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
 					{
 						auto source_sync = curlet_underlying_rsrc.p_rsrc->GetSynInfoOnLoad();
 
@@ -2201,52 +2244,51 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 						}
 					}
 				}
-				else
+			}
+			else
+			{
+				for (auto& p_rsrc : *curlet_underlying_rsrc.p_rsrcs.value())
 				{
-					for (auto& p_rsrc : *curlet_underlying_rsrc.p_rsrcs.value())
+					const auto& tex_img = p_rsrc->GetTextureImage();
+					auto& sem_wrapper = tex_img->GetSemUsedToTransfer();
+					if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())
+						//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
 					{
-						const auto& tex_img = p_rsrc->GetTextureImage();
-						auto& sem_wrapper = tex_img->GetSemUsedToTransfer();
-						if (sem_wrapper->GetLastValue() > sem_wrapper->ReturnState())
-							//说明还没加载完成，这样的话，我们需要插入带有semaphore的同步原语
+						SemInsertInfoSafe sem_insert_info
 						{
-							SemInsertInfoSafe sem_insert_info
-							{
-								WaitValue{sem_wrapper->GetLastValue()},
-								curlet_sync_info.stage_mask
-							};
+							WaitValue{sem_wrapper->GetLastValue()},
+							curlet_sync_info.stage_mask
+						};
 
-							auto source_sync = p_rsrc->GetSynInfoOnLoad();
-							cur_pass->InsertSyncInfoForInitalLoad(
-								source_sync,
-								curlet_sync_info,
-								cur_let.GetUnderlyingRsrcHandle(),
-								sem_wrapper,
-								sem_insert_info
-							);
-						}
-						else //已经加载过了，
-						{
-							auto source_sync = ImgSyncInfo{
-								.access_mask = vk::AccessFlagBits2::eNone,
-								.stage_mask = vk::PipelineStageFlagBits2::eTopOfPipe,
-								.layout_inpass = vk::ImageLayout::eUndefined,
-								.img_subrange = std::nullopt
-							};
-							cur_pass->InsertSyncInfoForInitalUsage(
-								source_sync,
-								curlet_sync_info,
-								cur_let.GetUnderlyingRsrcHandle()
-							);
-						}
+						auto source_sync = p_rsrc->GetSynInfoOnLoad();
+						cur_pass->InsertSyncInfoForInitalLoad(
+							source_sync,
+							curlet_sync_info,
+							cur_let.GetUnderlyingRsrcHandle(),
+							sem_wrapper,
+							sem_insert_info
+						);
+					}
+					else //已经加载过了，
+					{
+						auto source_sync = ImgSyncInfo{
+							.access_mask = vk::AccessFlagBits2::eNone,
+							.stage_mask = vk::PipelineStageFlagBits2::eTopOfPipe,
+							.layout_inpass = vk::ImageLayout::eUndefined,
+							.img_subrange = std::nullopt
+						};
+						cur_pass->InsertSyncInfoForInitalUsage(
+							source_sync,
+							curlet_sync_info,
+							cur_let.GetUnderlyingRsrcHandle()
+						);
 					}
 				}
 			}
 		}
 
 		//拿到所有使用该资源的pass，对于之前的每一个layer，进行同步原语插入。比如当前layer是5，我们首先需要先处理layer=0,1,2,3,4
-		for (auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.
-			level_to_passes_attached_to_partitioned)
+		for (auto& [level, passes_at_same_level_partitioned] : curlet_underlying_rsrc.level_to_passes_attached_to_partitioned)
 		{
 			//如果前面的layer i 出现了对某一资源同时access的情况，
 			//layer i 可能含有多个执行在不同queue上的passes，不过他们是按照分块排序的，这种情况下，我们只需要在最后一块中的所有pass和当前pass之间插入同步即可
@@ -2579,6 +2621,7 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionInletTexture(G
 	}
 }
 
+
 void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(GraphicsPassNode* const cur_pass)
 {
 	auto& swap_imgs_finshed_using_by_cur_pass = vec_swap_imgs_finshed_using.back().first;
@@ -2619,6 +2662,14 @@ void Anni::RenderGraphV1::DependencyGraph::SyncPrimitivesInsertionOutletTexture(
 				curlet_sync_info,
 				cur_let.GetUnderlyingRsrcHandle()
 			);
+
+			//cur_pass->InsertSyncInfoInitialUse(
+			//	curlet_sync_info,
+			//	cur_let.GetUnderlyingRsrcHandle(),
+			//	curlet_origin
+			//);
+
+
 		}
 
 		if (IRsrcUsage::RsrcOrigin::FromOutSide == curlet_origin)

@@ -1,10 +1,10 @@
-#include "VkShaderFactory.h"
+#include "ShaderFactory.h"
 
 using namespace Microsoft::WRL;
 
 namespace Anni
 {
-VkShaderFactory::VkShaderFactory(GraphicsComponent &gfx_) :
+ShaderFactory::ShaderFactory(GraphicsComponent &gfx_) :
     gfx(gfx_),
     device_manager(gfx.DeviceMan())
 {
@@ -25,7 +25,7 @@ VkShaderFactory::VkShaderFactory(GraphicsComponent &gfx_) :
 	}
 }
 
-std::shared_ptr<VkShaderWrapper> VkShaderFactory::GetShader(const std::string &path_, VkShaderStageFlagBits stage) const
+std::shared_ptr<ShaderWrapper> ShaderFactory::GetShader(const std::string &path_, VkShaderStageFlagBits stage) const
 {
 	std::vector<char> hlsl_str = Util::ReadFile(path_);
 
@@ -137,10 +137,10 @@ std::shared_ptr<VkShaderWrapper> VkShaderFactory::GetShader(const std::string &p
 	VkShaderModule shader_module;
 	VK_CHECK_RESULT(vkCreateShaderModule(device_manager.GetLogicalDevice(), &shader_module_CI, nullptr, &shader_module));
 
-	return std::make_shared<VkShaderWrapper>(stage, path_, shader_module, gfx);
+	return std::make_shared<ShaderWrapper>(stage, path_, shader_module, gfx);
 }
 
-//std::shared_ptr<VkShaderExtWrapper> VkShaderFactory::GetShaderExt(const std::string &path, VkShaderCreateInfoEXT shader_CI) const
+//std::shared_ptr<VkShaderExtWrapper> ShaderFactory::GetShaderExt(const std::string &path, VkShaderCreateInfoEXT shader_CI) const
 //{
 //	std::vector<char> hlsl_str = Util::ReadFile(path);
 //

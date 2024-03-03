@@ -1,7 +1,7 @@
 #pragma once
 #include "GraphicsComponent.h"
-#include "VkPipelinePP.h"
-#include "VkShaderFactory.h"
+#include "GFXPipelineCI.h"
+#include "ShaderFactory.h"
 #include <memory>
 #include <ranges>
 
@@ -89,17 +89,17 @@ namespace Anni
 
 
 
-	class VkPipelineBuilder
+	class PipelineBuilder
 	{
 	public:
-		VkPipelineBuilder(DeviceManager& device_manager_, VkShaderFactory& shader_factory_);
-		~VkPipelineBuilder() = default;
+		PipelineBuilder(DeviceManager& device_manager_, ShaderFactory& shader_factory_);
+		~PipelineBuilder() = default;
 
-		VkPipelineBuilder() = delete;
-		VkPipelineBuilder(const VkPipelineBuilder&) = delete;
-		VkPipelineBuilder& operator=(const VkPipelineBuilder&) = delete;
-		VkPipelineBuilder(VkPipelineBuilder&&) = delete;
-		VkPipelineBuilder& operator=(VkPipelineBuilder&&) = delete;
+		PipelineBuilder() = delete;
+		PipelineBuilder(const PipelineBuilder&) = delete;
+		PipelineBuilder& operator=(const PipelineBuilder&) = delete;
+		PipelineBuilder(PipelineBuilder&&) = delete;
+		PipelineBuilder& operator=(PipelineBuilder&&) = delete;
 
 	public:
 		//[[nodiscard]] std::pair<std::unique_ptr<PipelineWrapper>, std::unique_ptr<PipelineLayoutWrapper>> BuildPipeline(GFXPipelineCI pip_CI) const;

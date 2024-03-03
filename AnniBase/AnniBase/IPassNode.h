@@ -1,6 +1,6 @@
 #pragma once
 #include "Lets.h"
-#include "VkShaderFactory.h"
+#include "ShaderFactory.h"
 #include "DesSetLayoutManager.h"
 #include "DescriptorAllocator.h"
 #include "RGSyncInfo.h"
@@ -8,7 +8,7 @@
 #include "BufferFactory.h"
 #include "Resource.h"
 #include "Renderable.h"
-#include "VkPipelineBuilder.h"
+#include "PipelineBuilder.h"
 
 #include <functional>
 
@@ -62,12 +62,13 @@ namespace Anni::RenderGraphV1
 			DeviceManager& device_manager_,
 			SwapchainManager& swapchain_manager_,
 			DescriptorLayoutManager& descriptor_set_layout_manager_,
-			VkShaderFactory& shader_fac_,
+			ShaderFactory& shader_fac_,
 			DescriptorSetAllocatorGrowable& descriptor_allocator_,
-			VkPipelineBuilder& pipeline_builder_,
+			PipelineBuilder& pipeline_builder_,
 			std::vector<VirtualBuffer>& rg_buffers_,
-			std::vector<VirtualTexture>& rg_textures_
-
+			std::vector<VirtualTexture>& rg_textures_,
+			std::unordered_map<std::string, VirtualBuffer::Handle>& rg_name_2_vbuf_handle_,
+			std::unordered_map<std::string, VirtualTexture::Handle>& rg_name_2_vtex_handle_
 		);
 		virtual ~GraphicsPassNode() = default;
 
@@ -81,14 +82,14 @@ namespace Anni::RenderGraphV1
 		DeviceManager& device_manager;
 		SwapchainManager& swapchain_manager;
 		DescriptorLayoutManager& descriptor_set_layout_manager;
-		VkShaderFactory& shader_fac;
+		ShaderFactory& shader_fac;
 		DescriptorSetAllocatorGrowable& descriptor_allocator;
-		VkPipelineBuilder& pipeline_builder;
+		PipelineBuilder& pipeline_builder;
 
 	protected:
 		//虚拟名字资源查表
-		std::unordered_map<std::string, VirtualBuffer::Handle> name_2_vbuf_handle;
-		std::unordered_map<std::string, VirtualTexture::Handle> name_2_vtex_handle;
+		std::unordered_map<std::string, VirtualBuffer::Handle>& rg_name_2_vbuf_handle;
+		std::unordered_map<std::string, VirtualTexture::Handle>& rg_name_2_vtex_handle;
 		//虚拟资源存储
 		std::vector<VirtualBuffer>& rg_buffers;
 		std::vector<VirtualTexture>& rg_textures;
@@ -147,6 +148,13 @@ namespace Anni::RenderGraphV1
 		std::vector<SyncInfoDiffQueue<VirtualTexture>> tex_syn_infos_head_diff_q;
 
 	public:
+		std::vector<SyncInfoSameQueue<VirtualBuffer>> buf_syn_infos_initial_load;
+		std::vector<SyncInfoSameQueue<VirtualTexture>> tex_syn_infos_initial_load;
+
+
+
+
+	public:
 		//for model usage
 		std::unordered_map<LoadedGLTF*, TexUsage> model_to_multi_tex_usage;
 
@@ -164,6 +172,23 @@ namespace Anni::RenderGraphV1
 		                                 const SemInsertInfoSafe& sem_insersion_info);
 
 	public:
+
+		//void GraphicsPassNode::InsertSyncInfoInitialUse(
+		//	const BufSyncInfo& target_syn_info,
+		//	VBufHandle underlying_rsrc,
+		//	IRsrcUsage::RsrcOrigin rsrc_origin
+
+		//);
+
+		//void GraphicsPassNode::InsertSyncInfoInitialUse(
+		//	const ImgSyncInfo& target_syn_info,
+		//	VTexHandle underlying_rsrc,
+		//	IRsrcUsage::RsrcOrigin rsrc_origin
+		//);
+
+
+
+
 		void InsertSyncInfoForInitalUsage(
 			const BufSyncInfo& source_syn_info,
 			const BufSyncInfo& target_syn_info,
@@ -222,7 +247,7 @@ namespace Anni::RenderGraphV1
 
 
 		void ResourcesAcquisition(
-			VkTextureFactory& tex_fac,
+			TextureFactory& tex_fac,
 			BufferFactory& buf_fac
 		);
 
@@ -248,13 +273,15 @@ namespace Anni::RenderGraphV1
 		                          std::vector<vk::SemaphoreSubmitInfo>& signal_sem_submit_info);
 
 	public:
-		virtual PassType GetRenderpassType();
+		virtual PassType GetRenderpassType() = 0;
 
 	public:
+		static vk::Format FindCommonFormatFromViewFormats(const std::vector<vk::Format>& view_formats);
+
+
 		//************************************************************************************************
 		VirtualBuffer& GetVRsrcFromRsrcHandle(VBufHandle buf_handle);
 		VirtualTexture& GetVRsrcFromRsrcHandle(VTexHandle tex_handle);
-		//************************************************************************************************
 
 		RsrcOutlet<BufUsage>& GetOulet(RsrcOutlet<BufUsage>::Handle buf_outlet_handle);
 		RsrcOutlet<std::variant<TexUsage, AttachUsage>>& GetOulet(
@@ -263,6 +290,7 @@ namespace Anni::RenderGraphV1
 		RsrcInlet<BufUsage>& GetInlet(RsrcInlet<BufUsage>::Handle buf_outlet_handle);
 		RsrcInlet<std::variant<TexUsage, AttachUsage>>& GetInlet(
 			RsrcInlet<std::variant<TexUsage, AttachUsage>>::Handle tex_outlet_handle);
+		//************************************************************************************************
 
 
 		VBufHandle CreateAndStoreVirtualBuffer(const std::string& underlying_vrsrc_name,
@@ -271,11 +299,11 @@ namespace Anni::RenderGraphV1
 		                                       const Buffer::Descriptor& buf_descriptor);
 
 		VTexHandle CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name,
-		                                        std::shared_ptr<VkTexture>& ptr_tex);
+		                                        std::shared_ptr<Texture>& ptr_tex);
 		VTexHandle CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name,
-		                                        const VkTexture::Descriptor& buf_descriptor);
+		                                        const Texture::Descriptor& buf_descriptor);
 		VTexHandle CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name,
-		                                        std::vector<std::shared_ptr<VkTexture>>& model_textures);
+		                                        std::vector<std::shared_ptr<Texture>>& model_textures);
 
 		void AddCurPass2VRsrc(VBufHandle vbuf_handle, RsrcAccessTypeRG access_t_);
 		void AddCurPass2VRsrc(VTexHandle vtex_handle, RsrcAccessTypeRG access_t_);
@@ -306,11 +334,11 @@ namespace Anni::RenderGraphV1
 		//************************************************************************************************
 		//资源来自rendergraph之外，并且是来自模型的texture。
 		RsrcInlet<std::variant<TexUsage, AttachUsage>>::Handle In(const std::string& rsrc_name,
-		                                                          std::vector<std::shared_ptr<VkTexture>>&
+		                                                          std::vector<std::shared_ptr<Texture>>&
 		                                                          model_textures,
 		                                                          std::variant<TexUsage, AttachUsage> tex_usage);
 		RsrcInlet<std::variant<TexUsage, AttachUsage>>::Handle In(const std::string& rsrc_name,
-		                                                          std::shared_ptr<VkTexture> ptr_tex,
+		                                                          std::shared_ptr<Texture> ptr_tex,
 		                                                          std::variant<TexUsage, AttachUsage> tex_usage);
 		RsrcInlet<std::variant<TexUsage, AttachUsage>>::Handle In(
 			RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle source_outlet_handle,
@@ -318,14 +346,14 @@ namespace Anni::RenderGraphV1
 
 
 		RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle Out(const std::string& rsrc_name,
-		                                                            VkTexture::Descriptor tex_descriptor,
+		                                                            Texture::Descriptor tex_descriptor,
 		                                                            const std::function<void(
-			                                                            VkTexture::Descriptor& desco)>&
+			                                                            Texture::Descriptor& desco)>&
 		                                                            descriptor_modifier,
 		                                                            std::variant<TexUsage, AttachUsage> tex_usage);
 
 		RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle Out(const std::string& rsrc_name,
-		                                                            std::shared_ptr<VkTexture> ptr_tex,
+		                                                            std::shared_ptr<Texture> ptr_tex,
 		                                                            std::variant<TexUsage, AttachUsage> tex_usage);
 		RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle Out(
 			RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle source_outlet_handle,

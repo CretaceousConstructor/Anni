@@ -24,23 +24,23 @@ namespace Anni
 	public:
 		GLTFModelFactory(DeviceManager& device_manager_,
 		                 BufferFactory& buf_fac_,
-		                 VkTextureFactory& tex_fac_,
+		                 TextureFactory& tex_fac_,
 		                 GLTFMetallicRoughnessProducer& mat_metallic_roughness_);
 
 		std::shared_ptr<LoadedGLTF> LoadGLTF(std::string_view gltf_file_path);
 
-		std::shared_ptr<VkTexture> load_image(
+		std::shared_ptr<Texture> LoadImages(
 			fastgltf::Asset& asset,
 			fastgltf::Image& image,
 			const std::filesystem::path& gltf_file_path);
 
-		MeshAsset::GPUMeshBuffers upload_mesh(std::span<const uint32_t> indices,
+		MeshAsset::GPUMeshBuffers UploadMesh(std::span<const uint32_t> indices,
 		                                      std::span<const Vertex> vertices);
 
 	private:
 		DeviceManager& device_manager;
 		BufferFactory& buf_fac;
-		VkTextureFactory& tex_fac;
+		TextureFactory& tex_fac;
 		GLTFMetallicRoughnessProducer& mat_metallic_roughness_producer;
 		std::shared_ptr<DescriptorSetAllocatorGrowable> descriptor_allocator;
 	};

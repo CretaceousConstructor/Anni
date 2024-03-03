@@ -36,7 +36,7 @@ Anni::GLTFModelFactory::ExtractMipmapMode(fastgltf::Filter filter)
 }
 
 Anni::GLTFModelFactory::GLTFModelFactory(DeviceManager& device_manager_, BufferFactory& buf_fac_,
-                                         VkTextureFactory& tex_fac_,
+                                         TextureFactory& tex_fac_,
                                          GLTFMetallicRoughnessProducer& mat_metallic_roughness_) :
 	device_manager(device_manager_)
 	, buf_fac(buf_fac_)
@@ -146,7 +146,7 @@ std::shared_ptr<Anni::LoadedGLTF> Anni::GLTFModelFactory::LoadGLTF(std::string_v
 	// temporal arrays for all the objects to use while creating the GLTF data
 	std::vector<std::shared_ptr<MeshAsset>> meshes;
 	std::vector<std::shared_ptr<Node>> nodes;
-	// std::vector<std::shared_ptr<VkTexture>> images;
+	// std::vector<std::shared_ptr<Texture>> images;
 	std::vector<std::shared_ptr<GLTFMaterialInstance>> materials;
 	//< create_temp_arrays
 
@@ -154,7 +154,7 @@ std::shared_ptr<Anni::LoadedGLTF> Anni::GLTFModelFactory::LoadGLTF(std::string_v
 	//> load all TEXTURES
 	for (const auto [img_index, image] : std::ranges::views::enumerate(gltf.images))
 	{
-		std::shared_ptr<VkTexture> img = load_image(gltf, image, path);
+		std::shared_ptr<Texture> img = LoadImages(gltf, image, path);
 		if (img)
 		{
 			result_gltf.images_array.push_back(img);
@@ -416,7 +416,7 @@ std::shared_ptr<Anni::LoadedGLTF> Anni::GLTFModelFactory::LoadGLTF(std::string_v
 			newSurface.bounds.sphereRadius = length(newSurface.bounds.extents);
 			newmesh->surfaces.push_back(newSurface);
 		}
-		newmesh->meshBuffers = upload_mesh(indices, vertices);
+		newmesh->meshBuffers = UploadMesh(indices, vertices);
 	}
 
 	//> load_nodes
@@ -499,11 +499,11 @@ std::shared_ptr<Anni::LoadedGLTF> Anni::GLTFModelFactory::LoadGLTF(std::string_v
 	//< load_graph
 }
 
-std::shared_ptr<Anni::VkTexture> Anni::GLTFModelFactory::load_image(fastgltf::Asset& asset, fastgltf::Image& image,
+std::shared_ptr<Anni::Texture> Anni::GLTFModelFactory::LoadImages(fastgltf::Asset& asset, fastgltf::Image& image,
                                                                     const std::filesystem::path& gltf_file_path)
 {
 	int width, height, nrChannels;
-	std::shared_ptr<VkTexture> result_image;
+	std::shared_ptr<Texture> result_image;
 
 
 	const auto img_visitor = fastgltf::visitor{
@@ -636,7 +636,7 @@ std::shared_ptr<Anni::VkTexture> Anni::GLTFModelFactory::load_image(fastgltf::As
 	return result_image;
 }
 
-Anni::MeshAsset::GPUMeshBuffers Anni::GLTFModelFactory::upload_mesh(std::span<const uint32_t> indices,
+Anni::MeshAsset::GPUMeshBuffers Anni::GLTFModelFactory::UploadMesh(std::span<const uint32_t> indices,
                                                                     std::span<const Vertex> vertices)
 {
 	const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
@@ -671,12 +671,12 @@ Anni::MeshAsset::GPUMeshBuffers Anni::GLTFModelFactory::upload_mesh(std::span<co
 	copy_inf.srcOffset = 0u;
 	copy_inf.dstOffset = 0u;
 
-	buffer_4_mesh.vertexBuffer->CopyFromStagingBuf(*staging_buf, copy_inf);
+	buffer_4_mesh.vertexBuffer->CopyFromBuf(*staging_buf, copy_inf);
 
 	copy_inf.size = indexBufferSize;
 	copy_inf.srcOffset = vertexBufferSize;
 	copy_inf.dstOffset = 0u;
 
-	buffer_4_mesh.indexBuffer->CopyFromStagingBuf(*staging_buf, copy_inf);
+	buffer_4_mesh.indexBuffer->CopyFromBuf(*staging_buf, copy_inf);
 	return buffer_4_mesh;
 }

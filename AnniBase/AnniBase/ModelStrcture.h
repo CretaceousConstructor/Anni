@@ -2,7 +2,7 @@
 
 #include "Buffer.h"
 #include "AnniMath.h"
-#include "VkTexture.h"
+#include "Texture.h"
 
 namespace Anni
 {
@@ -41,7 +41,7 @@ namespace Anni
 			bool             visible{ true };
 		};
 
-		using Image = VkTexture;
+		using Image = Texture;
 
 		struct Texture
 		{

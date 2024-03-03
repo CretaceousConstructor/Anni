@@ -35,7 +35,7 @@ namespace Anni::Renderer
 	public:
 		struct FrameData
 		{
-			std::shared_ptr<VkTexture> swapchain_attachment;
+			std::shared_ptr<Texture> swapchain_attachment;
 			std::shared_ptr<Buffer>    uniform_buffer_gpu_MSAA;
 			MSAA::UBO                  matrix_buffer_cpu_MSAA;
 		};

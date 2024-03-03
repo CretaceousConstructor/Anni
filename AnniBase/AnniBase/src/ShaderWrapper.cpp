@@ -1,10 +1,10 @@
-#include "VkShaderWrapper.h"
+#include "ShaderWrapper.h"
 
 
 namespace Anni
 {
 
-	VkShaderWrapper::VkShaderWrapper(const ShaderCI& para_pack, GraphicsComponent& gfx_) :
+	ShaderWrapper::ShaderWrapper(const ShaderCI& para_pack, GraphicsComponent& gfx_) :
 		device_manager(gfx_.DeviceMan()), binding_stage(para_pack.binding_stage), entry_point(para_pack.entry_point)
 
 	{
@@ -12,7 +12,7 @@ namespace Anni
 		CreateShaderModule(shader_code);
 	}
 
-	VkShaderWrapper::VkShaderWrapper(VkShaderStageFlagBits binding_stage, std::string shader_path_, GraphicsComponent& gfx_) :
+	ShaderWrapper::ShaderWrapper(VkShaderStageFlagBits binding_stage, std::string shader_path_, GraphicsComponent& gfx_) :
 		device_manager(gfx_.DeviceMan()), binding_stage(binding_stage), shader_path(std::move(shader_path_))
 
 	{
@@ -20,12 +20,12 @@ namespace Anni
 		CreateShaderModule(shader_code);
 	}
 
-	VkShaderWrapper::VkShaderWrapper(VkShaderStageFlagBits binding_stage_, const std::string& shader_path_, VkShaderModule shader_module_, GraphicsComponent& gfx_) :
+	ShaderWrapper::ShaderWrapper(VkShaderStageFlagBits binding_stage_, const std::string& shader_path_, VkShaderModule shader_module_, GraphicsComponent& gfx_) :
 		device_manager(gfx_.DeviceMan()), shader_module(shader_module_), binding_stage(binding_stage_), shader_path(shader_path_)
 	{
 	}
 
-	VkShaderWrapper::~VkShaderWrapper()
+	ShaderWrapper::~ShaderWrapper()
 	{
 		vkDestroyShaderModule(device_manager.GetLogicalDevice(), shader_module, nullptr);
 	}
@@ -34,7 +34,7 @@ namespace Anni
 
 
 
-	std::vector<char> VkShaderWrapper::ReadFile(const std::string& filename)
+	std::vector<char> ShaderWrapper::ReadFile(const std::string& filename)
 	{
 		std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -53,7 +53,7 @@ namespace Anni
 		return buffer;
 	}
 
-	void VkShaderWrapper::CreateShaderModule(const std::vector<char>& code)
+	void ShaderWrapper::CreateShaderModule(const std::vector<char>& code)
 	{
 		//typedef struct VkShaderModuleCreateInfo {
 		//	VkStructureType              sType;
@@ -91,7 +91,7 @@ namespace Anni
 
 	}
 
-	vk::PipelineShaderStageCreateInfo VkShaderWrapper::GetShaderStageCI() const
+	vk::PipelineShaderStageCreateInfo ShaderWrapper::GetShaderStageCI() const
 	{
 		VkPipelineShaderStageCreateInfo shader_stage_create_info{};
 		shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

@@ -64,11 +64,12 @@ namespace Anni
 			D2D_DST,
 			D2D_SRC
 		};
+
 		VkDeviceSize size;
 		VkDeviceSize srcOffset;
 		VkDeviceSize dstOffset;
-	private:
 		TransferType trans_type;
+	private:
 		Queue* queue;
 		std::shared_ptr<TimelineSemWrapper> sem;
 	};

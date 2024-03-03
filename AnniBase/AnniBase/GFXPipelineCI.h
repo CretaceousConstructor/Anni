@@ -2,7 +2,7 @@
 #include "Vk.h"
 #include "AttachmentInfo.h"
 #include "GraphicsComponent.h"
-#include "VkShaderFactory.h"
+#include "ShaderFactory.h"
 #include <algorithm>
 #include <vector>
 
@@ -13,7 +13,7 @@ namespace Anni
 	class GFXPipelineCI
 	{
 		friend class IPipelineCIBuilder;
-		friend class VkPipelineBuilder;
+		friend class PipelineBuilder;
 	public:
 		explicit GFXPipelineCI();
 		~GFXPipelineCI() = default;

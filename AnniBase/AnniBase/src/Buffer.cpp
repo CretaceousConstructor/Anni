@@ -37,11 +37,11 @@ namespace Anni
 
 
 
-	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(vk::DescriptorType desc_type, uint32_t dstbinding,  uint32_t dstArrayElement, vk::DeviceSize size, vk::DeviceSize offset)
+	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(vk::DescriptorType desc_type, uint32_t dstbinding, uint32_t dstArrayElement, vk::DeviceSize size, vk::DeviceSize offset)
 	{
 		des_buf_info.buffer = buf;
 		des_buf_info.offset = offset;
-		des_buf_info.range  = size;
+		des_buf_info.range = size;
 
 		vk::WriteDescriptorSet temp_writeDescriptorSet{};
 		temp_writeDescriptorSet.dstBinding = dstbinding;
@@ -53,11 +53,11 @@ namespace Anni
 		return temp_writeDescriptorSet;
 	}
 
-	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(vk::DescriptorType desc_type,vk::DescriptorSet set, uint32_t dstbinding,  uint32_t dstArrayElement, vk::DeviceSize size, vk::DeviceSize offset)
+	vk::WriteDescriptorSet Buffer::GetWriteDescriptorSetInfo(vk::DescriptorType desc_type, vk::DescriptorSet set, uint32_t dstbinding, uint32_t dstArrayElement, vk::DeviceSize size, vk::DeviceSize offset)
 	{
 		des_buf_info.buffer = buf;
 		des_buf_info.offset = offset;
-		des_buf_info.range  = size;
+		des_buf_info.range = size;
 
 		vk::WriteDescriptorSet temp_writeDescriptorSet{};
 		temp_writeDescriptorSet.dstSet = set;
@@ -178,74 +178,80 @@ namespace Anni
 	//}
 
 
-	void Buffer::CopyFromStagingBuf(Buffer& providing_buf, Buf2BufCopyInfo copy_info)
+	void Buffer::CopyFromBuf(Buffer& providing_buf, const Buf2BufCopyInfo& copy_info)
 	{
 		//TODO: buffer range overlap testing检测overlap，然后根据overlap等待sem从而进行恰当的同步。
 		Anni::Queue& queue_used_trans = queue_manager.GetMostDedicatedTransferQueue();
 		Buffer& receiving_buf = *this;
 
-		auto providing_buf_queue_fam = VK_QUEUE_FAMILY_IGNORED;
-		auto receiving_buf_queue_fam = VK_QUEUE_FAMILY_IGNORED;
+		auto latest_providing_buf_queue_fam = vk::QueueFamilyIgnored;
+		auto latest_receiving_buf_queue_fam = vk::QueueFamilyIgnored;
 
-		Queue* last_providing_queue = nullptr;
-		Queue* last_receiving_queue = nullptr;
+		Queue* latest_providing_queue = nullptr;
+		Queue* latest_receiving_queue = nullptr;
 
-		std::ranges::for_each(providing_buf.copy_infos | std::views::reverse, [&last_providing_queue](const auto& cpy_inf)
+		std::ranges::for_each(providing_buf.copy_infos | std::views::reverse, [&latest_providing_queue](const auto& cpy_inf)
 			{
 				if (cpy_inf.queue != nullptr)
 				{
-					last_providing_queue = cpy_inf.queue;
+					latest_providing_queue = cpy_inf.queue;
 				}
 			});
 
-		std::ranges::for_each(receiving_buf.copy_infos | std::views::reverse, [&last_receiving_queue](const auto& cpy_inf)
+		std::ranges::for_each(receiving_buf.copy_infos | std::views::reverse, [&latest_receiving_queue](const auto& cpy_inf)
 			{
 				if (cpy_inf.queue != nullptr)
 				{
-					last_receiving_queue = cpy_inf.queue;
+					latest_receiving_queue = cpy_inf.queue;
 				}
 			});
 
 
-		if (last_receiving_queue)
+		if (latest_providing_queue)
 		{
-			receiving_buf_queue_fam = last_receiving_queue->GetQueueCap().queue_family_index;
+			latest_providing_buf_queue_fam = latest_providing_queue->GetQueueCap().queue_family_index;
 		}
 
-		if (last_providing_queue)
+		if (latest_receiving_queue)
 		{
-			providing_buf_queue_fam = last_providing_queue->GetQueueCap().queue_family_index;
+			latest_receiving_buf_queue_fam = latest_receiving_queue->GetQueueCap().queue_family_index;
 		}
 
 		std::vector<vk::SemaphoreSubmitInfo> sem_wait_infos;
-		//如果出现这种情况，就必须要等上一queue family的所有transfer，以及当前buffer的queue family的所有transfer操作完成。
-		if (providing_buf_queue_fam != VK_QUEUE_FAMILY_IGNORED && providing_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
+
+
+		//queue family和queue不同的情况，需要semaphore同步；同一个queue上面用barriers同步就够了；同时任何H2D，D2H，仅仅需要barriers就可以同步
+		//if (latest_providing_buf_queue_fam != vk::QueueFamilyIgnored && latest_providing_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
+
+		if (latest_providing_buf_queue_fam != vk::QueueFamilyIgnored && latest_providing_queue != &queue_used_trans)
 		{
 			//必须等待source buffer使用完毕
 			std::ranges::for_each(providing_buf.copy_infos,
 				[&](const Buf2BufCopyInfo& cp_info)
 				{
-					if (cp_info.queue != &queue_used_trans && cp_info.queue == last_providing_queue)
+					if (cp_info.queue != &queue_used_trans && cp_info.queue == latest_providing_queue)
 					{
 						constexpr auto waiting_stage = vk::PipelineStageFlagBits2::eCopy;
-						sem_wait_infos.push_back(vk::SemaphoreSubmitInfo
-						(
-							cp_info.sem->GetRaw(),
-							(cp_info.sem->GetLastValue() + 1),
-							waiting_stage
-						));
+						sem_wait_infos.push_back(
+							vk::SemaphoreSubmitInfo
+							(
+								cp_info.sem->GetRaw(),
+								(cp_info.sem->GetLastValue() + 1),
+								waiting_stage
+							));
 					}
 				});
 		}
 
-
-		if (providing_buf_queue_fam != VK_QUEUE_FAMILY_IGNORED && receiving_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
+		//queue family和queue不同的情况，需要semaphore同步；同一个queue上面用barriers同步就够了；同时任何H2D，D2H，仅仅需要barriers就可以同步
+		//if (latest_providing_buf_queue_fam != vk::QueueFamilyIgnored && latest_receiving_buf_queue_fam != queue_used_trans.GetQueueCap().queue_family_index)
+		if (latest_providing_buf_queue_fam != vk::QueueFamilyIgnored && latest_receiving_queue != &queue_used_trans)
 		{
 			//等待target buffer使用完毕
 			std::ranges::for_each(receiving_buf.copy_infos,
 				[&](const Buf2BufCopyInfo& cp_info)
 				{
-					if (cp_info.queue != &queue_used_trans && cp_info.queue == last_receiving_queue)
+					if (cp_info.queue != &queue_used_trans && cp_info.queue == latest_receiving_queue)
 					{
 						constexpr auto waiting_stage = vk::PipelineStageFlagBits2::eCopy;
 						sem_wait_infos.push_back(vk::SemaphoreSubmitInfo
@@ -268,7 +274,6 @@ namespace Anni
 		src_cp_info.queue = &queue_used_trans;
 		src_cp_info.sem = sem_used_to_transfer;
 
-
 		Buf2BufCopyInfo tar_cp_info;
 		tar_cp_info.size = copy_info.size;
 		tar_cp_info.srcOffset = copy_info.srcOffset;
@@ -279,165 +284,166 @@ namespace Anni
 
 		const auto cmd_and_queue = queue_used_trans.BeginSingleTimeCommands();
 
-
-
 		std::vector<vk::BufferMemoryBarrier2> accumulated_bars_4_providing_buf;
-		std::ranges::for_each(providing_buf.copy_infos,
-			[&](const Buf2BufCopyInfo& history_cpy_inf)
+		for (const Buf2BufCopyInfo& history_cpy_inf : providing_buf.copy_infos | std::views::reverse)
+		{
+			vk::BufferMemoryBarrier2 temp_bar{};
+			switch (history_cpy_inf.trans_type)
 			{
-				vk::BufferMemoryBarrier2 temp_bar{};
+			case Buf2BufCopyInfo::TransferType::H2D:
 
-				switch (history_cpy_inf.trans_type)
-				{
-				case Buf2BufCopyInfo::TransferType::H2D:
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostWrite;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
 
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostWrite;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
+				temp_bar.srcQueueFamilyIndex = (vk::QueueFamilyIgnored == latest_providing_buf_queue_fam ? queue_used_trans.GetQueueCap().queue_family_index : latest_providing_buf_queue_fam);
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.buffer = providing_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
 
-					temp_bar.srcQueueFamilyIndex = providing_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
+			case Buf2BufCopyInfo::TransferType::D2H:
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostRead;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
 
-					temp_bar.buffer = providing_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-				case Buf2BufCopyInfo::TransferType::D2H:
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostRead;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
+				temp_bar.srcQueueFamilyIndex = (vk::QueueFamilyIgnored == latest_providing_buf_queue_fam ? queue_used_trans.GetQueueCap().queue_family_index : latest_providing_buf_queue_fam);
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.buffer = providing_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
 
-					temp_bar.srcQueueFamilyIndex = providing_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
+			case Buf2BufCopyInfo::TransferType::D2D_DST:
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.buffer = providing_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-				case Buf2BufCopyInfo::TransferType::D2D_DST:
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.srcQueueFamilyIndex = latest_providing_buf_queue_fam;
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.buffer = providing_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
 
-					temp_bar.srcQueueFamilyIndex = providing_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
+			case Buf2BufCopyInfo::TransferType::D2D_SRC:
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.buffer = providing_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-				case Buf2BufCopyInfo::TransferType::D2D_SRC:
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.srcQueueFamilyIndex = latest_providing_buf_queue_fam;
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
-
-					temp_bar.srcQueueFamilyIndex = providing_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
-
-					temp_bar.buffer = providing_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
-				case Buf2BufCopyInfo::TransferType::Unknown:
-				default:
-					ASSERT_WITH_MSG(false, "Not a transfer type.");
-				}
-				accumulated_bars_4_providing_buf.push_back(temp_bar);
+				temp_bar.buffer = providing_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
+			case Buf2BufCopyInfo::TransferType::Unknown:
+			default:
+				ASSERT_WITH_MSG(false, "Not a transfer type.");
 			}
-		);
+			accumulated_bars_4_providing_buf.push_back(temp_bar);
+
+			if (history_cpy_inf.queue && history_cpy_inf.queue == latest_providing_queue)
+			{
+				break;
+			}
+		}
+
 
 		std::vector<vk::BufferMemoryBarrier2> accumulated_bars_4_receiving_buf;
-		std::ranges::for_each(receiving_buf.copy_infos,
-			[&](const Buf2BufCopyInfo& history_cpy_inf)
+		for (const Buf2BufCopyInfo& history_cpy_inf : receiving_buf.copy_infos | std::views::reverse)
+		{
+			vk::BufferMemoryBarrier2 temp_bar{};
+			switch (history_cpy_inf.trans_type)
 			{
-				vk::BufferMemoryBarrier2 temp_bar{};
-
-				switch (history_cpy_inf.trans_type)
-				{
-				case Buf2BufCopyInfo::TransferType::H2D:
+			case Buf2BufCopyInfo::TransferType::H2D:
 
 
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostWrite;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostWrite;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.srcQueueFamilyIndex = receiving_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
+				temp_bar.srcQueueFamilyIndex = (vk::QueueFamilyIgnored == latest_receiving_buf_queue_fam ? queue_used_trans.GetQueueCap().queue_family_index : latest_receiving_buf_queue_fam);
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.buffer = receiving_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
+				temp_bar.buffer = receiving_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
 
-				case Buf2BufCopyInfo::TransferType::D2H:
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostRead;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
+			case Buf2BufCopyInfo::TransferType::D2H:
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eHostRead;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eHost;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.srcQueueFamilyIndex = receiving_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
+				temp_bar.srcQueueFamilyIndex = (vk::QueueFamilyIgnored == latest_receiving_buf_queue_fam ? queue_used_trans.GetQueueCap().queue_family_index : latest_receiving_buf_queue_fam);
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.buffer = receiving_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
+				temp_bar.buffer = receiving_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
 
-				case Buf2BufCopyInfo::TransferType::D2D_DST:
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
+			case Buf2BufCopyInfo::TransferType::D2D_DST:
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.srcQueueFamilyIndex = receiving_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
+				temp_bar.srcQueueFamilyIndex = latest_receiving_buf_queue_fam;
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.buffer = receiving_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
+				temp_bar.buffer = receiving_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
 
-				case Buf2BufCopyInfo::TransferType::D2D_SRC:
-					temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
+			case Buf2BufCopyInfo::TransferType::D2D_SRC:
+				temp_bar.srcAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-					temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+				temp_bar.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+				temp_bar.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
 
-					temp_bar.srcQueueFamilyIndex = receiving_buf_queue_fam;
-					temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
+				temp_bar.srcQueueFamilyIndex = latest_receiving_buf_queue_fam;
+				temp_bar.dstQueueFamilyIndex = queue_used_trans.GetQueueCap().queue_family_index;
 
-					temp_bar.buffer = receiving_buf.GetGPUBuffer();
-					temp_bar.offset = src_cp_info.srcOffset;
-					temp_bar.size = src_cp_info.size;
-					break;
-				case Buf2BufCopyInfo::TransferType::Unknown:
-				default:
-					ASSERT_WITH_MSG(false, "Not a transfer type.");
-				}
-				accumulated_bars_4_receiving_buf.push_back(temp_bar);
+				temp_bar.buffer = receiving_buf.GetGPUBuffer();
+				temp_bar.offset = src_cp_info.srcOffset;
+				temp_bar.size = src_cp_info.size;
+				break;
+			case Buf2BufCopyInfo::TransferType::Unknown:
+			default:
+				ASSERT_WITH_MSG(false, "Not a transfer type.");
 			}
-		);
+
+			if (history_cpy_inf.queue && history_cpy_inf.queue == latest_receiving_queue)
+			{
+				break;
+			}
+
+		}
 
 		providing_buf.copy_infos.push_back(src_cp_info);
 		receiving_buf.copy_infos.push_back(tar_cp_info);
-
 
 		vk::DependencyInfo depen_info_providing{};
 		depen_info_providing.dependencyFlags = vk::DependencyFlagBits::eByRegion;
@@ -482,9 +488,6 @@ namespace Anni
 		cur_exe_q.submit2(smt_inf);
 
 		//TODO command buffer recycle
-
-
-
 	}
 
 	BufSyncInfo& Buffer::GetSynInfoOnLoad()

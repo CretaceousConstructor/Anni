@@ -15,12 +15,12 @@
 
 namespace Anni
 {
-	class VkTexture
+	class Texture
 	{
-		friend class VkTextureFactory;
+		friend class TextureFactory;
 	public:
-		using TexturePtrBundle = std::vector<std::shared_ptr<VkTexture>>;
-		using TexturePtr = std::shared_ptr<VkTexture>;
+		using TexturePtrBundle = std::vector<std::shared_ptr<Texture>>;
+		using TexturePtr = std::shared_ptr<Texture>;
 
 	public:
 		struct Descriptor
@@ -30,20 +30,20 @@ namespace Anni
 			std::optional<vk::SamplerCreateInfo>   sampler_CI;
 		};
 
-		VkTexture(
+		Texture(
 			GraphicsComponent& gfx_,
 			std::optional<std::string> image_path,
 			std::shared_ptr<ImageBaseReFac> image_,
 			ImgSyncInfo sync_info_onload_
 		);
-		VkTexture() = delete;
-		~VkTexture() = default;
+		Texture() = delete;
+		~Texture() = default;
 
-		VkTexture(const VkTexture&) = delete;
-		VkTexture& operator=(const VkTexture&) = delete;
+		Texture(const Texture&) = delete;
+		Texture& operator=(const Texture&) = delete;
 
-		VkTexture(VkTexture&&) = delete;
-		VkTexture& operator=(VkTexture&&) = delete;
+		Texture(Texture&&) = delete;
+		Texture& operator=(Texture&&) = delete;
 
 	public:
 		[[nodiscard]] vk::WriteDescriptorSet GetWriteDescriptorSetInfo(RenderGraphV1::TexUsage& tex_usage, vk::DescriptorSet set);
@@ -53,7 +53,7 @@ namespace Anni
 		void ResetImgView(std::shared_ptr<ImgViewWrapper>& tex_image_view_);
 		void ResetSampler(std::shared_ptr<SamplerWrapper>& tex_sampler_);
 
-		ImgSyncInfo GetSynInfoOnLoad();
+		ImgSyncInfo& GetSynInfoOnLoad();
 
 	public:
 		[[nodiscard]] std::shared_ptr<ImageBaseReFac> GetTextureImage();

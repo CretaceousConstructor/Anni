@@ -5,11 +5,14 @@ namespace Anni::RenderGraphV1
 	GraphicsPassNode::GraphicsPassNode(std::string name_, DeviceManager& device_manager_,
 	                                   SwapchainManager& swapchain_manager_,
 	                                   DescriptorLayoutManager& descriptor_set_layout_manager_,
-	                                   VkShaderFactory& shader_fac_,
+	                                   ShaderFactory& shader_fac_,
 	                                   DescriptorSetAllocatorGrowable& descriptor_allocator_,
-	                                   VkPipelineBuilder& pipeline_builder_,
+	                                   PipelineBuilder& pipeline_builder_,
 	                                   std::vector<VirtualBuffer>& rg_buffers_,
-	                                   std::vector<VirtualTexture>& rg_textures_
+	                                   std::vector<VirtualTexture>& rg_textures_,
+	                                   std::unordered_map<std::string, VirtualBuffer::Handle>& rg_name_2_vbuf_handle_,       
+		                               std::unordered_map<std::string, VirtualTexture::Handle>& rg_name_2_vtex_handle_
+
 	) :
 		name(std::move(name_)),
 		device_manager(device_manager_),
@@ -19,8 +22,11 @@ namespace Anni::RenderGraphV1
 		shader_fac(shader_fac_),
 		descriptor_allocator(descriptor_allocator_),
 		pipeline_builder(pipeline_builder_),
+		rg_name_2_vbuf_handle(rg_name_2_vbuf_handle_),
+		rg_name_2_vtex_handle(rg_name_2_vtex_handle_),
 		rg_buffers(rg_buffers_),
 		rg_textures(rg_textures_)
+
 	{
 	}
 
@@ -290,7 +296,7 @@ namespace Anni::RenderGraphV1
 
 	void GraphicsPassNode::ImgViewAndSamplerGeneration(RsrcInlet<std::variant<TexUsage, AttachUsage>>& rsrc_usage)
 	{
-		const std::shared_ptr<VkTexture>& ptr_tex = GetVRsrcFromRsrcHandle(rsrc_usage.rsrc_handle).p_rsrc;
+		const std::shared_ptr<Texture>& ptr_tex = GetVRsrcFromRsrcHandle(rsrc_usage.rsrc_handle).p_rsrc;
 		std::variant<TexUsage, AttachUsage>& tex_usage = rsrc_usage.usage;
 
 		std::visit(
@@ -321,7 +327,7 @@ namespace Anni::RenderGraphV1
 
 	void GraphicsPassNode::ImgViewAndSamplerGeneration(RsrcOutlet<std::variant<TexUsage, AttachUsage>>& rsrc_usage)
 	{
-		const std::shared_ptr<VkTexture>& ptr_tex = GetVRsrcFromRsrcHandle(rsrc_usage.rsrc_handle).p_rsrc;
+		const std::shared_ptr<Texture>& ptr_tex = GetVRsrcFromRsrcHandle(rsrc_usage.rsrc_handle).p_rsrc;
 		std::variant<TexUsage, AttachUsage>& tex_usage = rsrc_usage.usage;
 
 		std::visit(
@@ -401,6 +407,36 @@ namespace Anni::RenderGraphV1
 		const auto& resovel_target_usage = std::get<AttachUsage>(*p_resovel_target);
 		cur_attach_usage.BindResolveTarget(resovel_target_usage.img_view, resovel_target_usage.sync_info.layout_inpass);
 	}
+
+
+  
+	//void GraphicsPassNode::InsertSyncInfoInitialUse
+	//(
+	//	const BufSyncInfo& target_syn_info,
+	//	VBufHandle underlying_rsrc,
+	//	IRsrcUsage::RsrcOrigin rsrc_origin
+	//)
+	//{
+	//	buf_syn_infos_head_same_q.emplace_back({}, target_syn_info, underlying_rsrc,rsrc_origin);
+	//}
+
+
+	//void GraphicsPassNode::InsertSyncInfoInitialUse(
+	//	const ImgSyncInfo& target_syn_info,
+	//	VTexHandle underlying_rsrc,
+	//	IRsrcUsage::RsrcOrigin rsrc_origin
+	//)
+	//{
+	//	tex_syn_infos_head_same_q.emplace_back({}, target_syn_info, underlying_rsrc, rsrc_origin);
+	//}
+
+
+
+
+
+
+
+
 
 	void GraphicsPassNode::InsertSyncInfoForInitalUsage(
 		const BufSyncInfo& source_syn_info,
@@ -551,7 +587,7 @@ namespace Anni::RenderGraphV1
 	}
 
 
-	void GraphicsPassNode::ResourcesAcquisition(VkTextureFactory& tex_fac, BufferFactory& buf_fac)
+	void GraphicsPassNode::ResourcesAcquisition(TextureFactory& tex_fac, BufferFactory& buf_fac)
 	{
 		//REQUIRED RESOURCES INITIALIZATION
 		for (const auto& buf_handle : buf_init_list)
@@ -565,6 +601,7 @@ namespace Anni::RenderGraphV1
 			//VirtualResource has a descriptor to help initalize resources
 			tex_fac.ActualizeVirtualResource(GetVRsrcFromRsrcHandle(tex_handle));
 		}
+
 	}
 
 	void GraphicsPassNode::SyncInsertAfter(vk::CommandBuffer cmd_buf,
@@ -693,12 +730,11 @@ namespace Anni::RenderGraphV1
 		//vkQueueSubmit2(execution_queue.GetQueue(), 1, &submit_info, VK_NULL_HANDLE);
 
 
-		//After waiting, we can use barriers.
 		std::vector<vk::BufferMemoryBarrier2> buf_bars;
 		for (auto& head_syn : buf_syn_infos_head_same_q)
 		{
-			VirtualBuffer& buf = GetVRsrcFromRsrcHandle(head_syn.underlying_vrsrc);
-			vk::BufferMemoryBarrier2 buf_barrier = buf.GetBufBarrier(head_syn.source_sync_info,
+			VirtualBuffer& vbuf = GetVRsrcFromRsrcHandle(head_syn.underlying_vrsrc);
+			vk::BufferMemoryBarrier2 buf_barrier = vbuf.GetBufBarrier(head_syn.source_sync_info,
 			                                                         head_syn.target_sync_info);
 			buf_bars.push_back(buf_barrier);
 		}
@@ -707,8 +743,8 @@ namespace Anni::RenderGraphV1
 		std::vector<vk::ImageMemoryBarrier2> tex_bars;
 		for (auto& head_syn : tex_syn_infos_head_same_q)
 		{
-			VirtualTexture& tex = GetVRsrcFromRsrcHandle(head_syn.underlying_vrsrc);
-			vk::ImageMemoryBarrier2 tex_barrier = tex.GetTexBarrier(head_syn.source_sync_info,
+			VirtualTexture& vtex = GetVRsrcFromRsrcHandle(head_syn.underlying_vrsrc);
+			vk::ImageMemoryBarrier2 tex_barrier = vtex.GetTexBarrier(head_syn.source_sync_info,
 			                                                        head_syn.target_sync_info);
 			tex_bars.push_back(tex_barrier);
 		}
@@ -1015,10 +1051,6 @@ namespace Anni::RenderGraphV1
 	}
 
 
-	PassType GraphicsPassNode::GetRenderpassType()
-	{
-		return None;
-	}
 
 	VirtualTexture& GraphicsPassNode::GetVRsrcFromRsrcHandle(const VTexHandle tex_handle)
 	{
@@ -1047,6 +1079,12 @@ namespace Anni::RenderGraphV1
 		return ins_tex[tex_outlet_handle.handle];
 	}
 
+	vk::Format GraphicsPassNode::FindCommonFormatFromViewFormats(const std::vector<vk::Format>& view_formats)
+	{
+		//TODO:共用format的规则，找到公用format，目前直接返回第一个
+		return view_formats.front();
+	}
+
 	VirtualBuffer& GraphicsPassNode::GetVRsrcFromRsrcHandle(const VBufHandle buf_handle)
 	{
 		return rg_buffers[buf_handle.handle];
@@ -1071,21 +1109,21 @@ namespace Anni::RenderGraphV1
 
 
 	VTexHandle GraphicsPassNode::CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name,
-	                                                          std::shared_ptr<VkTexture>& ptr_tex)
+	                                                          std::shared_ptr<Texture>& ptr_tex)
 	{
 		rg_textures.emplace_back(underlying_vrsrc_name, ptr_tex);
 		return VTexHandle{rg_textures.size() - 1};
 	}
 
 	VTexHandle GraphicsPassNode::CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name,
-	                                                          const VkTexture::Descriptor& buf_descriptor)
+	                                                          const Texture::Descriptor& buf_descriptor)
 	{
 		rg_textures.emplace_back(underlying_vrsrc_name, buf_descriptor);
 		return VTexHandle{rg_textures.size() - 1};
 	}
 
 	VTexHandle GraphicsPassNode::CreateAndStoreVirtualTexture(const std::string& underlying_vrsrc_name,
-	                                                          std::vector<std::shared_ptr<VkTexture>>& model_textures)
+	                                                          std::vector<std::shared_ptr<Texture>>& model_textures)
 	{
 		rg_textures.emplace_back(underlying_vrsrc_name, &model_textures);
 		return VTexHandle{rg_textures.size() - 1};
@@ -1112,7 +1150,7 @@ namespace Anni::RenderGraphV1
 		const auto underlying_rsrc_name = rsrc_name + "_";
 
 		//首先看是否已经存在于buffers 容器中，如果没有就首次创建。注意这里创建的是虚拟资源，至于需不需要实体化，要看是不是EstablishedInSitu（有没有提供descriptor，没有就不用实体化）
-		auto [iterator, inserted] = name_2_vbuf_handle.try_emplace(underlying_rsrc_name);
+		auto [iterator, inserted] = rg_name_2_vbuf_handle.try_emplace(underlying_rsrc_name);
 		if (inserted)
 		{
 			// If the entry was inserted, it means it didn't exist
@@ -1182,9 +1220,9 @@ namespace Anni::RenderGraphV1
 
 		//加入资源的容器中，当前资源含有descriptor，资源就是在当前pass创建，所以应该之前没有这个资源
 		//确保用户没有重复添加
-		assert(!name_2_vbuf_handle.contains(underlying_rsrc_name));
+		assert(!rg_name_2_vbuf_handle.contains(underlying_rsrc_name));
 		const VBufHandle underlying_rsrc_handle = CreateAndStoreVirtualBuffer(underlying_rsrc_name, buf_descriptor);
-		name_2_vbuf_handle.emplace(underlying_rsrc_name, underlying_rsrc_handle);
+		rg_name_2_vbuf_handle.emplace(underlying_rsrc_name, underlying_rsrc_handle);
 
 		//检查重复
 		const auto cur_outlet_name = rsrc_name + "_" + this->name + "_Out";
@@ -1215,7 +1253,7 @@ namespace Anni::RenderGraphV1
 
 		const auto underlying_rsrc_name = rsrc_name + "_";
 		//首先看imported virtual resource是否已经存在了
-		auto [iterator, inserted] = name_2_vbuf_handle.try_emplace(underlying_rsrc_name);
+		auto [iterator, inserted] = rg_name_2_vbuf_handle.try_emplace(underlying_rsrc_name);
 		if (inserted)
 		{
 			// If the entry was inserted, it means it didn't exist
@@ -1271,7 +1309,7 @@ namespace Anni::RenderGraphV1
 	//资源来自rendergraph之外，并且是来自模型的texture。
 	RsrcInlet<std::variant<TexUsage, AttachUsage>>::Handle GraphicsPassNode::In(
 		const std::string& rsrc_name,
-		std::vector<std::shared_ptr<VkTexture>>& model_textures,
+		std::vector<std::shared_ptr<Texture>>& model_textures,
 		std::variant<TexUsage, AttachUsage> tex_usage)
 	{
 		const RsrcAccessTypeRG access_type =
@@ -1286,7 +1324,7 @@ namespace Anni::RenderGraphV1
 		const auto underlying_rsrc_name = rsrc_name + "_";
 
 		//首先看是否已经存在于textures 容器中，如果没有就重新创建虚拟资源。注意这里创建的是虚拟资源，至于需不需要实体化，要看是不是EstablishedInSitu（有没有提供descriptor，没有就不用实体化）
-		auto [iterator, inserted] = name_2_vtex_handle.try_emplace(underlying_rsrc_name);
+		auto [iterator, inserted] = rg_name_2_vtex_handle.try_emplace(underlying_rsrc_name);
 		if (inserted)
 		{
 			// If the entry was inserted, it means it didn't exist
@@ -1312,7 +1350,7 @@ namespace Anni::RenderGraphV1
 
 	RsrcInlet<std::variant<TexUsage, AttachUsage>>::Handle GraphicsPassNode::In(
 		const std::string& rsrc_name,
-		std::shared_ptr<VkTexture> ptr_tex,
+		std::shared_ptr<Texture> ptr_tex,
 		std::variant<TexUsage, AttachUsage> tex_usage)
 	{
 		RsrcAccessTypeRG access_type;
@@ -1326,7 +1364,7 @@ namespace Anni::RenderGraphV1
 		const auto underlying_rsrc_name = rsrc_name + "_"; //无pass后缀
 
 		//首先看是否已经存在于textures 容器中，如果没有就重新创建虚拟资源。注意这里创建的是虚拟资源，至于需不需要实体化，要看是不是EstablishedInSitu（有没有提供descriptor，没有就不用实体化）
-		auto [iterator, inserted] = name_2_vtex_handle.try_emplace(underlying_rsrc_name);
+		auto [iterator, inserted] = rg_name_2_vtex_handle.try_emplace(underlying_rsrc_name);
 		if (inserted)
 		{
 			// If the entry was inserted, it means it didn't exist
@@ -1387,8 +1425,8 @@ namespace Anni::RenderGraphV1
 
 	RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle GraphicsPassNode::Out(
 		const std::string& rsrc_name,
-		VkTexture::Descriptor tex_descriptor,
-		const std::function<void(VkTexture::Descriptor& desco)>& descriptor_modifier,
+		Texture::Descriptor tex_descriptor,
+		const std::function<void(Texture::Descriptor& desco)>& descriptor_modifier,
 		std::variant<TexUsage, AttachUsage> tex_usage)
 	{
 		RsrcAccessTypeRG access_type;
@@ -1407,9 +1445,9 @@ namespace Anni::RenderGraphV1
 
 		//加入资源的容器中，当前资源含有descriptor，资源就是在当前pass创建，所以应该之前没有这个资源
 		//确保用户没有重复添加
-		assert(!name_2_vtex_handle.contains(underlying_rsrc_name));
+		assert(!rg_name_2_vtex_handle.contains(underlying_rsrc_name));
 		const VTexHandle underlying_rsrc_handle = CreateAndStoreVirtualTexture(underlying_rsrc_name, tex_descriptor);
-		name_2_vtex_handle.emplace(underlying_rsrc_name, underlying_rsrc_handle);
+		rg_name_2_vtex_handle.emplace(underlying_rsrc_name, underlying_rsrc_handle);
 
 		//给underlying resource增加使用它的pass
 		AddCurPass2VRsrc(underlying_rsrc_handle, access_type);
@@ -1430,7 +1468,7 @@ namespace Anni::RenderGraphV1
 
 	RsrcOutlet<std::variant<TexUsage, AttachUsage>>::Handle GraphicsPassNode::Out(
 		const std::string& rsrc_name,
-		std::shared_ptr<VkTexture> ptr_tex,
+		std::shared_ptr<Texture> ptr_tex,
 		std::variant<TexUsage, AttachUsage> tex_usage)
 	{
 		RsrcAccessTypeRG access_type;
@@ -1442,7 +1480,7 @@ namespace Anni::RenderGraphV1
 
 		const auto underlying_rsrc_name = rsrc_name + "_";
 		//首先看imported virtual resource是否已经存在了
-		auto [iterator, inserted] = name_2_vtex_handle.try_emplace(underlying_rsrc_name);
+		auto [iterator, inserted] = rg_name_2_vtex_handle.try_emplace(underlying_rsrc_name);
 		if (inserted)
 		{
 			// If the entry was inserted, it means it didn't exist

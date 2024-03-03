@@ -456,43 +456,41 @@ namespace Anni
 
 
 		// Enable gpu features 1.0 here.
-		enabled_gpu_features.samplerAnisotropy = VK_TRUE;
-		enabled_gpu_features.depthClamp = VK_TRUE;
-		enabled_gpu_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
-		enabled_gpu_features.multiDrawIndirect = VK_TRUE;
-		enabled_gpu_features.drawIndirectFirstInstance = VK_TRUE;
-		enabled_gpu_features.independentBlend = VK_TRUE;
-		enabled_gpu_features.multiViewport = VK_TRUE;
-		enabled_gpu_features.fragmentStoresAndAtomics = VK_TRUE;
-		enabled_gpu_features.geometryShader = VK_TRUE;
-		enabled_gpu_features.sampleRateShading = VK_TRUE;
-
+		enabled_gpu_features.samplerAnisotropy = vk::True;
+		enabled_gpu_features.depthClamp = vk::True;
+		enabled_gpu_features.shaderSampledImageArrayDynamicIndexing = vk::True;
+		enabled_gpu_features.multiDrawIndirect = vk::True;
+		enabled_gpu_features.drawIndirectFirstInstance = vk::True;
+		enabled_gpu_features.independentBlend = vk::True;
+		enabled_gpu_features.multiViewport = vk::True;
+		enabled_gpu_features.fragmentStoresAndAtomics = vk::True;
+		enabled_gpu_features.geometryShader = vk::True;
+		enabled_gpu_features.sampleRateShading = vk::True;
 
 		// Enable gpu features 1.1 here.   整个chain链接的开头
-		enabled11_gpu_features.shaderDrawParameters = VK_TRUE;
-		enabled11_gpu_features.multiview = VK_TRUE;
+		enabled11_gpu_features.shaderDrawParameters = vk::True;
+		enabled11_gpu_features.multiview = vk::True;
 
 		// Enable gpu features 1.2 here.
-		enabled12_gpu_features.drawIndirectCount = VK_TRUE;
-		enabled12_gpu_features.imagelessFramebuffer = VK_TRUE;
-		enabled12_gpu_features.separateDepthStencilLayouts = VK_TRUE;
-		enabled12_gpu_features.descriptorIndexing = VK_TRUE;
-		enabled12_gpu_features.runtimeDescriptorArray = VK_TRUE;
-		enabled12_gpu_features.descriptorBindingPartiallyBound = VK_TRUE;
-		enabled12_gpu_features.descriptorBindingVariableDescriptorCount = VK_TRUE;
-		enabled12_gpu_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-		enabled12_gpu_features.descriptorBindingUpdateUnusedWhilePending = VK_TRUE;
-		enabled12_gpu_features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
-		enabled12_gpu_features.timelineSemaphore = VK_TRUE;
-
-		enabled12_gpu_features.shaderOutputViewportIndex = VK_TRUE;
-		enabled12_gpu_features.shaderOutputLayer = VK_TRUE;
-
+		enabled12_gpu_features.drawIndirectCount = vk::True;
+		enabled12_gpu_features.imagelessFramebuffer = vk::True;
+		enabled12_gpu_features.separateDepthStencilLayouts = vk::True;
+		enabled12_gpu_features.descriptorIndexing = vk::True;
+		enabled12_gpu_features.runtimeDescriptorArray = vk::True;
+		enabled12_gpu_features.descriptorBindingPartiallyBound = vk::True;
+		enabled12_gpu_features.descriptorBindingVariableDescriptorCount = vk::True;
+		enabled12_gpu_features.shaderSampledImageArrayNonUniformIndexing = vk::True;
+		enabled12_gpu_features.descriptorBindingUpdateUnusedWhilePending = vk::True;
+		enabled12_gpu_features.descriptorBindingSampledImageUpdateAfterBind = vk::True;
+		enabled12_gpu_features.timelineSemaphore = vk::True;
+		enabled12_gpu_features.shaderOutputViewportIndex = vk::True;
+		enabled12_gpu_features.shaderOutputLayer = vk::True;
+		enabled12_gpu_features.bufferDeviceAddress = vk::True;
 
 		// Enable gpu features 1.3 here.
-		enabled13_gpu_features.dynamicRendering = VK_TRUE;
-		enabled13_gpu_features.shaderDemoteToHelperInvocation = VK_TRUE;
-
+		enabled13_gpu_features.dynamicRendering = vk::True;
+		enabled13_gpu_features.shaderDemoteToHelperInvocation = vk::True;
+		enabled13_gpu_features.synchronization2 = vk::True;
 		//*********************************************************************
 		//*********************************************************************
 		vk::PhysicalDeviceFeatures2& physicalDeviceFeatures2 = enabled_gpu_features_chain.get<

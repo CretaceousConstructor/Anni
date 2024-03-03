@@ -46,15 +46,15 @@ namespace Anni::Renderer
 		//FACTORIES
 		ImageFactory img_fac;
 		BufferFactory buf_fac;
-		VkTextureFactory tex_fac;
-		VkShaderFactory shader_fac;
+		TextureFactory tex_fac;
+		ShaderFactory shader_fac;
 
 		//MANAGERS
 		DescriptorLayoutManager descriptor_layout_manager;
 
 		//BUILDERS
 		GFXPipelineCIBuilder gfx_pipe_CI_builder;
-		VkPipelineBuilder pipeline_builder;
+		PipelineBuilder pipeline_builder;
 
 		//MATERIALS
 		GLTFMetallicRoughnessProducer mat_metallic_roughness_producer;

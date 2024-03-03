@@ -18,7 +18,7 @@ Engine-level features under development:\
 &ensp;&ensp;   4.Multi-frame inflight syncronization.\
 &ensp;&ensp;   5.Multi-queue execution scheduling(make full use of available queues) enables async load and async compute.\
 &ensp;   RenderGraphV2:\
-&ensp;&ensp;   1.Resources creation decriptor automatic generation(from common image view formats gathered from all image usages specific to a render pass).\
+&ensp;&ensp;   1.Resources creation decriptor automatic generation(from common image view formats gathered from all image usages specific to  render passes).\
 &ensp;&ensp;   2.Remove **format** field of AttachUsage and TexUsage, it can be infered from image view formats by finding the common one.\
 Graphics-level features under development:\
 &ensp;&ensp;   1.MSAA Defered Rendering.\
